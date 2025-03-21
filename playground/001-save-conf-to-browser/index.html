@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local Storage Experiment</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+        label {
+            width: 80px;
+            font-weight: bold;
+        }
+        button {
+            margin-left: 10px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        #data-display {
+            padding: 5px;
+            min-height: 20px;
+            min-width: 200px;
+            border: 1px solid #ccc;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <h1>Local Storage Experiment</h1>
+    
+    <div class="container">
+        <label for="data-display">Data:</label>
+        <div id="data-display"></div>
+        <button id="read-btn">Read</button>
+    </div>
+    
+    <div class="container">
+        <label for="user-input">Input:</label>
+        <input type="text" id="user-input" />
+        <button id="set-btn">Set</button>
+    </div>
+
+    <script>
+        // Get elements
+        const dataDisplay = document.getElementById('data-display');
+        const userInput = document.getElementById('user-input');
+        const readBtn = document.getElementById('read-btn');
+        const setBtn = document.getElementById('set-btn');
+        
+        // Storage key
+        const STORAGE_KEY = 'experimentData';
+        
+        // Read from local storage
+        readBtn.addEventListener('click', function() {
+            const storedValue = localStorage.getItem(STORAGE_KEY) || '';
+            dataDisplay.textContent = storedValue;
+        });
+        
+        // Set to local storage
+        setBtn.addEventListener('click', function() {
+            const value = userInput.value;
+            localStorage.setItem(STORAGE_KEY, value);
+            // Optional: Clear the input after saving
+            userInput.value = '';
+            // Optional: Show a confirmation or update display
+            dataDisplay.textContent = value;
+        });
+        
+        // Optional: Initialize display with stored value if exists
+        window.addEventListener('load', function() {
+            const storedValue = localStorage.getItem(STORAGE_KEY);
+            if (storedValue) {
+                dataDisplay.textContent = storedValue;
+            }
+        });
+    </script>
+</body>
+</html>
