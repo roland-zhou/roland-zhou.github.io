@@ -69,8 +69,8 @@
             background-color: #e0e0e0;
         }
         .models-container {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            display: flex;
+            flex-direction: column;
             gap: 20px;
         }
         .model-output {
@@ -88,7 +88,11 @@
             background-color: #f8f9fa;
             padding: 15px;
             border-radius: 6px;
-            min-height: 100px;
+            min-height: 25px;
+            line-height: 1.5;
+            width: 100%;
+            box-sizing: border-box;
+            overflow-wrap: break-word;
         }
         .modal {
             display: none;
@@ -154,6 +158,30 @@
             text-align: center;
             margin-top: 5px;
         }
+        /* Media query for narrow screens */
+        @media (max-width: 600px) {
+            .input-container {
+                flex-direction: column;
+            }
+            textarea {
+                border-radius: 8px 8px 0 0;
+            }
+            .translate-btn {
+                width: 100%;
+                padding: 15px 0;
+                border-radius: 0 0 8px 8px;
+                flex-direction: row;
+                justify-content: center;
+                gap: 10px;
+            }
+            .translate-btn br {
+                display: none;
+            }
+            .shortcut-hint {
+                margin-top: 0;
+                margin-left: 10px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -171,7 +199,7 @@
     <div class="input-container">
         <textarea id="input-text" placeholder="输入要翻译的内容 / Enter the content to be translated"></textarea>
         <button class="translate-btn" id="translate-btn">
-            翻译<br>Trans
+            翻译<br> Trans
             <div class="shortcut-hint">⌘+Enter</div>
         </button>
     </div>
