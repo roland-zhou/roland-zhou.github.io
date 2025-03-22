@@ -190,8 +190,8 @@
             <div class="output-content" id="doubao-output"></div>
         </div>
         <div class="model-output">
-            <div class="model-title">Claude</div>
-            <div class="output-content" id="claude-output"></div>
+            <div class="model-title">Grok</div>
+            <div class="output-content" id="grok-output"></div>
         </div>
     </div>
 
@@ -215,8 +215,8 @@
                 <input type="password" id="doubao-key" placeholder="Enter your Doubao API key">
             </div>
             <div class="api-input">
-                <label for="claude-key">Claude API Key:</label>
-                <input type="password" id="claude-key" placeholder="Enter your Claude API key">
+                <label for="grok-key">Grok API Key:</label>
+                <input type="password" id="grok-key" placeholder="Enter your Grok API key">
             </div>
             <button class="save-keys" id="save-keys">Save Keys</button>
         </div>
@@ -236,14 +236,14 @@
                 chatgpt: document.getElementById('chatgpt-output'),
                 deepseek: document.getElementById('deepseek-output'),
                 doubao: document.getElementById('doubao-output'),
-                claude: document.getElementById('claude-output')
+                grok: document.getElementById('grok-output')
             };
 
             const apiKeyInputs = {
                 openai: document.getElementById('openai-key'),
                 deepseek: document.getElementById('deepseek-key'),
                 doubao: document.getElementById('doubao-key'),
-                claude: document.getElementById('claude-key')
+                grok: document.getElementById('grok-key')
             };
 
             // Initialize the UI
@@ -265,7 +265,7 @@
                 apiKeyInputs.openai.value = localStorage.getItem('openai-key') || '';
                 apiKeyInputs.deepseek.value = localStorage.getItem('deepseek-key') || '';
                 apiKeyInputs.doubao.value = localStorage.getItem('doubao-key') || '';
-                apiKeyInputs.claude.value = localStorage.getItem('claude-key') || '';
+                apiKeyInputs.grok.value = localStorage.getItem('grok-key') || '';
             }
 
             // Save API keys to local storage
@@ -273,7 +273,7 @@
                 localStorage.setItem('openai-key', apiKeyInputs.openai.value);
                 localStorage.setItem('deepseek-key', apiKeyInputs.deepseek.value);
                 localStorage.setItem('doubao-key', apiKeyInputs.doubao.value);
-                localStorage.setItem('claude-key', apiKeyInputs.claude.value);
+                localStorage.setItem('grok-key', apiKeyInputs.grok.value);
             }
 
             // Check if required API keys are set
@@ -282,7 +282,7 @@
                     localStorage.getItem('openai-key') ||
                     localStorage.getItem('deepseek-key') ||
                     localStorage.getItem('doubao-key') ||
-                    localStorage.getItem('claude-key')
+                    localStorage.getItem('grok-key')
                 );
             }
 
@@ -341,8 +341,8 @@
                         case 'doubao':
                             response = await callDoubaoApi(prompt, apiKey);
                             break;
-                        case 'claude':
-                            response = await callClaudeApi(prompt, apiKey);
+                        case 'grok':
+                            response = await callGrokApi(prompt, apiKey);
                             break;
                         default:
                             throw new Error(`Unknown model: ${model}`);
@@ -436,21 +436,19 @@
                 return data.choices[0].message.content.trim();
             }
 
-            // Claude API call
-            async function callClaudeApi(prompt, apiKey) {
-                const response = await fetch('https://api.anthropic.com/v1/messages', {
+            // Grok API call
+            async function callGrokApi(prompt, apiKey) {
+                const response = await fetch('https://api.x.ai/v1/chat/completions', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'x-api-key': apiKey,
-                        'anthropic-version': '2023-06-01'
+                        'Authorization': `Bearer ${apiKey}`
                     },
                     body: JSON.stringify({
-                        model: 'claude-3-7-sonnet-20250219',
+                        model: 'grok-2-latest',
                         messages: [
                             { role: 'user', content: prompt }
                         ],
-                        max_tokens: 1000,
                         temperature: 0.3
                     })
                 });
@@ -461,7 +459,7 @@
                     throw new Error(data.error?.message || 'Unknown error');
                 }
                 
-                return data.content[0].text;
+                return data.choices[0].message.content;
             }
 
             // Translate the input text
@@ -487,8 +485,8 @@
                         .then(result => outputElements.deepseek.textContent = result),
                     callLLMApi('doubao', prompt, localStorage.getItem('doubao-key'))
                         .then(result => outputElements.doubao.textContent = result),
-                    callLLMApi('claude', prompt, localStorage.getItem('claude-key'))
-                        .then(result => outputElements.claude.textContent = result)
+                    callLLMApi('grok', prompt, localStorage.getItem('grok-key'))
+                        .then(result => outputElements.grok.textContent = result)
                 ]).catch(error => {
                     console.error('Error translating text:', error);
                 });
