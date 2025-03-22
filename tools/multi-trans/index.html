@@ -198,6 +198,22 @@
         .clear-btn:hover {
             background-color: #e0e0e0;
         }
+        .copy-btn {
+            position: absolute;
+            bottom: 10px;
+            right: 220px;
+            background-color: rgba(240, 240, 240, 0.8);
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 12px;
+            z-index: 10;
+            transition: background-color 0.2s;
+        }
+        .copy-btn:hover {
+            background-color: #e0e0e0;
+        }
         /* Media query for narrow screens */
         @media (max-width: 600px) {
             .input-container {
@@ -225,6 +241,10 @@
                 right: 10px;
                 bottom: 60px; /* Position above the translate button in narrow mode */
             }
+            .copy-btn {
+                right: 60px;
+                bottom: 60px; /* Position above the translate button in narrow mode */
+            }
         }
     </style>
 </head>
@@ -242,6 +262,7 @@
 
     <div class="input-container">
         <textarea id="input-text" placeholder="输入要翻译的内容 / Enter the content to be translated"></textarea>
+        <button class="copy-btn" id="copy-btn">Copy</button>
         <button class="clear-btn" id="clear-btn">Clear</button>
         <button class="translate-btn" id="translate-btn">
             翻译<br> Trans
@@ -589,6 +610,22 @@
             clearBtn.addEventListener('click', function() {
                 inputText.value = '';
                 resetOutputs();
+            });
+
+            // Copy button functionality
+            const copyBtn = document.getElementById('copy-btn');
+            copyBtn.addEventListener('click', function() {
+                const text = inputText.value.trim();
+                if (text) {
+                    navigator.clipboard.writeText(text).then(() => {
+                        // Show temporary visual feedback
+                        const originalText = copyBtn.textContent;
+                        copyBtn.textContent = 'Copied!';
+                        setTimeout(() => {
+                            copyBtn.textContent = originalText;
+                        }, 1500);
+                    });
+                }
             });
 
             // Close modal if clicking outside of it
