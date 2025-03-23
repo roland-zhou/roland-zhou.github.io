@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Which is Better?</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    .option-row {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    textarea {
+      resize: none;
+      height: 2em;
+      padding: 5px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 1em;
+      overflow-y: hidden;
+      width: 100%;
+      line-height: 1.2;
+      box-sizing: border-box;
+    }
+    .quote {
+      font-size: 1.2em;
+    }
+    .buttons {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      color: white;
+      cursor: pointer;
+      font-size: 1em;
+    }
+    button:hover {
+      opacity: 0.9;
+    }
+    #askButton {
+      flex-grow: 1;
+      background-color: #4a90e2;
+    }
+    #askButton:hover {
+      background-color: #357abD;
+    }
+    #clearButton {
+      width: 80px;
+      background-color: #f06292;
+    }
+    #clearButton:hover {
+      background-color: #ec407a;
+    }
+    #result {
+      border: 1px solid #eee;
+      padding: 15px;
+      border-radius: 4px;
+      background-color: #f9f9f9;
+      min-height: 100px;
+      white-space: pre-wrap;
+    }
+    .loading {
+      color: #666;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <h1>Which is Better?</h1>
+  
+  <div class="container">
+    <div class="option-row">Which is better,</div>
+    <div class="option-row">
+        <span class="quote">"</span>
+        <textarea id="option1" placeholder="a"></textarea>
+        <span class="quote">"</span>
+    </div>
+    <div class="option-row">or</div>
+    <div class="option-row">
+        <span class="quote">"</span>
+        <textarea id="option2" placeholder="b"></textarea>
+        <span class="quote">"</span>
+    </div>
+  </div>
+  
+  <div class="buttons">
+    <button id="askButton">?</button>
+    <button id="clearButton">clear</button>
+  </div>
+  
+  <div id="result"></div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const option1 = document.getElementById('option1');
+      const option2 = document.getElementById('option2');
+      const askButton = document.getElementById('askButton');
+      const clearButton = document.getElementById('clearButton');
+      const resultDiv = document.getElementById('result');
+      
+      // Auto-adjust textarea height
+      const adjustHeight = (element) => {
+        element.style.height = '1.5em';
+        const scrollHeight = element.scrollHeight;
+        if (scrollHeight > element.clientHeight) {
+          element.style.height = scrollHeight + 'px';
+        }
+      };
+      
+      option1.addEventListener('input', () => adjustHeight(option1));
+      option2.addEventListener('input', () => adjustHeight(option2));
+
+      // Ask GPT function
+      const askGPT = async () => {
+        const text1 = option1.value.trim();
+        const text2 = option2.value.trim();
+        
+        if (!text1 || !text2) {
+          resultDiv.textContent = 'Please fill in both options.';
+          return;
+        }
+        
+        const apiKey = localStorage.getItem('openai-key');
+        if (!apiKey) {
+          resultDiv.innerHTML = 'OpenAI API key not found. Please set it in localStorage with key <code>openai-key</code>.';
+          return;
+        }
+        
+        resultDiv.innerHTML = '<p class="loading">Asking ChatGPT...</p>';
+        
+        try {
+          const prompt = `Which is better, "${text1}" or "${text2}"?`;
+          
+          const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+              model: 'gpt-4o',
+              messages: [
+                {
+                  role: 'user',
+                  content: prompt
+                }
+              ],
+              temperature: 0.7
+            })
+          });
+          
+          const data = await response.json();
+          
+          if (data.error) {
+            resultDiv.textContent = `Error: ${data.error.message}`;
+          } else {
+            const content = data.choices[0].message.content;
+            resultDiv.textContent = content;
+          }
+        } catch (error) {
+          resultDiv.textContent = `An error occurred: ${error.message}`;
+        }
+      };
+
+      // Add keyboard shortcut for cmd+enter or ctrl+enter
+      document.addEventListener('keydown', (event) => {
+        // Check if cmd+enter (Mac) or ctrl+enter (Windows/Linux)
+        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+          event.preventDefault();
+          askGPT();
+        }
+      });
+      
+      // Ask GPT via button click
+      askButton.addEventListener('click', askGPT);
+      
+      // Clear all
+      clearButton.addEventListener('click', () => {
+        option1.value = '';
+        option2.value = '';
+        resultDiv.textContent = '';
+        option1.style.height = 'auto';
+        option2.style.height = 'auto';
+      });
+    });
+  </script>
+</body>
+</html>
