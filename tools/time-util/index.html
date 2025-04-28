@@ -36,6 +36,12 @@
             align-items: center;
         }
 
+        .date-display {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
         #timeInput {
             flex: 1;
             padding: 12px;
@@ -45,7 +51,15 @@
             background: #f8f8f8;
         }
 
-        #copyBtn {
+        #dateInput {
+            flex: 1;
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+        }
+
+        #copyTimeBtn {
             padding: 12px 20px;
             background: #4CAF50;
             color: white;
@@ -56,10 +70,24 @@
             transition: background 0.3s;
         }
 
-        #copyBtn:hover {
+        #copyTimeBtn:hover {
             background: #45a049;
         }
 
+        #copyDateBtn {
+            padding: 12px 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 6px; 
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+
+        #copyDateBtn:hover {
+            background: #45a049;
+        }
         .copied {
             background: #2196F3 !important;
         }
@@ -82,13 +110,30 @@
 </head>
 <body>
     <div class="container">
+        <div class="date-display">
+            <input type="text" id="dateInput" readonly>
+            <button id="copyDateBtn">Copy</button>
+        </div>
+        <br/>
         <div class="time-display">
             <input type="text" id="timeInput" readonly>
-            <button id="copyBtn">Copy</button>
+            <button id="copyTimeBtn">Copy</button>
         </div>
     </div>
 
     <script>
+        function updateDate() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            document.getElementById('dateInput').value = `${year}-${month}-${day}`;
+        }
+
+        // Update date immediately and then every second
+        updateDate();
+        setInterval(updateDate, 1000);
+
         function updateTime() {
             const now = new Date();
             const year = now.getFullYear();
@@ -107,18 +152,34 @@
         setInterval(updateTime, 1000);
 
         // Copy functionality
-        const copyBtn = document.getElementById('copyBtn');
-        copyBtn.addEventListener('click', async () => {
+        const copyTimeBtn = document.getElementById('copyTimeBtn');
+        copyTimeBtn.addEventListener('click', async () => {
             const timeInput = document.getElementById('timeInput');
             try {
                 await navigator.clipboard.writeText(timeInput.value);
-                copyBtn.textContent = 'Copied!';
-                copyBtn.classList.add('copied');
+                copyTimeBtn.textContent = 'Copied!';
+                copyTimeBtn.classList.add('copied');
                 setTimeout(() => {
-                    copyBtn.textContent = 'Copy';
-                    copyBtn.classList.remove('copied');
+                    copyTimeBtn.textContent = 'Copy';
+                    copyTimeBtn.classList.remove('copied');
                 }, 2000);
             } catch (err) {
+                console.error('Failed to copy text: ', err);
+            }
+        });
+
+        const copyDateBtn = document.getElementById('copyDateBtn');
+        copyDateBtn.addEventListener('click', async () => {
+            const dateInput = document.getElementById('dateInput');
+            try {
+                await navigator.clipboard.writeText(dateInput.value);
+                copyDateBtn.textContent = 'Copied!';
+                copyDateBtn.classList.add('copied');
+                setTimeout(() => {
+                    copyDateBtn.textContent = 'Copy';
+                    copyDateBtn.classList.remove('copied');
+                }, 2000);
+            } catch (err) { 
                 console.error('Failed to copy text: ', err);
             }
         });
