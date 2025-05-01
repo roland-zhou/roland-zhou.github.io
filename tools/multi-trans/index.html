@@ -215,6 +215,22 @@
         .copy-btn:hover {
             background-color: #e0e0e0;
         }
+        .say-btn {
+            position: absolute;
+            bottom: 10px;
+            right: 270px;
+            background-color: rgba(240, 240, 240, 0.8);
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 12px;
+            z-index: 10;
+            transition: background-color 0.2s;
+        }
+        .say-btn:hover {
+            background-color: #e0e0e0;
+        }
         /* Media query for narrow screens */
         @media (max-width: 600px) {
             .input-container {
@@ -265,6 +281,7 @@
         <textarea id="input-text" placeholder="输入要翻译的内容 / Enter the content to be translated"></textarea>
         <button class="copy-btn" id="copy-btn">Copy</button>
         <button class="clear-btn" id="clear-btn">Clear</button>
+        <button class="say-btn" id="say-btn">Say</button>
         <button class="translate-btn" id="translate-btn">
             翻译<br> Trans
             <div class="shortcut-hint">⌘+Enter</div>
@@ -327,6 +344,7 @@
             const closeModal = document.getElementById('close-modal');
             const saveKeysBtn = document.getElementById('save-keys');
             const clearBtn = document.getElementById('clear-btn');
+            const sayBtn = document.getElementById('say-btn');
             
             const outputElements = {
                 chatgpt: document.getElementById('chatgpt-output'),
@@ -634,6 +652,80 @@
                 if (event.target === apiKeysModal) {
                     hideApiKeysModal();
                 }
+            });
+
+            // Text to speech functionality
+            async function textToSpeech(text) {
+                const apiKey = localStorage.getItem('openai-key');
+                if (!apiKey) {
+                    alert('OpenAI API key not set. Please configure in settings.');
+                    return;
+                }
+
+                try {
+                    const response = await fetch('https://api.openai.com/v1/audio/speech', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${apiKey}`
+                        },
+                        body: JSON.stringify({
+                            model: 'gpt-4o-mini-tts',
+                            input: text,
+                            voice: 'nova',
+                            instructions: 'Prefer American English. Relatively slow and clear.'
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to generate speech');
+                    }
+
+                    const audioBlob = await response.blob();
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    const audio = new Audio(audioUrl);
+                    audio.play();
+                } catch (error) {
+                    console.error('Error in text to speech:', error);
+                    alert('Error generating speech: ' + error.message);
+                }
+            }
+
+            // Get phonetic transcription prompt
+            function getPhoneticPrompt(text) {
+                return `Please provide the phonetic transcription for words in the following sentence. Prefer American English. Keep the answer consice, just the breakdown. <content>${text}</content>`;
+            }
+
+            // Say button functionality
+            sayBtn.addEventListener('click', async function() {
+                const text = inputText.value.trim();
+                if (!text) {
+                    alert('Please enter some text first!');
+                    return;
+                }
+
+                // Reset outputs
+                resetOutputs();
+
+                // Get phonetic prompt
+                const prompt = getPhoneticPrompt(text);
+
+                // Call text to speech
+                await textToSpeech(text);
+
+                // Call each LLM API in parallel for phonetic transcription
+                Promise.all([
+                    callLLMApi('chatgpt', prompt, localStorage.getItem('openai-key'))
+                        .then(result => outputElements.chatgpt.textContent = result),
+                    callLLMApi('deepseek', prompt, localStorage.getItem('deepseek-key'))
+                        .then(result => outputElements.deepseek.textContent = result),
+                    callLLMApi('doubao', prompt, localStorage.getItem('doubao-key'))
+                        .then(result => outputElements.doubao.textContent = result),
+                    callLLMApi('grok', prompt, localStorage.getItem('grok-key'))
+                        .then(result => outputElements.grok.textContent = result)
+                ]).catch(error => {
+                    console.error('Error getting phonetic transcriptions:', error);
+                });
             });
 
             // Initialize the app
