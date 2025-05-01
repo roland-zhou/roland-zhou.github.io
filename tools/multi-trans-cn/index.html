@@ -215,6 +215,22 @@
         .copy-btn:hover {
             background-color: #e0e0e0;
         }
+        .say-btn {
+            position: absolute;
+            bottom: 10px;
+            right: 270px;
+            background-color: rgba(240, 240, 240, 0.8);
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 12px;
+            z-index: 10;
+            transition: background-color 0.2s;
+        }
+        .say-btn:hover {
+            background-color: #e0e0e0;
+        }
         /* Media query for narrow screens */
         @media (max-width: 600px) {
             .input-container {
@@ -251,7 +267,7 @@
 </head>
 <body>
     <header>
-        <h1>Multi-Trans</h1>
+        <h1>Multi-Trans (CN)</h1>
         <button class="settings-btn" id="settings-btn">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                 <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z"/>
@@ -265,6 +281,7 @@
         <textarea id="input-text" placeholder="输入要翻译的内容 / Enter the content to be translated"></textarea>
         <button class="copy-btn" id="copy-btn">Copy</button>
         <button class="clear-btn" id="clear-btn">Clear</button>
+        <button class="say-btn" id="say-btn">Say</button>
         <button class="translate-btn" id="translate-btn">
             翻译<br> Trans
             <div class="shortcut-hint">⌘+Enter</div>
@@ -594,6 +611,152 @@
 
             // Initialize the app
             init();
+
+            // Text to speech functionality using CosyVoice WebSocket API
+            async function textToSpeech(text) {
+                const apiKey = localStorage.getItem('qwen-key');
+                if (!apiKey) {
+                    alert('Qwen API key not set. Please configure in settings.');
+                    return;
+                }
+
+                try {
+                    // First get a proxy WebSocket URL with proper authentication
+                    const response = await fetch('https://dashscope.aliyuncs.com/api/v1/services/aigc/text2speech/websocket', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${apiKey}`,
+                            'Content-Type': 'application/json',
+                            'X-DashScope-DataInspection': 'enable'
+                        },
+                        body: JSON.stringify({
+                            model: 'cosyvoice-v1',
+                            input: {
+                                text: text
+                            },
+                            voice: 'longwan',
+                            format: 'mp3',
+                            sample_rate: 22050
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    if (!data.websocket_url) {
+                        throw new Error('No WebSocket URL provided');
+                    }
+
+                    // Create WebSocket connection using the provided URL
+                    const ws = new WebSocket(data.websocket_url);
+                    
+                    // Add connection event handler
+                    ws.addEventListener('open', () => {
+                        console.log('WebSocket connected');
+                        // Send run-task instruction
+                        ws.send(JSON.stringify({
+                            header: {
+                                task_id: Date.now().toString(),
+                                event: "run-task"
+                            },
+                            payload: {
+                                model: "cosyvoice-v1",
+                                voice: "longwan",
+                                text: text,
+                                format: "mp3",
+                                sample_rate: 22050
+                            }
+                        }));
+                    });
+
+                    let audioChunks = [];
+                    
+                    ws.addEventListener('message', (event) => {
+                        const data = JSON.parse(event.data);
+                        console.log('Received message:', data);
+                        
+                        if (data.header.event === "result-generated") {
+                            // Handle audio data
+                            const audioData = data.payload.audio;
+                            if (audioData) {
+                                // Convert base64 to binary
+                                const binaryData = atob(audioData);
+                                const arrayBuffer = new ArrayBuffer(binaryData.length);
+                                const uint8Array = new Uint8Array(arrayBuffer);
+                                for (let i = 0; i < binaryData.length; i++) {
+                                    uint8Array[i] = binaryData.charCodeAt(i);
+                                }
+                                audioChunks.push(uint8Array);
+                            }
+                        } else if (data.header.event === "task-finished") {
+                            // Combine all audio chunks and play
+                            const blob = new Blob(audioChunks, { type: 'audio/mp3' });
+                            const audioUrl = URL.createObjectURL(blob);
+                            const audio = new Audio(audioUrl);
+                            audio.play();
+                            
+                            // Clean up
+                            ws.close();
+                        } else if (data.header.event === "task-failed") {
+                            console.error('Task failed:', data);
+                            alert('Speech synthesis failed: ' + (data.payload?.message || 'Unknown error'));
+                            ws.close();
+                        }
+                    });
+
+                    ws.addEventListener('error', (error) => {
+                        console.error('WebSocket error:', error);
+                        alert('Error generating speech. Please check your API key and try again.');
+                        ws.close();
+                    });
+
+                    ws.addEventListener('close', () => {
+                        console.log('WebSocket connection closed');
+                    });
+
+                } catch (error) {
+                    console.error('Error in text to speech:', error);
+                    alert('Error generating speech: ' + error.message);
+                }
+            }
+
+            // Get phonetic transcription prompt
+            function getPhoneticPrompt(text) {
+                return `Please provide the phonetic transcription for words in the following sentence. Prefer American English. Keep the answer consice, just the breakdown. <content>${text}</content>`;
+            }
+
+            // Say button functionality
+            const sayBtn = document.getElementById('say-btn');
+            sayBtn.addEventListener('click', async function() {
+                const text = inputText.value.trim();
+                if (!text) {
+                    alert('Please enter some text first!');
+                    return;
+                }
+
+                // Reset outputs
+                resetOutputs();
+
+                // Get phonetic prompt
+                const prompt = getPhoneticPrompt(text);
+
+                // Call text to speech
+                await textToSpeech(text);
+
+                // Call each LLM API in parallel for phonetic transcription
+                Promise.all([
+                    callLLMApi('deepseek', prompt, localStorage.getItem('deepseek-key'))
+                        .then(result => outputElements.deepseek.textContent = result),
+                    callLLMApi('doubao', prompt, localStorage.getItem('doubao-key'))
+                        .then(result => outputElements.doubao.textContent = result),
+                    callLLMApi('qwen', prompt, localStorage.getItem('qwen-key'))
+                        .then(result => outputElements.qwen.textContent = result)
+                ]).catch(error => {
+                    console.error('Error getting phonetic transcriptions:', error);
+                });
+            });
 
             // Add click-to-copy functionality to output content
             document.querySelectorAll('.output-content').forEach(element => {
