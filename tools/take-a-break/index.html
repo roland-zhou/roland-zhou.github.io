@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>take a break</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            background: #000;
+        }
+
+        #canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            cursor: none;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+
+    <script>
+        class OceanBreathingMeditation {
+            constructor() {
+                this.canvas = document.getElementById('canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.time = 0;
+                this.colorTime = 0;
+                
+                // 柔和彩虹色调
+                this.rainbowColors = [
+                    { r: 255, g: 182, b: 193 },  // 柔和粉红
+                    { r: 255, g: 218, b: 185 },  // 柔和桃色
+                    { r: 255, g: 239, b: 186 },  // 柔和黄色
+                    { r: 186, g: 255, b: 201 },  // 柔和绿色
+                    { r: 186, g: 225, b: 255 },  // 柔和蓝色
+                    { r: 203, g: 186, b: 255 },  // 柔和紫色
+                    { r: 255, g: 186, b: 255 },  // 柔和洋红
+                ];
+                
+                this.currentColorIndex = 0;
+                this.nextColorIndex = 1;
+                this.colorTransition = 0;
+                
+                this.breathingCycle = {
+                    inhale: 4000,     // 吸气4秒
+                    hold1: 2000,      // 屏气2秒
+                    exhale: 6000,     // 呼气6秒
+                    hold2: 1000       // 屏气1秒
+                };
+                
+                // 海浪参数
+                this.waveParams = {
+                    amplitude: 50,
+                    frequency: 0.01,
+                    speed: 0.02,
+                    layers: 5
+                };
+                
+                this.resize();
+                this.animate();
+                
+                window.addEventListener('resize', () => this.resize());
+            }
+
+            resize() {
+                const dpr = window.devicePixelRatio || 1;
+                this.canvas.width = window.innerWidth * dpr;
+                this.canvas.height = window.innerHeight * dpr;
+                this.ctx.scale(dpr, dpr);
+                
+                this.centerX = window.innerWidth / 2;
+                this.centerY = window.innerHeight / 2;
+                this.baseWaveHeight = window.innerHeight * 0.6;
+            }
+
+            getBreathingIntensity() {
+                const totalCycle = this.breathingCycle.inhale + this.breathingCycle.hold1 + 
+                                 this.breathingCycle.exhale + this.breathingCycle.hold2;
+                const cyclePosition = (this.time * 16) % totalCycle;
+                
+                if (cyclePosition < this.breathingCycle.inhale) {
+                    // 吸气阶段：从0.3到1.0
+                    const progress = cyclePosition / this.breathingCycle.inhale;
+                    return 0.3 + 0.7 * this.easeInOut(progress);
+                } else if (cyclePosition < this.breathingCycle.inhale + this.breathingCycle.hold1) {
+                    // 屏气阶段1：保持1.0
+                    return 1.0;
+                } else if (cyclePosition < this.breathingCycle.inhale + this.breathingCycle.hold1 + this.breathingCycle.exhale) {
+                    // 呼气阶段：从1.0到0.3
+                    const progress = (cyclePosition - this.breathingCycle.inhale - this.breathingCycle.hold1) / this.breathingCycle.exhale;
+                    return 1.0 - 0.7 * this.easeInOut(progress);
+                } else {
+                    // 屏气阶段2：保持0.3
+                    return 0.3;
+                }
+            }
+
+            easeInOut(t) {
+                return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+            }
+
+            updateColors() {
+                this.colorTime += 0.003;
+                
+                // 更新颜色过渡
+                this.colorTransition += 0.008;
+                if (this.colorTransition >= 1) {
+                    this.colorTransition = 0;
+                    this.currentColorIndex = this.nextColorIndex;
+                    this.nextColorIndex = (this.nextColorIndex + 1) % this.rainbowColors.length;
+                }
+            }
+
+            getCurrentColor(alpha = 1) {
+                const current = this.rainbowColors[this.currentColorIndex];
+                const next = this.rainbowColors[this.nextColorIndex];
+                const t = this.easeInOut(this.colorTransition);
+                
+                return {
+                    r: Math.floor(current.r * (1 - t) + next.r * t),
+                    g: Math.floor(current.g * (1 - t) + next.g * t),
+                    b: Math.floor(current.b * (1 - t) + next.b * t),
+                    a: alpha
+                };
+            }
+
+            getWaveColor(layerIndex, alpha) {
+                // 为不同层使用稍微不同的颜色
+                const colorOffset = layerIndex * 0.1;
+                const adjustedColorTime = this.colorTime + colorOffset;
+                
+                const colorIndex1 = Math.floor(adjustedColorTime * this.rainbowColors.length) % this.rainbowColors.length;
+                const colorIndex2 = (colorIndex1 + 1) % this.rainbowColors.length;
+                const t = (adjustedColorTime * this.rainbowColors.length) % 1;
+                
+                const color1 = this.rainbowColors[colorIndex1];
+                const color2 = this.rainbowColors[colorIndex2];
+                
+                return {
+                    r: Math.floor(color1.r * (1 - t) + color2.r * t),
+                    g: Math.floor(color1.g * (1 - t) + color2.g * t),
+                    b: Math.floor(color1.b * (1 - t) + color2.b * t),
+                    a: alpha
+                };
+            }
+
+            drawBackground() {
+                // 创建彩虹渐变背景
+                const gradient = this.ctx.createLinearGradient(0, 0, 0, window.innerHeight);
+                
+                // 使用当前颜色创建平滑的背景渐变
+                const baseColor = this.getCurrentColor();
+                const darkerColor = {
+                    r: Math.floor(baseColor.r * 0.3),
+                    g: Math.floor(baseColor.g * 0.3),
+                    b: Math.floor(baseColor.b * 0.3)
+                };
+                
+                gradient.addColorStop(0, `rgba(${darkerColor.r}, ${darkerColor.g}, ${darkerColor.b}, 1)`);
+                gradient.addColorStop(0.5, `rgba(${Math.floor(baseColor.r * 0.6)}, ${Math.floor(baseColor.g * 0.6)}, ${Math.floor(baseColor.b * 0.6)}, 1)`);
+                gradient.addColorStop(1, `rgba(${darkerColor.r}, ${darkerColor.g}, ${darkerColor.b}, 1)`);
+                
+                this.ctx.fillStyle = gradient;
+                this.ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+            }
+
+            drawOceanWaves() {
+                const breathIntensity = this.getBreathingIntensity();
+                
+                // 绘制多层海浪
+                for (let layer = 0; layer < this.waveParams.layers; layer++) {
+                    this.drawWaveLayer(layer, breathIntensity);
+                }
+            }
+
+            drawWaveLayer(layerIndex, breathIntensity) {
+                const layerOffset = layerIndex * 30;
+                const waveHeight = this.baseWaveHeight + layerOffset;
+                const amplitude = this.waveParams.amplitude * (1 + breathIntensity) * (1 - layerIndex * 0.1);
+                const frequency = this.waveParams.frequency * (1 + layerIndex * 0.1);
+                const speed = this.waveParams.speed * (1 + layerIndex * 0.05);
+                const alpha = (0.7 - layerIndex * 0.1) * (0.3 + breathIntensity * 0.7);
+                
+                // 获取这一层的颜色
+                const waveColor = this.getWaveColor(layerIndex, alpha);
+                
+                // 创建垂直渐变
+                const gradient = this.ctx.createLinearGradient(0, waveHeight - amplitude, 0, window.innerHeight);
+                gradient.addColorStop(0, `rgba(${waveColor.r}, ${waveColor.g}, ${waveColor.b}, ${waveColor.a})`);
+                gradient.addColorStop(0.3, `rgba(${waveColor.r}, ${waveColor.g}, ${waveColor.b}, ${waveColor.a * 0.8})`);
+                gradient.addColorStop(1, `rgba(${waveColor.r}, ${waveColor.g}, ${waveColor.b}, 0.1)`);
+                
+                this.ctx.fillStyle = gradient;
+                
+                // 绘制波浪路径
+                this.ctx.beginPath();
+                this.ctx.moveTo(0, window.innerHeight);
+                
+                // 绘制底部
+                this.ctx.lineTo(0, waveHeight);
+                
+                // 绘制波浪曲线
+                for (let x = 0; x <= window.innerWidth; x += 5) {
+                    const wave1 = Math.sin((x * frequency) + (this.time * speed)) * amplitude * 0.5;
+                    const wave2 = Math.sin((x * frequency * 1.5) + (this.time * speed * 1.2)) * amplitude * 0.3;
+                    const wave3 = Math.sin((x * frequency * 0.7) + (this.time * speed * 0.8)) * amplitude * 0.2;
+                    
+                    const y = waveHeight + wave1 + wave2 + wave3;
+                    this.ctx.lineTo(x, y);
+                }
+                
+                // 完成路径
+                this.ctx.lineTo(window.innerWidth, window.innerHeight);
+                this.ctx.closePath();
+                this.ctx.fill();
+                
+                // 添加波光效果
+                this.drawWaveHighlights(layerIndex, breathIntensity, waveHeight, amplitude, frequency, speed);
+            }
+
+            drawWaveHighlights(layerIndex, breathIntensity, waveHeight, amplitude, frequency, speed) {
+                if (layerIndex > 2) return; // 只在前几层添加高光
+                
+                const highlightAlpha = 0.3 * breathIntensity;
+                const waveColor = this.getWaveColor(layerIndex, highlightAlpha);
+                
+                this.ctx.strokeStyle = `rgba(${waveColor.r}, ${waveColor.g}, ${waveColor.b}, ${highlightAlpha})`;
+                this.ctx.lineWidth = 2;
+                
+                this.ctx.beginPath();
+                for (let x = 0; x <= window.innerWidth; x += 3) {
+                    const wave1 = Math.sin((x * frequency) + (this.time * speed)) * amplitude * 0.5;
+                    const wave2 = Math.sin((x * frequency * 1.5) + (this.time * speed * 1.2)) * amplitude * 0.3;
+                    const wave3 = Math.sin((x * frequency * 0.7) + (this.time * speed * 0.8)) * amplitude * 0.2;
+                    
+                    const y = waveHeight + wave1 + wave2 + wave3;
+                    
+                    if (x === 0) {
+                        this.ctx.moveTo(x, y);
+                    } else {
+                        this.ctx.lineTo(x, y);
+                    }
+                }
+                this.ctx.stroke();
+            }
+
+            animate() {
+                this.time += 1;
+                
+                // 更新颜色
+                this.updateColors();
+                
+                // 清除画布
+                this.ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+                
+                // 绘制各个元素
+                this.drawBackground();
+                this.drawOceanWaves();
+                
+                requestAnimationFrame(() => this.animate());
+            }
+        }
+
+        // 页面加载完成后启动动画
+        window.addEventListener('load', () => {
+            new OceanBreathingMeditation();
+        });
+
+        // 按ESC键返回上一页
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                window.history.back();
+            }
+        });
+    </script>
+</body>
+</html>
