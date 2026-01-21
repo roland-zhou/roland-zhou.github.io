@@ -100,7 +100,7 @@ function constructPrompt(action, text) {
         case 'translate':
             return `Translate the following text to English (if it is not English) or to Chinese (if it is English). strictly only output the translated content:\n\n${text}`;
         case 'rewrite':
-            return `Rewrite the following text to make it more professional, clear, and concise. strictly only output the rewritten content:\n\n${text}`;
+            return `Rewrite the following text into two types, one is more casual and the other is more formal. strictly only output the rewritten content:\n\n${text}`;
         case 'explain':
             return `Explain the following text or concept in simple terms. strictly only output the explanation content:\n\n${text}`;
         default:
