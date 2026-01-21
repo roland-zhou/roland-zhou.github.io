@@ -389,3 +389,13 @@ textarea::placeholder {
 .secondary-btn:hover {
     background-color: var(--bg-color);
 }
+
+.version {
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    color: var(--text-secondary);
+    opacity: 0.3;
+    font-size: 0.8rem;
+    pointer-events: none;
+}
