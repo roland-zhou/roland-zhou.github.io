@@ -1,5 +1,6 @@
 // DOM Elements
 const inputText = document.getElementById('input-text');
+const cleanBtn = document.getElementById('clean-btn');
 const actionBtns = document.querySelectorAll('.action-btn');
 const outputContainer = document.getElementById('output-container');
 const outputContent = document.getElementById('output-content');
@@ -40,6 +41,13 @@ settingsBtn.addEventListener('click', openModal);
 closeModalBtn.addEventListener('click', closeModal);
 cancelSettingsBtn.addEventListener('click', closeModal);
 saveSettingsBtn.addEventListener('click', saveSettings);
+
+if (cleanBtn) {
+    cleanBtn.addEventListener('click', () => {
+        inputText.value = '';
+        inputText.focus();
+    });
+}
 
 // Close modal when clicking outside
 window.addEventListener('click', (e) => {

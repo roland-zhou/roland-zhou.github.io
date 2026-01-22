@@ -81,6 +81,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    position: relative;
 }
 
 textarea {
@@ -97,6 +98,34 @@ textarea {
 
 textarea::placeholder {
     color: #9ca3af;
+}
+
+.clean-btn {
+    position: absolute;
+    bottom: 1rem;
+    right: 1rem;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 0, 0.03);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    transition: var(--transition);
+    opacity: 0.7;
+    padding: 0;
+}
+
+.clean-btn:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+    color: var(--text-primary);
+    opacity: 1;
+}
+
+.clean-btn svg {
+    width: 16px;
+    height: 16px;
 }
 
 
