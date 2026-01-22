@@ -119,7 +119,7 @@ Strictly only output the rewritten content, without markdown formatting.
 
 <text-to-be-rewritten>${text}</text-to-be-rewritten>`;
         case 'explain':
-            return `Explain the following text or concept in simple terms.
+            return `Explain the meaning, grammar, and usage of the following text or concept in simple terms.
 Strictly only output the explanation content, without markdown formatting, but can use simple line breaks to separate different points.
 
 <text-to-be-explained>${text}</text-to-be-explained>`;
