@@ -114,8 +114,18 @@ Strictly only output the translated content, without markdown formatting.
         case 'rewrite':
             return `I'm an English learner who's mother language is Chinese.
 Please rewrite the following Chinglish text into good English.
-You can show one casual version and one formal version to fit different scenarios.
+Please show one casual version and one formal version to fit different scenarios.
+If it already fits one of the two styles, please keep it as it is and don't force rewrite it.
 Strictly only output the rewritten content, without markdown formatting.
+
+Example:
+<INPUT>
+Good work!
+</INPUT>
+<OUTPUT>
+Casual: Good job!
+Formal: Excellent work.
+</OUTPUT>
 
 <text-to-be-rewritten>${text}</text-to-be-rewritten>`;
         case 'explain':
