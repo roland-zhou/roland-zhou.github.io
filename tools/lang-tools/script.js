@@ -117,7 +117,7 @@ function constructPrompt(action, text) {
 }
 
 async function callGeminiAPI(prompt) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}&fields=candidates.content.parts.text`;
 
     const response = await fetch(url, {
         method: 'POST',
