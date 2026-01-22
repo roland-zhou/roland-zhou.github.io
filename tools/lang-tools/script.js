@@ -106,11 +106,23 @@ async function handleAction(action) {
 function constructPrompt(action, text) {
     switch (action) {
         case 'translate':
-            return `Translate the following text to English (if it is not English) or to Chinese (if it is English). strictly only output the translated content, without markdown formatting:\n\n${text}`;
+            return `Translate the following text to English (if it is not English) or to Chinese (if it is English).
+If it can be translated into different meanings, please translate it into two or three different versions.
+Strictly only output the translated content, without markdown formatting.
+
+<text-to-be-translated>${text}</text-to-be-translated>`;
         case 'rewrite':
-            return `Rewrite the following text into two types, one is more casual and the other is more formal. strictly only output the rewritten content, without markdown formatting:\n\n${text}`;
+            return `I'm an English learner who's mother language is Chinese.
+Please rewrite the following Chinglish text into good English.
+You can show one casual version and one formal version to fit different scenarios.
+Strictly only output the rewritten content, without markdown formatting.
+
+<text-to-be-rewritten>${text}</text-to-be-rewritten>`;
         case 'explain':
-            return `Explain the following text or concept in simple terms. strictly only output the explanation content, without markdown formatting:\n\n${text}`;
+            return `Explain the following text or concept in simple terms.
+Strictly only output the explanation content, without markdown formatting, but can use simple line breaks to separate different points.
+
+<text-to-be-explained>${text}</text-to-be-explained>`;
         default:
             return text;
     }
