@@ -428,3 +428,20 @@ textarea::placeholder {
     font-size: 0.8rem;
     pointer-events: none;
 }
+
+/* Choice Modal Styles */
+.choice-modal-body {
+    flex-direction: row;
+    justify-content: space-around;
+    padding-bottom: 2rem;
+}
+
+.choice-btn {
+    flex: 1;
+    padding: 1.5rem;
+    flex-direction: column;
+}
+
+.choice-btn .icon {
+    margin-bottom: 0.5rem;
+}

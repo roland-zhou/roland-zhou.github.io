@@ -91,6 +91,12 @@
             <div class="empty-state card" id="empty-state">
                 <p>Results will appear here...</p>
             </div>
+
+            <div style="display: flex; justify-content: flex-start;">
+                <button id="anki-btn" class="action-btn"
+                    style="flex: none; width: auto; padding-left: 1.5rem; padding-right: 1.5rem;">Create Anki
+                    Card</button>
+            </div>
         </main>
     </div>
 
@@ -117,6 +123,40 @@
             <div class="modal-footer">
                 <button id="cancel-settings" class="secondary-btn">Cancel</button>
                 <button id="save-settings" class="primary-btn">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Anki Modal -->
+    <div id="anki-modal" class="modal">
+        <div class="modal-content card">
+            <div class="modal-header">
+                <h2>Select Device</h2>
+                <button id="close-anki-modal" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body" style="flex-direction: row; justify-content: space-around; padding-bottom: 2rem;">
+                <button id="anki-pc-btn" class="action-btn" style="flex: 1; padding: 1.5rem; flex-direction: column;">
+                    <span class="icon" style="margin-bottom: 0.5rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                            <line x1="8" y1="21" x2="16" y2="21"></line>
+                            <line x1="12" y1="17" x2="12" y2="21"></line>
+                        </svg>
+                    </span>
+                    PC
+                </button>
+                <button id="anki-mobile-btn" class="action-btn"
+                    style="flex: 1; padding: 1.5rem; flex-direction: column;">
+                    <span class="icon" style="margin-bottom: 0.5rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                            <line x1="12" y1="18" x2="12" y2="18"></line>
+                        </svg>
+                    </span>
+                    Mobile
+                </button>
             </div>
         </div>
     </div>

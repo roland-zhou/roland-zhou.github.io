@@ -1,7 +1,7 @@
 // DOM Elements
 const inputText = document.getElementById('input-text');
 const cleanBtn = document.getElementById('clean-btn');
-const actionBtns = document.querySelectorAll('.action-btn');
+const actionBtns = document.querySelectorAll('.action-btn[data-action]');
 const outputContainer = document.getElementById('output-container');
 const outputContent = document.getElementById('output-content');
 const loadingIndicator = document.getElementById('loading-indicator');
@@ -29,10 +29,9 @@ function init() {
 actionBtns.forEach(btn => {
     btn.addEventListener('click', (e) => {
         // Find closest button in case user clicked icon span
-        const btnElement = e.target.closest('.action-btn');
-        if (btnElement) {
-            const action = btnElement.dataset.action;
-            handleAction(action);
+        const btnElement = e.target.closest('.action-btn[data-action]');
+        if (btnElement && btnElement.dataset.action) {
+            handleAction(btnElement.dataset.action);
         }
     });
 });
@@ -49,10 +48,51 @@ if (cleanBtn) {
     });
 }
 
-// Close modal when clicking outside
+const ankiBtn = document.getElementById('anki-btn');
+const ankiModal = document.getElementById('anki-modal');
+const closeAnkiModalBtn = document.getElementById('close-anki-modal');
+const ankiPcBtn = document.getElementById('anki-pc-btn');
+const ankiMobileBtn = document.getElementById('anki-mobile-btn');
+
+if (ankiBtn) {
+    ankiBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
+        if (isMobile) {
+            alert("mobile");
+        } else {
+            alert("PC");
+        }
+    });
+}
+
+if (closeAnkiModalBtn) {
+    closeAnkiModalBtn.addEventListener('click', () => {
+        ankiModal.classList.remove('show');
+    });
+}
+
+if (ankiPcBtn) {
+    ankiPcBtn.addEventListener('click', () => {
+        alert("PC");
+        ankiModal.classList.remove('show');
+    });
+}
+
+if (ankiMobileBtn) {
+    ankiMobileBtn.addEventListener('click', () => {
+        alert("mobile");
+        ankiModal.classList.remove('show');
+    });
+}
+
+// Close Anki modal when clicking outside
 window.addEventListener('click', (e) => {
     if (e.target === settingsModal) {
         closeModal();
+    }
+    if (e.target === ankiModal) {
+        ankiModal.classList.remove('show');
     }
 });
 
