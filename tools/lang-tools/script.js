@@ -44,6 +44,9 @@ saveSettingsBtn.addEventListener('click', saveSettings);
 if (cleanBtn) {
     cleanBtn.addEventListener('click', () => {
         inputText.value = '';
+        outputContent.value = '';
+        outputContainer.style.display = 'none';
+        emptyState.style.display = 'flex';
         inputText.focus();
     });
 }
@@ -146,9 +149,13 @@ async function handleAction(action) {
 function constructPrompt(action, text) {
     switch (action) {
         case 'translate':
-            return `Translate the following text to English (if it is not English) or to Chinese (if it is English).
-If it can be translated into different meanings, please translate it into two or three different versions.
-Strictly only output the translated content, without markdown formatting.
+            return `Translate the following text.
+If it contains any non-English content, translate the whole text into English.
+If it is entirely in Chinese, translate the whole text into English.
+If it is entirely in English, translate the whole text into Chinese.
+
+Except the translation, please always provide 2-3 alternative translations.
+Output only the translated content without any markdown formatting or explanations.
 
 <text-to-be-translated>${text}</text-to-be-translated>`;
         case 'rewrite':
