@@ -16,7 +16,10 @@ async function callGeminiAPI(prompt, apiKey) {
                 parts: [{
                     text: prompt
                 }]
-            }]
+            }],
+            generationConfig: {
+                temperature: 0
+            }
         })
     });
 
