@@ -138,7 +138,7 @@ async function handleAction(action) {
 
     try {
         const prompt = constructPrompt(action, text);
-        const result = await callGeminiAPI(prompt);
+        const result = await callGeminiAPI(prompt, apiKey);
         showResult(result);
     } catch (error) {
         console.error('Error:', error);
@@ -146,74 +146,9 @@ async function handleAction(action) {
     }
 }
 
-function constructPrompt(action, text) {
-    switch (action) {
-        case 'translate':
-            return `Translate the following text.
-If it contains any non-English content, translate the whole text into English.
-If it is entirely in Chinese, translate the whole text into English.
-If it is entirely in English, translate the whole text into Chinese.
-
-Except the translation, please always provide 2-3 alternative translations.
-Output only the translated content without any markdown formatting or explanations.
-
-<text-to-be-translated>${text}</text-to-be-translated>`;
-        case 'rewrite':
-            return `I'm an English learner who's mother language is Chinese.
-Please rewrite the following Chinglish text into good English.
-Please show one casual version and one formal version to fit different scenarios.
-If it already fits one of the two styles, please keep it as it is and don't force rewrite it.
-Strictly only output the rewritten content, without markdown formatting.
-
-Example:
-<INPUT>
-Good work!
-</INPUT>
-<OUTPUT>
-Casual: Good job!
-Formal: Excellent work.
-</OUTPUT>
-
-<text-to-be-rewritten>${text}</text-to-be-rewritten>`;
-        case 'explain':
-            return `Explain the meaning, grammar, and usage of the following text or concept in simple terms.
-Strictly only output the explanation content, without markdown formatting, but can use simple line breaks to separate different points.
-
-<text-to-be-explained>${text}</text-to-be-explained>`;
-        default:
-            return text;
-    }
-}
-
-async function callGeminiAPI(prompt) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}&fields=candidates.content.parts.text`;
-
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            contents: [{
-                parts: [{
-                    text: prompt
-                }]
-            }]
-        })
-    });
-
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error?.message || 'API request failed');
-    }
-
-    const data = await response.json();
-    if (data.candidates && data.candidates.length > 0 && data.candidates[0].content) {
-        return data.candidates[0].content.parts[0].text;
-    } else {
-        throw new Error('No content generated');
-    }
-}
+// constructPrompt is now loaded from prompts.js via script tag in HTML
+// callGeminiAPI is now loaded from api.js via script tag in HTML
+// See prompts.js and api.js for the implementations
 
 function showLoading() {
     emptyState.style.display = 'none';
