@@ -1,0 +1,53 @@
+{
+  "translate": [
+    {
+      "input": "Hello, how are you?",
+      "description": "Simple English to Chinese",
+      "expectedPatterns": ["你好", "怎么样"]
+    },
+    {
+      "input": "今天天气很好",
+      "description": "Simple Chinese to English",
+      "expectedPatterns": ["weather", "good", "today"]
+    },
+    {
+      "input": "I love programming",
+      "description": "English sentence about programming",
+      "expectedPatterns": ["编程", "喜欢"]
+    }
+  ],
+  "rewrite": [
+    {
+      "input": "I very like this movie",
+      "description": "Common Chinglish word order error",
+      "expectedPatterns": ["Casual:", "Formal:", "like this movie"]
+    },
+    {
+      "input": "The price is too expensive",
+      "description": "Chinglish: price + expensive",
+      "expectedPatterns": ["Casual:", "Formal:"]
+    },
+    {
+      "input": "I will give you a call tomorrow",
+      "description": "Already correct English",
+      "expectedPatterns": ["Casual:", "Formal:", "call"]
+    }
+  ],
+  "explain": [
+    {
+      "input": "break a leg",
+      "description": "English idiom",
+      "expectedPatterns": ["luck", "wish"]
+    },
+    {
+      "input": "present perfect tense",
+      "description": "Grammar concept",
+      "expectedPatterns": ["have", "has", "past"]
+    },
+    {
+      "input": "It's raining cats and dogs",
+      "description": "English idiom about weather",
+      "expectedPatterns": ["rain", "heavily", "idiom"]
+    }
+  ]
+}
