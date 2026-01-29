@@ -61,10 +61,17 @@ if (ankiBtn) {
     ankiBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
+        
         if (isMobile) {
-            alert("mobile");
+            const front = inputText.value.trim();
+            const back = outputContent.value.trim();
+            
+            if (!front && !back) return;
+            
+            const url = `anki://x-callback-url/addnote?type=Basic&deck=Default&fldFront=${encodeURIComponent(front)}&fldBack=${encodeURIComponent(back)}`;
+            window.location.href = url;
         } else {
-            alert("PC");
+            ankiModal.classList.add('show');
         }
     });
 }
@@ -84,7 +91,13 @@ if (ankiPcBtn) {
 
 if (ankiMobileBtn) {
     ankiMobileBtn.addEventListener('click', () => {
-        alert("mobile");
+        const front = inputText.value.trim();
+        const back = outputContent.value.trim();
+        
+        if (front || back) {
+            const url = `anki://x-callback-url/addnote?type=Basic&deck=Default&fldFront=${encodeURIComponent(front)}&fldBack=${encodeURIComponent(back)}`;
+            window.location.href = url;
+        }
         ankiModal.classList.remove('show');
     });
 }
