@@ -119,10 +119,15 @@ textarea::placeholder {
     color: #9ca3af;
 }
 
-.clean-btn {
+.floating-actions {
     position: absolute;
     bottom: 1rem;
     right: 1rem;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.floating-btn {
     width: 2rem;
     height: 2rem;
     border-radius: 50%;
@@ -134,24 +139,26 @@ textarea::placeholder {
     transition: var(--transition);
     opacity: 0.7;
     padding: 0;
+    border: none;
+    cursor: pointer;
 }
 
-.clean-btn:hover {
+.floating-btn:hover {
     background-color: rgba(0, 0, 0, 0.08);
     color: var(--text-primary);
     opacity: 1;
 }
 
 @media (prefers-color-scheme: dark) {
-    .clean-btn {
+    .floating-btn {
         background-color: rgba(255, 255, 255, 0.1);
     }
-    .clean-btn:hover {
+    .floating-btn:hover {
         background-color: rgba(255, 255, 255, 0.2);
     }
 }
 
-.clean-btn svg {
+.floating-btn svg {
     width: 16px;
     height: 16px;
 }

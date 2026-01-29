@@ -13,18 +13,37 @@ const closeModalBtn = document.getElementById('close-modal');
 const saveSettingsBtn = document.getElementById('save-settings');
 const cancelSettingsBtn = document.getElementById('cancel-settings');
 const apiKeyInput = document.getElementById('api-key');
+const openAiKeyInput = document.getElementById('openai-api-key');
+const inputSpeakerBtn = document.getElementById('input-speaker-btn');
+const outputSpeakerBtn = document.getElementById('output-speaker-btn');
 
 // State
 let apiKey = localStorage.getItem('gemini_api_key') || '';
+let openAiKey = localStorage.getItem('openai_api_key') || '';
 
 // Initialize
 function init() {
     if (apiKey) {
         apiKeyInput.value = apiKey;
     }
+    if (openAiKey) {
+        openAiKeyInput.value = openAiKey;
+    }
 }
 
 // Event Listeners
+
+if (inputSpeakerBtn) {
+    inputSpeakerBtn.addEventListener('click', () => {
+        handleSpeak(inputText.value.trim(), inputSpeakerBtn);
+    });
+}
+
+if (outputSpeakerBtn) {
+    outputSpeakerBtn.addEventListener('click', () => {
+        handleSpeak(outputContent.value.trim(), outputSpeakerBtn);
+    });
+}
 
 actionBtns.forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -116,6 +135,7 @@ window.addEventListener('click', (e) => {
 function openModal() {
     settingsModal.classList.add('show');
     apiKeyInput.value = apiKey; // Ensure input shows current saved key
+    openAiKeyInput.value = openAiKey;
     apiKeyInput.focus();
 }
 
@@ -125,12 +145,24 @@ function closeModal() {
 
 function saveSettings() {
     const newKey = apiKeyInput.value.trim();
+    const newOpenAiKey = openAiKeyInput.value.trim();
+    
     if (newKey) {
         apiKey = newKey;
         localStorage.setItem('gemini_api_key', apiKey);
+    }
+    
+    if (newOpenAiKey) {
+        openAiKey = newOpenAiKey;
+        localStorage.setItem('openai_api_key', openAiKey);
+    }
+
+    if (newKey || newOpenAiKey) {
         closeModal();
     } else {
-        alert('Please enter a valid API Key.');
+         // Allow closing if keys are empty (maybe user wants to clear them), 
+         // but previously it alerted. Let's just close.
+         closeModal();
     }
 }
 
@@ -180,4 +212,33 @@ function showResult(text) {
 
     // Enable buttons
     actionBtns.forEach(btn => btn.disabled = false);
+}
+
+async function handleSpeak(text, btn) {
+    if (!text) {
+        alert('Nothing to read.');
+        return;
+    }
+    if (!openAiKey) {
+        openModal();
+        alert('Please save your OpenAI API Key first for TTS.');
+        return;
+    }
+    
+    const originalIcon = btn.innerHTML;
+    // Show loading spinner
+    btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;"></div>';
+    btn.disabled = true;
+    
+    try {
+        const audioUrl = await callOpenAITTS(text, openAiKey);
+        const audio = new Audio(audioUrl);
+        audio.play();
+    } catch (error) {
+        console.error('TTS Error:', error);
+        alert(`TTS Error: ${error.message}`);
+    } finally {
+        btn.innerHTML = originalIcon;
+        btn.disabled = false;
+    }
 }

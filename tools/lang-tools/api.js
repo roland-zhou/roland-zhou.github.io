@@ -36,12 +36,38 @@ async function callGeminiAPI(prompt, apiKey) {
     }
 }
 
+async function callOpenAITTS(text, apiKey) {
+    const url = 'https://api.openai.com/v1/audio/speech';
+    
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            model: 'tts-1',
+            input: text,
+            voice: 'alloy'
+        })
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'TTS request failed');
+    }
+
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
+}
+
 // Export for Node.js (CommonJS)
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { callGeminiAPI };
+    module.exports = { callGeminiAPI, callOpenAITTS };
 }
 
 // Export for browser (global)
 if (typeof window !== 'undefined') {
     window.callGeminiAPI = callGeminiAPI;
+    window.callOpenAITTS = callOpenAITTS;
 }
