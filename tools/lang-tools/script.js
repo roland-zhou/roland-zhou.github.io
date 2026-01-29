@@ -63,8 +63,8 @@ if (ankiBtn) {
         const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
         
         if (isMobile) {
-            const front = inputText.value.trim();
-            const back = outputContent.value.trim();
+            const front = inputText.value.trim().replace(/\n/g, '<br>');
+            const back = outputContent.value.trim().replace(/\n/g, '<br>');
             
             if (!front && !back) return;
             
