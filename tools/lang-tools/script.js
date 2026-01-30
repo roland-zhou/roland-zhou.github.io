@@ -71,97 +71,60 @@ if (cleanBtn) {
 }
 
 const ankiBtn = document.getElementById('anki-btn');
-const ankiModal = document.getElementById('anki-modal');
-const closeAnkiModalBtn = document.getElementById('close-anki-modal');
-const ankiPcBtn = document.getElementById('anki-pc-btn');
-const ankiMobileBtn = document.getElementById('anki-mobile-btn');
 
 if (ankiBtn) {
     ankiBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
-        
-        if (isMobile) {
-            const front = inputText.value.trim().replace(/\n/g, '<br>');
-            const back = outputContent.value.trim().replace(/\n/g, '<br>');
-            
-            if (!front && !back) return;
-            
-            const url = `anki://x-callback-url/addnote?type=Basic&deck=Default&fldFront=${encodeURIComponent(front)}&fldBack=${encodeURIComponent(back)}`;
-            window.location.href = url;
-        } else {
-            ankiModal.classList.add('show');
-        }
-    });
-}
-
-if (closeAnkiModalBtn) {
-    closeAnkiModalBtn.addEventListener('click', () => {
-        ankiModal.classList.remove('show');
-    });
-}
-
-if (ankiPcBtn) {
-    ankiPcBtn.addEventListener('click', () => {
         const front = inputText.value.trim().replace(/\n/g, '<br>');
         const back = outputContent.value.trim().replace(/\n/g, '<br>');
 
         if (!front && !back) {
              alert("Nothing to add.");
-             ankiModal.classList.remove('show');
              return;
         }
 
-        const payload = {
-            action: "addNote",
-            version: 6,
-            params: {
-                note: {
-                    deckName: "Default",
-                    modelName: "Basic",
-                    fields: {
-                        Front: front,
-                        Back: back
-                    },
-                    options: {
-                        allowDuplicate: false,
-                        duplicateScope: "deck"
-                    },
-                    tags: ["lang-tools"]
-                }
-            }
-        };
-
-        fetch('http://127.0.0.1:8765', {
-            method: 'POST',
-            body: JSON.stringify(payload)
-        })
-        .then(response => response.json())
-        .then(result => {
-            if (result.error) {
-                alert('Anki Error: ' + result.error);
-            } else {
-                alert('Card added to Anki!');
-                ankiModal.classList.remove('show');
-            }
-        })
-        .catch(error => {
-            console.error('Error calling Anki-Connect:', error);
-            alert('Failed to connect to Anki. Make sure Anki is running with Anki-Connect installed.');
-        });
-    });
-}
-
-if (ankiMobileBtn) {
-    ankiMobileBtn.addEventListener('click', () => {
-        const front = inputText.value.trim();
-        const back = outputContent.value.trim();
-        
-        if (front || back) {
+        if (isMobile) {
             const url = `anki://x-callback-url/addnote?type=Basic&deck=Default&fldFront=${encodeURIComponent(front)}&fldBack=${encodeURIComponent(back)}`;
             window.location.href = url;
+        } else {
+            const payload = {
+                action: "addNote",
+                version: 6,
+                params: {
+                    note: {
+                        deckName: "Default",
+                        modelName: "Basic",
+                        fields: {
+                            Front: front,
+                            Back: back
+                        },
+                        options: {
+                            allowDuplicate: false,
+                            duplicateScope: "deck"
+                        },
+                        tags: ["lang-tools"]
+                    }
+                }
+            };
+    
+            fetch('http://127.0.0.1:8765', {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.error) {
+                    alert('Anki Error: ' + result.error);
+                } else {
+                    alert('Card added to Anki!');
+                }
+            })
+            .catch(error => {
+                console.error('Error calling Anki-Connect:', error);
+                alert('Failed to connect to Anki. Make sure Anki is running with Anki-Connect installed.');
+            });
         }
-        ankiModal.classList.remove('show');
     });
 }
 
@@ -169,9 +132,6 @@ if (ankiMobileBtn) {
 window.addEventListener('click', (e) => {
     if (e.target === settingsModal) {
         closeModal();
-    }
-    if (e.target === ankiModal) {
-        ankiModal.classList.remove('show');
     }
 });
 
