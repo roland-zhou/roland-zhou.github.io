@@ -103,8 +103,52 @@ if (closeAnkiModalBtn) {
 
 if (ankiPcBtn) {
     ankiPcBtn.addEventListener('click', () => {
-        alert("PC");
-        ankiModal.classList.remove('show');
+        const front = inputText.value.trim().replace(/\n/g, '<br>');
+        const back = outputContent.value.trim().replace(/\n/g, '<br>');
+
+        if (!front && !back) {
+             alert("Nothing to add.");
+             ankiModal.classList.remove('show');
+             return;
+        }
+
+        const payload = {
+            action: "addNote",
+            version: 6,
+            params: {
+                note: {
+                    deckName: "Default",
+                    modelName: "Basic",
+                    fields: {
+                        Front: front,
+                        Back: back
+                    },
+                    options: {
+                        allowDuplicate: false,
+                        duplicateScope: "deck"
+                    },
+                    tags: ["lang-tools"]
+                }
+            }
+        };
+
+        fetch('http://127.0.0.1:8765', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.error) {
+                alert('Anki Error: ' + result.error);
+            } else {
+                alert('Card added to Anki!');
+                ankiModal.classList.remove('show');
+            }
+        })
+        .catch(error => {
+            console.error('Error calling Anki-Connect:', error);
+            alert('Failed to connect to Anki. Make sure Anki is running with Anki-Connect installed.');
+        });
     });
 }
 
