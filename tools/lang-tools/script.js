@@ -20,6 +20,7 @@ const outputSpeakerBtn = document.getElementById('output-speaker-btn');
 // State
 let apiKey = localStorage.getItem('gemini_api_key') || '';
 let openAiKey = localStorage.getItem('openai_api_key') || '';
+let lastAction = 'other';
 
 // Initialize
 function init() {
@@ -51,6 +52,7 @@ actionBtns.forEach(btn => {
         const btnElement = e.target.closest('.action-btn[data-action]');
         if (btnElement && btnElement.dataset.action) {
             handleAction(btnElement.dataset.action);
+            lastAction = btnElement.dataset.action;
         }
     });
 });
@@ -85,7 +87,7 @@ if (ankiBtn) {
         }
 
         if (isMobile) {
-            const url = `anki://x-callback-url/addnote?type=Basic&deck=Default&fldFront=${encodeURIComponent(front)}&fldBack=${encodeURIComponent(back)}`;
+            const url = `anki://x-callback-url/addnote?type=Basic&deck=Default&fldFront=${encodeURIComponent(front)}&fldBack=${encodeURIComponent(back)}&tags=${encodeURIComponent(lastAction)}`;
             window.location.href = url;
         } else {
             const payload = {
@@ -103,7 +105,7 @@ if (ankiBtn) {
                             allowDuplicate: false,
                             duplicateScope: "deck"
                         },
-                        tags: ["lang-tools"]
+                        tags: [lastAction]
                     }
                 }
             };
