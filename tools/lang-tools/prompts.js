@@ -22,15 +22,15 @@ Please rewrite the following text (which may contain Chinglish, grammar errors, 
 
 You MUST follow this format exactly:
 
-Casual: [Natural, spoken-style version OR "(don't need to rewrite it)" if input is already perfect]
-Formal: [Polite, professional version OR "(don't need to rewrite it)" if input is already perfect]
+Casual: [Natural, spoken-style version OR "(don't need to rewrite it)"]
+Formal: [Polite, professional version OR "(don't need to rewrite it)"]
 
 Analysis:
 [If there were errors or unnatural phrasing, explain them here. If the input was valid and common, OMIT this section.]
 
 **Important Rules:**
 1. Always check for common Chinese learner mistakes (grammar, Chinglish).
-2. If the input is already a common, natural phrase (e.g., "All good") for that style, DO NOT force a rewrite to a different version. Mark it as "(don't need to rewrite it)".
+2. If the input is already natural for that specific style (Casual or Formal), or if the rewritten version is identical to the input, output "(don't need to rewrite it)".
 3. Do not include an Analysis section if the input is valid/common English.
 
 Example 1 (Grammar Error):
@@ -54,13 +54,13 @@ Casual: (don't need to rewrite it)
 Formal: All is well.
 </OUTPUT>
 
-Example 3 (Perfect Input):
+Example 3 (Universal/Perfect Phrase):
 <INPUT>
-Good job!
+I love you.
 </INPUT>
 <OUTPUT>
 Casual: (don't need to rewrite it)
-Formal: Excellent work.
+Formal: (don't need to rewrite it)
 </OUTPUT>
 
 <text-to-be-rewritten>${text}</text-to-be-rewritten>`;
