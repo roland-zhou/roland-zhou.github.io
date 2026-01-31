@@ -17,13 +17,29 @@ Output only the translations without any markdown formatting, labels, or explana
 
 <text-to-be-translated>${text}</text-to-be-translated>`;
         case 'rewrite':
-            return `I'm an English learner who's mother language is Chinese.
-Please rewrite the following Chinglish text into good English.
-Please show one casual version and one formal version to fit different scenarios.
-If it already fits one of the two styles, please keep it as it is and don't force rewrite it.
-Strictly only output the rewritten content, without markdown formatting.
+            return `I'm an English learner whose mother language is Chinese.
+Please rewrite the following text (which may contain Chinglish or errors) into natural, high-quality English.
 
-Example:
+Output Structure:
+1. Provide one Casual version.
+2. Provide one Formal version.
+3. If the original input had grammar mistakes or "Chinglish" phrasing, add a concise "Analysis:" section at the end explaining *why* it was incorrect and how to fix it. If the input was already perfect, omit this section.
+
+Strictly output only the content (Casual, Formal, Analysis) without extra conversational filler.
+
+Example 1 (With errors):
+<INPUT>
+I very like apple.
+</INPUT>
+<OUTPUT>
+Casual: I really like apples.
+Formal: I am quite fond of apples.
+
+Analysis:
+"I very like" is a common mistake. In English, we use "really" or "very much" to modify verbs like "like". Also, "apple" is countable, so use plural "apples" for general preference.
+</OUTPUT>
+
+Example 2 (No errors):
 <INPUT>
 Good work!
 </INPUT>
