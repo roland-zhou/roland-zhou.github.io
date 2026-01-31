@@ -138,9 +138,10 @@ if (ankiBtn) {
                 await new Promise(r => setTimeout(r, 10));
                 
                 // Check if GenAnki classes are loaded
-                // The library exposes Model, Deck, Package globally, not under a GenAnki namespace
                 if (typeof Model === 'undefined' || typeof Package === 'undefined') {
-                    throw new Error("GenAnki library (Model/Package) not loaded.");
+                    // Try to debug: what is available?
+                    console.log("Model undefined. Window keys starting with M:", Object.keys(window).filter(k => k.startsWith('M')));
+                    throw new Error("GenAnki library (Model/Package) not loaded. Please wait or refresh.");
                 }
 
                 // Define Basic Model
