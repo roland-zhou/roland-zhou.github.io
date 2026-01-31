@@ -543,3 +543,27 @@ textarea::placeholder {
 .choice-btn .icon {
     margin-bottom: 0.5rem;
 }
+
+@media (max-width: 500px) {
+    .actions-line {
+        flex-wrap: wrap;
+    }
+
+    .actions-group {
+        flex-wrap: wrap;
+        width: 100%;
+        flex: 1 1 100%;
+    }
+
+    .action-btn {
+        flex: 1 1 calc(50% - 0.5rem);
+    }
+
+    .settings-trigger {
+        width: 100%;
+        margin-top: 0.5rem;
+        background-color: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+    }
+}
