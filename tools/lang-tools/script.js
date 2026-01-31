@@ -137,13 +137,14 @@ if (ankiBtn) {
                 // Small delay to let UI update
                 await new Promise(r => setTimeout(r, 10));
                 
-                // Check if GenAnki is loaded
-                if (typeof GenAnki === 'undefined') {
-                    throw new Error("GenAnki library not loaded.");
+                // Check if GenAnki classes are loaded
+                // The library exposes Model, Deck, Package globally, not under a GenAnki namespace
+                if (typeof Model === 'undefined' || typeof Package === 'undefined') {
+                    throw new Error("GenAnki library (Model/Package) not loaded.");
                 }
 
                 // Define Basic Model
-                const m = new GenAnki.Model({
+                const m = new Model({
                   name: "Basic",
                   id: "1350284694",
                   flds: [
@@ -163,10 +164,10 @@ if (ankiBtn) {
                 });
 
                 // Create Deck
-                const d = new GenAnki.Deck(1, "Default");
+                const d = new Deck(1, "Default");
                 d.addNote(m.note([front, back], [lastAction]));
 
-                const p = new GenAnki.Package(d);
+                const p = new Package(d);
                 
                 // Write to file (FileSaver)
                 p.writeToFile(`anki_card_${Date.now()}.apkg`);
