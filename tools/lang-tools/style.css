@@ -546,24 +546,27 @@ textarea::placeholder {
 
 @media (max-width: 500px) {
     .actions-line {
-        flex-wrap: wrap;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
     }
 
     .actions-group {
-        flex-wrap: wrap;
-        width: 100%;
-        flex: 1 1 100%;
+        display: contents;
     }
 
     .action-btn {
-        flex: 1 1 calc(50% - 0.5rem);
+        width: 100%;
+        justify-content: center;
+        padding: 0.75rem 0.5rem;
     }
 
     .settings-trigger {
         width: 100%;
-        margin-top: 0.5rem;
+        margin-top: 0;
         background-color: var(--card-bg);
         border: 1px solid var(--border-color);
         border-radius: var(--radius-md);
+        justify-content: center;
     }
 }
