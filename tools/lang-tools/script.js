@@ -30,6 +30,17 @@ function init() {
     if (openAiKey) {
         openAiKeyInput.value = openAiKey;
     }
+    
+    // Initialize SQL.js for Android APKG generation
+    const config = {
+        locateFile: filename => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.wasm`
+    };
+    if (window.initSqlJs) {
+        window.initSqlJs(config).then(function (sql) {
+            window.SQL = sql;
+            console.log("SQL.js initialized");
+        }).catch(err => console.error("SQL.js failed to load", err));
+    }
 }
 
 // Event Listeners
@@ -78,6 +89,7 @@ if (ankiBtn) {
     ankiBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
+        const isAndroid = /android/i.test(navigator.userAgent.toLowerCase());
         const front = inputText.value.trim().replace(/\n/g, '<br>');
         const back = outputContent.value.trim().replace(/\n/g, '<br>');
 
@@ -86,7 +98,59 @@ if (ankiBtn) {
              return;
         }
 
-        if (isMobile) {
+        if (isAndroid) {
+            // Android: Generate .apkg file
+            if (!window.SQL) {
+                alert("Anki generator is still loading... please wait a moment and try again.");
+                return;
+            }
+            try {
+                ankiBtn.disabled = true;
+                ankiBtn.innerText = "Generating...";
+                // Small delay to let UI update
+                await new Promise(r => setTimeout(r, 10));
+                
+                // Define Basic Model
+                // Use a constant ID to allow merging updates to model if needed (though usually we want standard Basic)
+                // We use a custom ID to avoid conflicts with user's specific Basic if it differs
+                const m = new GenAnki.Model({
+                  name: "Basic",
+                  id: "1350284694", // Constant ID for 'Basic'
+                  flds: [
+                    { name: "Front" },
+                    { name: "Back" }
+                  ],
+                  req: [
+                    [ 0, "all", [ 0 ] ]
+                  ],
+                  tmpls: [
+                    {
+                      name: "Card 1",
+                      qfmt: "{{Front}}",
+                      afmt: "{{FrontSide}}\n\n<hr id=answer>\n\n{{Back}}",
+                    }
+                  ],
+                });
+
+                // Create Deck
+                // ID 1 is usually 'Default'
+                const d = new GenAnki.Deck(1, "Default");
+                d.addNote(m.note([front, back], [lastAction]));
+
+                const p = new GenAnki.Package(d);
+                
+                // Write to file (FileSaver)
+                p.writeToFile(`anki_card_${Date.now()}.apkg`);
+
+                ankiBtn.innerText = "Create Anki Card";
+                ankiBtn.disabled = false;
+            } catch (err) {
+                console.error(err);
+                alert("Failed to generate Anki package: " + err.message);
+                ankiBtn.innerText = "Create Anki Card";
+                ankiBtn.disabled = false;
+            }
+        } else if (isMobile) {
             const url = `anki://x-callback-url/addnote?type=Basic&deck=Default&fldFront=${encodeURIComponent(front)}&fldBack=${encodeURIComponent(back)}&tags=${encodeURIComponent(lastAction)}`;
             window.location.href = url;
         } else {
