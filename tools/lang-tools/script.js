@@ -168,7 +168,8 @@ if (ankiBtn) {
                 const d = new Deck(1, "Default");
                 d.addNote(m.note([front, back], [lastAction]));
 
-                const p = new Package(d);
+                const p = new Package();
+                p.addDeck(d);
                 
                 // Write to file (FileSaver)
                 p.writeToFile(`anki_card_${Date.now()}.apkg`);
