@@ -86,7 +86,7 @@ if (cleanBtn) {
 const ankiBtn = document.getElementById('anki-btn');
 
 if (ankiBtn) {
-    ankiBtn.addEventListener('click', (e) => {
+    ankiBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
         const isAndroid = /android/i.test(navigator.userAgent.toLowerCase());
@@ -111,8 +111,6 @@ if (ankiBtn) {
                 await new Promise(r => setTimeout(r, 10));
                 
                 // Define Basic Model
-                // Use a constant ID to allow merging updates to model if needed (though usually we want standard Basic)
-                // We use a custom ID to avoid conflicts with user's specific Basic if it differs
                 const m = new GenAnki.Model({
                   name: "Basic",
                   id: "1350284694", // Constant ID for 'Basic'
@@ -312,3 +310,6 @@ async function handleSpeak(text, btn) {
         btn.disabled = false;
     }
 }
+
+// Run init at the end to ensure DOM is ready and state is loaded
+init();
