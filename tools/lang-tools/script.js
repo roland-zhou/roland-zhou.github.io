@@ -145,9 +145,14 @@ if (ankiBtn) {
                 }
 
                 // Define Basic Model
+                // Use a random ID to ensure it doesn't conflict with existing "Basic" models in a weird way
+                // that might cause Anki to ignore the update.
+                const modelId = Math.floor(Date.now() / 1000).toString(); 
+                const deckId = Date.now();
+
                 const m = new Model({
-                  name: "Basic",
-                  id: "1350284694",
+                  name: "Lang Tools Basic", // Unique name to avoid ambiguity
+                  id: modelId,
                   flds: [
                     { name: "Front" },
                     { name: "Back" }
@@ -165,7 +170,8 @@ if (ankiBtn) {
                 });
 
                 // Create Deck
-                const d = new Deck(1, "Default");
+                // Use a unique ID and Name. AnkiDroid will create/merge this deck.
+                const d = new Deck(deckId, "Lang Tools Export");
                 d.addNote(m.note([front, back], [lastAction]));
 
                 const p = new Package();
