@@ -53,10 +53,7 @@ body {
     flex-direction: column;
     gap: 1.5rem;
     margin-top: 2rem;
-    /* Add some spacing since header is gone */
 }
-
-/* Header removed */
 
 .icon-btn {
     background: none;
@@ -163,8 +160,7 @@ textarea::placeholder {
     height: 16px;
 }
 
-
-/* Actions Group (formerly actions-line + actions-group) */
+/* Actions Group */
 .actions-group {
     display: flex;
     gap: 0.75rem;
@@ -179,7 +175,6 @@ textarea::placeholder {
     justify-content: center;
     gap: 0.5rem;
     background: #e0e7ff;
-    /* Darker tint for higher contrast */
     color: var(--primary-color);
     border: none;
     padding: 0.75rem 1rem;
@@ -191,26 +186,33 @@ textarea::placeholder {
     white-space: nowrap;
 }
 
-/* ... colors ... */
+.action-btn:hover {
+    background: #c7d2fe;
+    transform: translateY(-1px);
+}
+
 .action-btn:nth-child(2) {
     background: #fce7f3;
     color: #db2777;
 }
+
 .action-btn:nth-child(2):hover {
     background: #fbcfe8;
 }
+
 .action-btn:nth-child(3) {
     background: #d1fae5;
     color: #059669;
 }
+
 .action-btn:nth-child(3):hover {
     background: #a7f3d0;
 }
 
 @media (prefers-color-scheme: dark) {
     .action-btn {
-        background: rgba(79, 70, 229, 0.2); /* Tinted dark bg */
-        color: #818cf8; /* Lighter text */
+        background: rgba(79, 70, 229, 0.2);
+        color: #818cf8;
     }
     .action-btn:hover {
         background: rgba(79, 70, 229, 0.3);
@@ -240,7 +242,288 @@ textarea::placeholder {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-left: auto; /* Push settings to right on desktop */
+    margin-left: auto;
+}
+
+.settings-trigger:hover {
+    color: var(--text-primary);
+    background: rgba(0, 0, 0, 0.05);
+}
+
+@media (prefers-color-scheme: dark) {
+    .settings-trigger:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
+}
+
+.icon svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* Output Section */
+.output-section {
+    position: relative;
+    padding: 1rem;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+}
+
+.output-content-editable {
+    width: 100%;
+    min-height: 180px;
+    border: none;
+    resize: none;
+    font-family: inherit;
+    font-size: 1rem;
+    color: var(--text-primary);
+    outline: none;
+    background: transparent;
+    flex: 1;
+}
+
+.output-content-editable::placeholder {
+    color: #9ca3af;
+}
+
+/* Empty State */
+.empty-state {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 200px;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* Loading Indicator */
+.loading-indicator {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(2px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    color: var(--text-secondary);
+    z-index: 10;
+    border-radius: var(--radius-lg);
+}
+
+@media (prefers-color-scheme: dark) {
+    .loading-indicator {
+        background: rgba(31, 41, 55, 0.8);
+    }
+}
+
+.spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    border-top-color: var(--primary-color);
+    animation: spin 0.8s linear infinite;
+}
+
+@media (prefers-color-scheme: dark) {
+    .spinner {
+        border-color: rgba(255, 255, 255, 0.1);
+        border-top-color: var(--primary-color);
+    }
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Modal */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 100;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(2px);
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.modal.show {
+    display: flex;
+    opacity: 1;
+}
+
+.modal-content {
+    width: 90%;
+    max-width: 400px;
+    background: var(--card-bg);
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    transform: translateY(20px);
+    transition: transform 0.3s ease;
+}
+
+.modal.show .modal-content {
+    transform: translateY(0);
+}
+
+.modal-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--text-secondary);
+}
+
+.modal-body {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-group label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.form-group input,
+.form-group select {
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-size: 0.9rem;
+    outline: none;
+    transition: var(--transition);
+}
+
+.form-group input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+    .form-group input,
+    .form-group select {
+        background-color: #374151;
+        color: var(--text-primary);
+    }
+}
+
+.help-text {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+}
+
+.primary-btn,
+.secondary-btn {
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-md);
+    font-weight: 500;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: var(--transition);
+    border: none;
+}
+
+.primary-btn {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.primary-btn:hover {
+    background-color: var(--primary-hover);
+}
+
+.secondary-btn {
+    background-color: white;
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+.secondary-btn:hover {
+    background-color: var(--bg-color);
+}
+
+@media (prefers-color-scheme: dark) {
+    .secondary-btn {
+        background-color: var(--card-bg);
+        color: var(--text-primary);
+    }
+    .secondary-btn:hover {
+        background-color: #374151;
+    }
+}
+
+.version {
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    color: var(--text-secondary);
+    opacity: 0.3;
+    font-size: 0.8rem;
+    pointer-events: none;
+}
+
+/* Choice Modal Styles */
+.choice-modal-body {
+    flex-direction: row;
+    justify-content: space-around;
+    padding-bottom: 2rem;
+}
+
+.choice-btn {
+    flex: 1;
+    padding: 1.5rem;
+    flex-direction: column;
+}
+
+.choice-btn .icon {
+    margin-bottom: 0.5rem;
 }
 
 /* Mobile Layout */
@@ -249,10 +532,12 @@ textarea::placeholder {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 0.5rem;
+        /* Force 2 columns */
     }
 
     .action-btn {
-        width: 100%; /* Ensure they fill grid cell */
+        width: 100%;
+        /* Fill the grid cell */
     }
 
     .settings-trigger {
@@ -262,5 +547,8 @@ textarea::placeholder {
         border: 1px solid var(--border-color);
         border-radius: var(--radius-md);
         justify-content: center;
+        /* Ensure it behaves like a block in grid */
+        height: auto;
+        min-height: 48px; /* Match button height roughly */
     }
 }
