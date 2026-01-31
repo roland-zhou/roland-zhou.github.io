@@ -40,7 +40,7 @@ function init() {
         
         // Initialize SQL.js for Android APKG generation
         const config = {
-            locateFile: filename => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.wasm`
+            locateFile: filename => `libs/sql-wasm.wasm`
         };
         
         // Check if library loaded (it might be deferred)
@@ -123,7 +123,7 @@ if (ankiBtn) {
                 // Android: Generate .apkg file
                 // Try to load SQL if not ready
                 if (!window.SQL && window.initSqlJs) {
-                     const config = { locateFile: filename => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.wasm` };
+                     const config = { locateFile: filename => `libs/sql-wasm.wasm` };
                      window.SQL = await window.initSqlJs(config);
                 }
 
