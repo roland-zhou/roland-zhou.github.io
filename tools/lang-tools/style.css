@@ -348,7 +348,7 @@ textarea::placeholder {
 .modal {
     display: none;
     position: fixed;
-    z-index: 100;
+    z-index: 1000;
     left: 0;
     top: 0;
     width: 100%;
@@ -532,12 +532,10 @@ textarea::placeholder {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 0.5rem;
-        /* Force 2 columns */
     }
 
     .action-btn {
         width: 100%;
-        /* Fill the grid cell */
     }
 
     .settings-trigger {
@@ -547,8 +545,7 @@ textarea::placeholder {
         border: 1px solid var(--border-color);
         border-radius: var(--radius-md);
         justify-content: center;
-        /* Ensure it behaves like a block in grid */
         height: auto;
-        min-height: 48px; /* Match button height roughly */
+        min-height: 48px;
     }
 }
