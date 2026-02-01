@@ -18,7 +18,12 @@ Provide the main translation first, then 2-3 DIFFERENT alternative translations 
 - Single English word: Add pronunciation in IPA format + 2-3 usage examples showing the word in context
 - Single Chinese word/term (1-2 characters): Add 2-3 usage examples only (DO NOT ADD PRONUNCIATION - NO IPA, NO PINYIN)
 - Short phrase (2-5 words, no complete sentence structure): Add 2-3 usage examples only (no pronunciation)
-- Complete sentence (has subject + verb, or 6+ words, or ends with punctuation): NO additional content - translations only
+- **Complete sentence (6+ characters/words, OR has clear subject+predicate structure): STOP after translations - NO examples, NO pronunciation**
+
+**How to identify a complete sentence:**
+- Has 6 or more characters (Chinese) or words (English)
+- Forms a complete thought with subject and predicate (e.g., "中国有很多方言" = China has many dialects)
+- If it's a sentence, output ONLY the translation alternatives and nothing else
 
 **CRITICAL RULE FOR CHINESE INPUT:**
 If the input contains ANY Chinese characters, DO NOT include ANY pronunciation line. Skip directly from translations to examples.
@@ -88,7 +93,7 @@ She is a talented director.
 The director is shooting a new movie.
 </OUTPUT>
 
-**Example 5 (Sentence):**
+**Example 5 (English Sentence - NO EXAMPLES):**
 <INPUT>
 I went to the store yesterday.
 </INPUT>
@@ -96,6 +101,16 @@ I went to the store yesterday.
 我昨天去了商店。
 昨天我去商店了。
 我昨天去过那家店。
+</OUTPUT>
+
+**Example 6 (Chinese Sentence - NO EXAMPLES):**
+<INPUT>
+中国有很多方言
+</INPUT>
+<OUTPUT>
+China has many dialects.
+There are numerous dialects in China.
+China is home to a wide variety of dialects.
 </OUTPUT>
 
 <text-to-be-translated>${text}</text-to-be-translated>`;
