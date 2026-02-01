@@ -13,6 +13,12 @@ First, detect the language of the text:
 - If the text contains only emojis or symbols (no natural language), you MUST interpret and translate it into English.
 
 Provide the main translation first, then 2-3 alternative translations in the same target language.
+
+**Additional content based on input type:**
+- Single word: Add pronunciation of the INPUT word (IPA if English, pinyin if Chinese) + 2-3 usage examples
+- Phrase (2-5 words): Add 2-3 usage examples only (no pronunciation)
+- Sentence/long string: No additional content
+
 Output only the translations without any markdown formatting, labels, or explanations.
 
 <text-to-be-translated>${text}</text-to-be-translated>`;
