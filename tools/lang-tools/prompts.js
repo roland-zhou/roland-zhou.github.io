@@ -15,9 +15,14 @@ First, detect the language of the text:
 Provide the main translation first, then 2-3 alternative translations in the same target language.
 
 **Additional content based on input type:**
-- Single word: Add pronunciation of the INPUT word (IPA if English, pinyin if Chinese) + 2-3 usage examples
-- Phrase (2-5 words): Add 2-3 usage examples only (no pronunciation)
+- Single word: Add pronunciation of the ORIGINAL INPUT word (NOT the translation) in IPA format if English input, pinyin format if Chinese input, then add 2-3 usage examples showing the ORIGINAL INPUT word in context
+- Phrase (2-5 words): Add 2-3 usage examples showing the ORIGINAL INPUT phrase in context (no pronunciation)
 - Sentence/long string: No additional content
+
+**IMPORTANT formatting rules:**
+- Add ONE empty line between translations and pronunciation
+- Add ONE empty line between pronunciation and usage examples
+- Add ONE empty line between each section
 
 Output only the translations without any markdown formatting, labels, or explanations.
 
