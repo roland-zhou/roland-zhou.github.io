@@ -56,7 +56,23 @@ You should keep in mind his advice.
 Please keep in mind the safety rules.
 </OUTPUT>
 
-**Example 3 (Sentence):**
+**Example 3 (Chinese Word to English):**
+<INPUT>
+苹果
+</INPUT>
+<OUTPUT>
+apple
+apple pie
+red apple
+
+píng guǒ
+
+我吃了一个苹果。
+这个苹果很甜。
+苹果树开花了。
+</OUTPUT>
+
+**Example 4 (Sentence):**
 <INPUT>
 I went to the store yesterday.
 </INPUT>
