@@ -359,9 +359,15 @@ async function handleSpeak(text, btn) {
         return;
     }
     
-    // Stop any currently playing audio
+    // Stop and cleanup any currently playing audio
     if (currentAudio) {
-        currentAudio.pause();
+        try {
+            currentAudio.pause();
+            currentAudio.src = '';
+            currentAudio.load();
+        } catch (e) {
+            console.log('Error cleaning up previous audio:', e);
+        }
         currentAudio = null;
     }
     
@@ -370,17 +376,29 @@ async function handleSpeak(text, btn) {
     btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;"></div>';
     btn.disabled = true;
     
+    let audioUrl = null;
+    
     try {
         if (typeof callOpenAITTS === 'undefined') throw new Error("API script not loaded.");
-        const audioUrl = await callOpenAITTS(text, openAiKey);
+        audioUrl = await callOpenAITTS(text, openAiKey);
         currentAudio = new Audio();
         
         // Reset button when audio finishes or errors
         const cleanup = () => {
             btn.innerHTML = originalIcon;
             btn.disabled = false;
-            URL.revokeObjectURL(audioUrl);
-            currentAudio = null;
+            if (audioUrl) {
+                URL.revokeObjectURL(audioUrl);
+            }
+            if (currentAudio) {
+                try {
+                    currentAudio.pause();
+                    currentAudio.src = '';
+                    currentAudio = null;
+                } catch (e) {
+                    console.log('Cleanup error:', e);
+                }
+            }
         };
         
         currentAudio.onended = cleanup;
@@ -397,23 +415,31 @@ async function handleSpeak(text, btn) {
         
         // Wait for loadeddata (has enough to start) AND add small buffer time
         await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('Audio load timeout')), 10000);
+            
             currentAudio.onloadeddata = async () => {
-                // Add 50ms buffer to ensure complete load for short clips
-                await new Promise(r => setTimeout(r, 50));
+                clearTimeout(timeout);
+                // Add 100ms buffer to ensure complete load for short clips
+                await new Promise(r => setTimeout(r, 100));
                 resolve();
             };
-            currentAudio.onerror = reject;
-            
-            // Timeout after 10 seconds
-            setTimeout(() => reject(new Error('Audio load timeout')), 10000);
+            currentAudio.onerror = (e) => {
+                clearTimeout(timeout);
+                reject(e);
+            };
         });
         
+        console.log('Starting playback...');
         await currentAudio.play();
+        console.log('Playback started successfully');
     } catch (error) {
         console.error('TTS Error:', error);
         alert(`TTS Error: ${error.message}`);
         btn.innerHTML = originalIcon;
         btn.disabled = false;
+        if (audioUrl) {
+            URL.revokeObjectURL(audioUrl);
+        }
         if (currentAudio) {
             currentAudio = null;
         }

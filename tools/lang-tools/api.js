@@ -45,10 +45,11 @@ async function callOpenAITTS(text, apiKey) {
     let paddedText = text;
     
     if (wordCount <= 3) {
-        // Add a brief pause at the end for short clips
-        // Using three periods with spaces creates a natural pause
-        paddedText = text + ' . . .';
-        console.log(`Short text detected (${wordCount} words), padded: "${paddedText}"`);
+        // Add the word 4 times to ensure complete playback
+        // We know from testing that 4x repetition works perfectly
+        // The audio will repeat but at least it won't cut off
+        paddedText = `${text}. ${text}. ${text}. ${text}.`;
+        console.log(`Short text detected (${wordCount} words), repeating 4x for complete playback`);
     }
     
     const response = await fetch(url, {
