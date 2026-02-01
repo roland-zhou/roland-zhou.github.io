@@ -18,12 +18,25 @@ Provide the main translation first, then 2-3 DIFFERENT alternative translations 
 - Single English word: Add pronunciation in IPA format + 2-3 usage examples showing the word in context
 - Single Chinese word/term (1-2 characters): Add 2-3 usage examples only (DO NOT ADD PRONUNCIATION - NO IPA, NO PINYIN)
 - Short phrase (2-5 words, no complete sentence structure): Add 2-3 usage examples only (no pronunciation)
-- **Complete sentence (6+ characters/words, OR has clear subject+predicate structure): STOP after translations - NO examples, NO pronunciation**
+- **Complete sentence: STOP after translations - NO examples, NO pronunciation**
 
-**How to identify a complete sentence:**
-- Has 6 or more characters (Chinese) or words (English)
-- Forms a complete thought with subject and predicate (e.g., "中国有很多方言" = China has many dialects)
-- If it's a sentence, output ONLY the translation alternatives and nothing else
+**How to identify a complete sentence (ALL conditions must be met):**
+1. Has a subject AND a predicate (a verb with its arguments)
+2. Expresses a complete action or statement
+3. Typically 6+ words (English) or 6+ characters (Chinese)
+
+**Examples of COMPLETE SENTENCES (no examples needed):**
+- "I went to the store yesterday." ✓ (subject: I, predicate: went)
+- "中国有很多方言" ✓ (subject: 中国, predicate: 有很多方言)
+- "She is reading a book." ✓ (subject: She, predicate: is reading)
+
+**Examples of PHRASES/TERMS (need examples):**
+- "household registration" ✗ (noun phrase, no verb)
+- "户口登记" ✗ (noun phrase, no verb)
+- "keep in mind" ✗ (verb phrase, but no subject - not a complete sentence)
+- "导演" ✗ (single word/term)
+
+**Key distinction:** If there's no subject performing an action, it's NOT a complete sentence - provide examples.
 
 **CRITICAL RULE FOR CHINESE INPUT:**
 If the input contains ANY Chinese characters, DO NOT include ANY pronunciation line. Skip directly from translations to examples.
