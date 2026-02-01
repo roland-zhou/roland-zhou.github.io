@@ -345,6 +345,9 @@ function showResult(text) {
     actionBtns.forEach(btn => btn.disabled = false);
 }
 
+// Store current playing audio to prevent garbage collection
+let currentAudio = null;
+
 async function handleSpeak(text, btn) {
     if (!text) {
         alert('Nothing to read.');
@@ -356,6 +359,12 @@ async function handleSpeak(text, btn) {
         return;
     }
     
+    // Stop any currently playing audio
+    if (currentAudio) {
+        currentAudio.pause();
+        currentAudio = null;
+    }
+    
     const originalIcon = btn.innerHTML;
     // Show loading spinner
     btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;"></div>';
@@ -364,12 +373,28 @@ async function handleSpeak(text, btn) {
     try {
         if (typeof callOpenAITTS === 'undefined') throw new Error("API script not loaded.");
         const audioUrl = await callOpenAITTS(text, openAiKey);
-        const audio = new Audio(audioUrl);
-        audio.play();
+        currentAudio = new Audio(audioUrl);
+        
+        // Reset button when audio finishes or errors
+        currentAudio.onended = () => {
+            btn.innerHTML = originalIcon;
+            btn.disabled = false;
+            URL.revokeObjectURL(audioUrl);
+            currentAudio = null;
+        };
+        
+        currentAudio.onerror = (e) => {
+            console.error('Audio playback error:', e);
+            btn.innerHTML = originalIcon;
+            btn.disabled = false;
+            URL.revokeObjectURL(audioUrl);
+            currentAudio = null;
+        };
+        
+        await currentAudio.play();
     } catch (error) {
         console.error('TTS Error:', error);
         alert(`TTS Error: ${error.message}`);
-    } finally {
         btn.innerHTML = originalIcon;
         btn.disabled = false;
     }
