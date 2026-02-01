@@ -16,12 +16,15 @@ Provide the main translation first, then 2-3 alternative translations in the sam
 
 **Additional content based on input type:**
 - Single English word: Add pronunciation in IPA format + 2-3 usage examples showing the word in context
-- Single Chinese word: Add 2-3 usage examples only (no pronunciation)
+- Single Chinese word: Add 2-3 usage examples only (DO NOT ADD PRONUNCIATION - NO IPA, NO PINYIN)
 - Phrase (2-5 words): Add 2-3 usage examples only (no pronunciation)
 - Sentence/long string: No additional content
 
+**CRITICAL RULE FOR CHINESE INPUT:**
+If the input contains ANY Chinese characters, DO NOT include ANY pronunciation line. Skip directly from translations to examples.
+
 **IMPORTANT formatting rules:**
-- Add ONE empty line between translations and pronunciation
+- Add ONE empty line between translations and pronunciation (English words only)
 - Add ONE empty line between pronunciation and usage examples
 - Add ONE empty line between each section
 
