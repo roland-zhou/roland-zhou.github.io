@@ -26,6 +26,46 @@ Provide the main translation first, then 2-3 alternative translations in the sam
 
 Output only the translations without any markdown formatting, labels, or explanations.
 
+**Example 1 (Single Word):**
+<INPUT>
+apple
+</INPUT>
+<OUTPUT>
+苹果
+苹果派
+红苹果
+
+/ˈæpəl/
+
+I ate an apple for breakfast.
+The apple tree in our garden is blooming.
+She bought a bag of fresh apples.
+</OUTPUT>
+
+**Example 2 (Phrase):**
+<INPUT>
+keep in mind
+</INPUT>
+<OUTPUT>
+记住
+牢记
+别忘了
+
+Keep in mind that the deadline is Friday.
+You should keep in mind his advice.
+Please keep in mind the safety rules.
+</OUTPUT>
+
+**Example 3 (Sentence):**
+<INPUT>
+I went to the store yesterday.
+</INPUT>
+<OUTPUT>
+我昨天去了商店。
+昨天我去商店了。
+我昨天去过那家店。
+</OUTPUT>
+
 <text-to-be-translated>${text}</text-to-be-translated>`;
         case 'rewrite':
             return `I'm an English learner whose mother language is Chinese.
