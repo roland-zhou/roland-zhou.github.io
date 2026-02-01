@@ -373,32 +373,39 @@ async function handleSpeak(text, btn) {
     try {
         if (typeof callOpenAITTS === 'undefined') throw new Error("API script not loaded.");
         const audioUrl = await callOpenAITTS(text, openAiKey);
-        currentAudio = new Audio(audioUrl);
-        
-        // Preload the entire audio before playing
-        currentAudio.preload = 'auto';
+        currentAudio = new Audio();
         
         // Reset button when audio finishes or errors
-        currentAudio.onended = () => {
+        const cleanup = () => {
             btn.innerHTML = originalIcon;
             btn.disabled = false;
             URL.revokeObjectURL(audioUrl);
             currentAudio = null;
         };
         
+        currentAudio.onended = cleanup;
         currentAudio.onerror = (e) => {
             console.error('Audio playback error:', e);
-            btn.innerHTML = originalIcon;
-            btn.disabled = false;
-            URL.revokeObjectURL(audioUrl);
-            currentAudio = null;
+            cleanup();
         };
         
-        // Wait for audio to be ready before playing
+        // For short audio, we need to ensure full buffer load
+        // Load the audio source first
+        currentAudio.src = audioUrl;
+        currentAudio.preload = 'auto';
+        currentAudio.load();
+        
+        // Wait for loadeddata (has enough to start) AND add small buffer time
         await new Promise((resolve, reject) => {
-            currentAudio.oncanplaythrough = resolve;
+            currentAudio.onloadeddata = async () => {
+                // Add 50ms buffer to ensure complete load for short clips
+                await new Promise(r => setTimeout(r, 50));
+                resolve();
+            };
             currentAudio.onerror = reject;
-            currentAudio.load();
+            
+            // Timeout after 10 seconds
+            setTimeout(() => reject(new Error('Audio load timeout')), 10000);
         });
         
         await currentAudio.play();
@@ -407,6 +414,9 @@ async function handleSpeak(text, btn) {
         alert(`TTS Error: ${error.message}`);
         btn.innerHTML = originalIcon;
         btn.disabled = false;
+        if (currentAudio) {
+            currentAudio = null;
+        }
     }
 }
 
