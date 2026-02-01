@@ -110,6 +110,7 @@ textarea {
     color: var(--text-primary);
     outline: none;
     background: transparent;
+    overflow-y: hidden; /* Hide scrollbar for auto-grow */
 }
 
 textarea::placeholder {
@@ -281,6 +282,7 @@ textarea::placeholder {
     outline: none;
     background: transparent;
     flex: 1;
+    overflow-y: hidden;
 }
 
 .output-content-editable::placeholder {

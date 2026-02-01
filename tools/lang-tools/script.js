@@ -105,6 +105,17 @@ if (cleanBtn) {
     });
 }
 
+// Auto-resize listeners
+if (inputText) {
+    inputText.addEventListener('input', () => autoResize(inputText));
+    // Initial resize if needed (e.g. on reload with content)
+    window.addEventListener('load', () => autoResize(inputText));
+}
+
+if (outputContent) {
+    outputContent.addEventListener('input', () => autoResize(outputContent));
+}
+
 if (ankiBtn) {
     ankiBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
@@ -315,7 +326,10 @@ function showLoading() {
 
 function showResult(text) {
     if (loadingIndicator) loadingIndicator.style.display = 'none';
-    if (outputContent) outputContent.value = text;
+    if (outputContent) {
+        outputContent.value = text;
+        autoResize(outputContent);
+    }
 
     // Enable buttons
     actionBtns.forEach(btn => btn.disabled = false);
@@ -349,6 +363,12 @@ async function handleSpeak(text, btn) {
         btn.innerHTML = originalIcon;
         btn.disabled = false;
     }
+}
+
+function autoResize(element) {
+    if (!element) return;
+    element.style.height = 'auto';
+    element.style.height = element.scrollHeight + 'px';
 }
 
 // Run init immediately
