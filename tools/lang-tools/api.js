@@ -44,13 +44,12 @@ async function callOpenAITTS(text, apiKey) {
     const wordCount = text.trim().split(/\s+/).length;
     let paddedText = text;
     
-    if (wordCount <= 3) {
-        // Add the word 4 times to ensure complete playback
-        // We know from testing that 4x repetition works perfectly
-        // The audio will repeat but at least it won't cut off
-        paddedText = `${text}. ${text}. ${text}. ${text}.`;
-        console.log(`Short text detected (${wordCount} words), repeating 4x for complete playback`);
+    if (wordCount === 1) {
+        // Single word: repeat 2x to ensure complete playback
+        paddedText = `${text}. ${text}.`;
+        console.log(`Single word detected, repeating 2x for complete playback`);
     }
+    // Multiple words (2+): no padding needed
     
     const response = await fetch(url, {
         method: 'POST',
