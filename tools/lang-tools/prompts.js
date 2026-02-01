@@ -60,7 +60,7 @@ You should keep in mind his advice.
 Please keep in mind the safety rules.
 </OUTPUT>
 
-**Example 3 (Chinese Word to English):**
+**Example 3 (Chinese Word to English - NO PRONUNCIATION):**
 <INPUT>
 苹果
 </INPUT>
@@ -74,7 +74,21 @@ red apple
 苹果树开花了。
 </OUTPUT>
 
-**Example 4 (Sentence):**
+**Example 4 (Chinese Word to English - 导演):**
+<INPUT>
+导演
+</INPUT>
+<OUTPUT>
+director
+film director
+to direct
+
+这部电影的导演很有名。
+他是一位才华横溢的导演。
+导演正在拍摄新电影。
+</OUTPUT>
+
+**Example 5 (Sentence):**
 <INPUT>
 I went to the store yesterday.
 </INPUT>
