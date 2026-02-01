@@ -12,7 +12,7 @@ First, detect the language of the text:
 - If the text contains any Chinese, you MUST translate it into English.
 - If the text contains only emojis or symbols (no natural language), you MUST interpret and translate it into English.
 
-Provide the main translation first, then 2-3 alternative translations in the same target language.
+Provide the main translation first, then 2-3 DIFFERENT alternative translations in the same target language. If there are no meaningful alternatives, provide only the main translation without repeating it.
 
 **Additional content based on input type:**
 - Single English word: Add pronunciation in IPA format + 2-3 usage examples showing the word in context
