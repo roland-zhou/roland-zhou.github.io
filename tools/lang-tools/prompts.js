@@ -69,9 +69,9 @@ apple
 apple pie
 red apple
 
-我吃了一个苹果。
-这个苹果很甜。
-苹果树开花了。
+I ate an apple for breakfast.
+This apple is very sweet.
+The apple tree is blooming.
 </OUTPUT>
 
 **Example 4 (Chinese Word to English - 导演):**
@@ -83,9 +83,9 @@ director
 film director
 to direct
 
-这部电影的导演很有名。
-他是一位才华横溢的导演。
-导演正在拍摄新电影。
+The director of this film is very famous.
+She is a talented director.
+The director is shooting a new movie.
 </OUTPUT>
 
 **Example 5 (Sentence):**
