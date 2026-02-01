@@ -38,6 +38,10 @@ Provide the main translation first, then 2-3 DIFFERENT alternative translations 
 
 **Key distinction:** If there's no subject performing an action, it's NOT a complete sentence - provide examples.
 
+**CRITICAL OUTPUT RULE:**
+- For complete sentences: Output ONLY the translation alternatives. Do NOT add any explanatory text like "This is a complete sentence..." or "no additional content will be provided". Just translations, nothing else.
+- For words/phrases: Output translations, then pronunciation (English words only), then usage examples. No explanations.
+
 **CRITICAL RULE FOR CHINESE INPUT:**
 If the input contains ANY Chinese characters, DO NOT include ANY pronunciation line. Skip directly from translations to examples.
 
