@@ -15,8 +15,9 @@ First, detect the language of the text:
 Provide the main translation first, then 2-3 alternative translations in the same target language.
 
 **Additional content based on input type:**
-- Single word: Add pronunciation of the ORIGINAL INPUT word (NOT the translation) in IPA format if English input, pinyin format if Chinese input, then add 2-3 usage examples showing the ORIGINAL INPUT word in context
-- Phrase (2-5 words): Add 2-3 usage examples showing the ORIGINAL INPUT phrase in context (no pronunciation)
+- Single English word: Add pronunciation in IPA format + 2-3 usage examples showing the word in context
+- Single Chinese word: Add 2-3 usage examples only (no pronunciation)
+- Phrase (2-5 words): Add 2-3 usage examples only (no pronunciation)
 - Sentence/long string: No additional content
 
 **IMPORTANT formatting rules:**
@@ -64,8 +65,6 @@ Please keep in mind the safety rules.
 apple
 apple pie
 red apple
-
-píng guǒ
 
 我吃了一个苹果。
 这个苹果很甜。
