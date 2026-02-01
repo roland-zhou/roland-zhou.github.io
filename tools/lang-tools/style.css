@@ -282,7 +282,6 @@ textarea::placeholder {
     color: var(--text-primary);
     outline: none;
     background: transparent;
-    flex: 1;
     overflow-y: hidden;
     box-sizing: border-box;
 }

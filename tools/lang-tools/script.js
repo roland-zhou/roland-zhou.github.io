@@ -337,7 +337,8 @@ function showResult(text) {
     if (loadingIndicator) loadingIndicator.style.display = 'none';
     if (outputContent) {
         outputContent.value = text;
-        autoResize(outputContent);
+        // Use setTimeout to ensure DOM has updated before resize
+        setTimeout(() => autoResize(outputContent), 0);
     }
 
     // Enable buttons
@@ -378,19 +379,24 @@ function autoResize(element) {
     if (!element) return;
     const minHeight = element.id === 'input-text' ? 150 : 180;
     
-    // Reset to auto to get accurate scrollHeight
-    element.style.height = 'auto';
+    // Save current overflow state
+    const savedOverflow = element.style.overflow;
     
-    // Get the computed padding
-    const computed = window.getComputedStyle(element);
-    const paddingTop = parseFloat(computed.paddingTop);
-    const paddingBottom = parseFloat(computed.paddingBottom);
+    // Temporarily hide overflow to get accurate scrollHeight
+    element.style.overflow = 'hidden';
     
-    // Calculate new height including padding
-    const contentHeight = element.scrollHeight;
-    const newHeight = Math.max(contentHeight, minHeight);
+    // Reset height to minimum to allow shrinking
+    element.style.height = minHeight + 'px';
     
+    // Get the actual content height
+    const scrollHeight = element.scrollHeight;
+    
+    // Set to the larger of scrollHeight or minHeight
+    const newHeight = Math.max(scrollHeight, minHeight);
     element.style.height = newHeight + 'px';
+    
+    // Restore overflow
+    element.style.overflow = savedOverflow;
 }
 
 // Run init immediately
