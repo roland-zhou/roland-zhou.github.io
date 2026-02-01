@@ -111,6 +111,7 @@ textarea {
     outline: none;
     background: transparent;
     overflow-y: hidden; /* Hide scrollbar for auto-grow */
+    box-sizing: border-box;
 }
 
 textarea::placeholder {
@@ -283,6 +284,7 @@ textarea::placeholder {
     background: transparent;
     flex: 1;
     overflow-y: hidden;
+    box-sizing: border-box;
 }
 
 .output-content-editable::placeholder {

@@ -108,12 +108,21 @@ if (cleanBtn) {
 // Auto-resize listeners
 if (inputText) {
     inputText.addEventListener('input', () => autoResize(inputText));
+    inputText.addEventListener('change', () => autoResize(inputText));
     // Initial resize if needed (e.g. on reload with content)
     window.addEventListener('load', () => autoResize(inputText));
+    // Also resize on paste
+    inputText.addEventListener('paste', () => {
+        setTimeout(() => autoResize(inputText), 0);
+    });
 }
 
 if (outputContent) {
     outputContent.addEventListener('input', () => autoResize(outputContent));
+    outputContent.addEventListener('change', () => autoResize(outputContent));
+    outputContent.addEventListener('paste', () => {
+        setTimeout(() => autoResize(outputContent), 0);
+    });
 }
 
 if (ankiBtn) {
@@ -367,10 +376,20 @@ async function handleSpeak(text, btn) {
 
 function autoResize(element) {
     if (!element) return;
-    // Force a reflow by setting height to 0, then measuring scrollHeight
     const minHeight = element.id === 'input-text' ? 150 : 180;
-    element.style.height = '0px';
-    const newHeight = Math.max(element.scrollHeight + 2, minHeight);
+    
+    // Reset to auto to get accurate scrollHeight
+    element.style.height = 'auto';
+    
+    // Get the computed padding
+    const computed = window.getComputedStyle(element);
+    const paddingTop = parseFloat(computed.paddingTop);
+    const paddingBottom = parseFloat(computed.paddingBottom);
+    
+    // Calculate new height including padding
+    const contentHeight = element.scrollHeight;
+    const newHeight = Math.max(contentHeight, minHeight);
+    
     element.style.height = newHeight + 'px';
 }
 
