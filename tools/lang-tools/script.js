@@ -368,8 +368,12 @@ async function handleSpeak(text, btn) {
 function autoResize(element) {
     if (!element) return;
     element.style.height = 'auto';
-    element.style.height = element.scrollHeight + 'px';
+    element.style.height = (element.scrollHeight + 2) + 'px'; // +2 for border safety
 }
+
+// Initialize Resize immediately in case of cached values
+if (inputText) autoResize(inputText);
+if (outputContent && outputContent.value) autoResize(outputContent);
 
 // Run init immediately
 init();
