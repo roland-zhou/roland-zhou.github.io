@@ -46,9 +46,10 @@ async function callOpenAITTS(text, apiKey) {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            model: 'tts-1',
+            model: 'tts-1-hd',  // Use HD model for better quality
             input: text,
-            voice: 'alloy'
+            voice: 'alloy',
+            response_format: 'mp3'
         })
     });
 
@@ -57,7 +58,15 @@ async function callOpenAITTS(text, apiKey) {
         throw new Error(errorData.error?.message || 'TTS request failed');
     }
 
+    // Ensure the entire blob is downloaded
     const blob = await response.blob();
+    
+    // Verify blob has content
+    if (blob.size === 0) {
+        throw new Error('Received empty audio data');
+    }
+    
+    console.log(`TTS audio blob size: ${blob.size} bytes`);
     return URL.createObjectURL(blob);
 }
 

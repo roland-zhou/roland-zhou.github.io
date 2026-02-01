@@ -375,6 +375,9 @@ async function handleSpeak(text, btn) {
         const audioUrl = await callOpenAITTS(text, openAiKey);
         currentAudio = new Audio(audioUrl);
         
+        // Preload the entire audio before playing
+        currentAudio.preload = 'auto';
+        
         // Reset button when audio finishes or errors
         currentAudio.onended = () => {
             btn.innerHTML = originalIcon;
@@ -390,6 +393,13 @@ async function handleSpeak(text, btn) {
             URL.revokeObjectURL(audioUrl);
             currentAudio = null;
         };
+        
+        // Wait for audio to be ready before playing
+        await new Promise((resolve, reject) => {
+            currentAudio.oncanplaythrough = resolve;
+            currentAudio.onerror = reject;
+            currentAudio.load();
+        });
         
         await currentAudio.play();
     } catch (error) {
