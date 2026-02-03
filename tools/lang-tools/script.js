@@ -17,26 +17,31 @@ const settingsModal = document.getElementById('settings-modal');
 const closeModalBtn = document.getElementById('close-modal');
 const saveSettingsBtn = document.getElementById('save-settings');
 const cancelSettingsBtn = document.getElementById('cancel-settings');
-const apiKeyInput = document.getElementById('api-key');
-const openAiKeyInput = document.getElementById('openai-api-key');
 const inputSpeakerBtn = document.getElementById('input-speaker-btn');
 const outputSpeakerBtn = document.getElementById('output-speaker-btn');
 const ankiBtn = document.getElementById('anki-btn');
 
-// State
-let apiKey = localStorage.getItem('gemini_api_key') || '';
-let openAiKey = localStorage.getItem('openai_api_key') || '';
+// Settings State
+let settings = {
+    llm: {
+        provider: 'gemini',
+        gemini: { apiKey: '', model: 'gemini-2.5-flash-latest' },
+        openai: { apiKey: '', model: 'gpt-4o' },
+        anthropic: { apiKey: '', model: 'claude-3-5-sonnet-20241022' }
+    },
+    tts: {
+        provider: 'openai',
+        openai: { apiKey: '', model: 'tts-1-hd', voice: 'alloy' },
+        elevenlabs: { apiKey: '', model: 'eleven_turbo_v2_5' }
+    }
+};
 let lastAction = 'other';
 
 // Initialize
 function init() {
     try {
-        if (apiKey && apiKeyInput) {
-            apiKeyInput.value = apiKey;
-        }
-        if (openAiKey && openAiKeyInput) {
-            openAiKeyInput.value = openAiKey;
-        }
+        // Load settings from localStorage
+        loadSettings();
         
         // Initialize SQL.js for Android APKG generation
         const config = {
@@ -50,13 +55,76 @@ function init() {
                 console.log("SQL.js initialized");
             }).catch(err => console.error("SQL.js failed to load", err));
         } else {
-            // If deferred, wait for it? Or just let it fail gracefully until needed.
-            // We'll leave it for now; the button click checks again.
             console.log("SQL.js not yet loaded (deferred)");
         }
     } catch (e) {
         alert("Init Error: " + e.message);
     }
+}
+
+function loadSettings() {
+    // Check for old settings format and migrate
+    const oldGeminiKey = localStorage.getItem('gemini_api_key');
+    const oldOpenAiKey = localStorage.getItem('openai_api_key');
+    
+    if (oldGeminiKey || oldOpenAiKey) {
+        // Migrate old settings
+        if (oldGeminiKey) {
+            settings.llm.gemini.apiKey = oldGeminiKey;
+        }
+        if (oldOpenAiKey) {
+            settings.tts.openai.apiKey = oldOpenAiKey;
+        }
+        // Save migrated settings
+        localStorage.setItem('lang_tools_settings', JSON.stringify(settings));
+        // Clean up old keys
+        localStorage.removeItem('gemini_api_key');
+        localStorage.removeItem('openai_api_key');
+        console.log('Migrated old settings to new format');
+    }
+    
+    // Load from localStorage or use defaults
+    const saved = localStorage.getItem('lang_tools_settings');
+    if (saved) {
+        try {
+            const loaded = JSON.parse(saved);
+            // Merge with defaults to ensure all fields exist
+            settings = {
+                llm: { ...settings.llm, ...loaded.llm },
+                tts: { ...settings.tts, ...loaded.tts }
+            };
+        } catch (e) {
+            console.error('Failed to parse settings:', e);
+        }
+    }
+    
+    // Populate the form
+    populateSettingsForm();
+}
+
+function populateSettingsForm() {
+    // LLM Provider
+    const llmProvider = settings.llm.provider;
+    document.getElementById(`llm-${llmProvider}`)?.setAttribute('checked', 'checked');
+    
+    // LLM Keys and Models
+    document.getElementById('gemini-api-key').value = settings.llm.gemini.apiKey;
+    document.getElementById('gemini-model').value = settings.llm.gemini.model;
+    document.getElementById('openai-llm-api-key').value = settings.llm.openai.apiKey;
+    document.getElementById('openai-llm-model').value = settings.llm.openai.model;
+    document.getElementById('anthropic-api-key').value = settings.llm.anthropic.apiKey;
+    document.getElementById('anthropic-model').value = settings.llm.anthropic.model;
+    
+    // TTS Provider
+    const ttsProvider = settings.tts.provider;
+    document.getElementById(`tts-${ttsProvider}`)?.setAttribute('checked', 'checked');
+    
+    // TTS Keys and Models
+    document.getElementById('openai-tts-api-key').value = settings.tts.openai.apiKey;
+    document.getElementById('openai-tts-model').value = settings.tts.openai.model;
+    document.getElementById('openai-tts-voice').value = settings.tts.openai.voice;
+    document.getElementById('elevenlabs-api-key').value = settings.tts.elevenlabs.apiKey;
+    document.getElementById('elevenlabs-model').value = settings.tts.elevenlabs.model;
 }
 
 // Event Listeners
@@ -270,21 +338,35 @@ function closeModal() {
 }
 
 function saveSettings() {
-    if (!apiKeyInput) return;
-    const newKey = apiKeyInput.value.trim();
-    const newOpenAiKey = openAiKeyInput ? openAiKeyInput.value.trim() : '';
-    
-    if (newKey) {
-        apiKey = newKey;
-        localStorage.setItem('gemini_api_key', apiKey);
+    try {
+        // Get selected providers
+        settings.llm.provider = document.querySelector('input[name="llm-provider"]:checked')?.value || 'gemini';
+        settings.tts.provider = document.querySelector('input[name="tts-provider"]:checked')?.value || 'openai';
+        
+        // Save LLM settings
+        settings.llm.gemini.apiKey = document.getElementById('gemini-api-key')?.value.trim() || '';
+        settings.llm.gemini.model = document.getElementById('gemini-model')?.value || 'gemini-2.5-flash-latest';
+        settings.llm.openai.apiKey = document.getElementById('openai-llm-api-key')?.value.trim() || '';
+        settings.llm.openai.model = document.getElementById('openai-llm-model')?.value || 'gpt-4o';
+        settings.llm.anthropic.apiKey = document.getElementById('anthropic-api-key')?.value.trim() || '';
+        settings.llm.anthropic.model = document.getElementById('anthropic-model')?.value || 'claude-3-5-sonnet-20241022';
+        
+        // Save TTS settings
+        settings.tts.openai.apiKey = document.getElementById('openai-tts-api-key')?.value.trim() || '';
+        settings.tts.openai.model = document.getElementById('openai-tts-model')?.value || 'tts-1-hd';
+        settings.tts.openai.voice = document.getElementById('openai-tts-voice')?.value || 'alloy';
+        settings.tts.elevenlabs.apiKey = document.getElementById('elevenlabs-api-key')?.value.trim() || '';
+        settings.tts.elevenlabs.model = document.getElementById('elevenlabs-model')?.value || 'eleven_turbo_v2_5';
+        
+        // Save to localStorage
+        localStorage.setItem('lang_tools_settings', JSON.stringify(settings));
+        
+        closeModal();
+        alert('Settings saved successfully!');
+    } catch (e) {
+        console.error('Error saving settings:', e);
+        alert('Error saving settings: ' + e.message);
     }
-    
-    if (newOpenAiKey) {
-        openAiKey = newOpenAiKey;
-        localStorage.setItem('openai_api_key', openAiKey);
-    }
-
-    closeModal();
 }
 
 async function handleAction(action) {
@@ -296,20 +378,25 @@ async function handleAction(action) {
             return;
         }
 
+        const provider = settings.llm.provider;
+        const apiKey = settings.llm[provider].apiKey;
+        
         if (!apiKey) {
             openModal();
-            alert('Please save your Google Gemini API Key first.');
+            alert(`Please save your ${provider.toUpperCase()} API Key first.`);
             return;
         }
 
         showLoading();
 
-        // Assuming constructPrompt and callGeminiAPI are global from other scripts
-        if (typeof constructPrompt === 'undefined' || typeof callGeminiAPI === 'undefined') {
-                throw new Error("Helper scripts not loaded. Please refresh.");
+        // Assuming constructPrompt is global from prompts.js
+        if (typeof constructPrompt === 'undefined') {
+            throw new Error("Helper scripts not loaded. Please refresh.");
         }
+        
         const prompt = constructPrompt(action, text);
-        const result = await callGeminiAPI(prompt, apiKey);
+        const model = settings.llm[provider].model;
+        const result = await callLLM(provider, prompt, apiKey, model);
         showResult(result);
     } catch (error) {
         console.error('Error:', error);
@@ -353,9 +440,13 @@ async function handleSpeak(text, btn) {
         alert('Nothing to read.');
         return;
     }
-    if (!openAiKey) {
+    
+    const provider = settings.tts.provider;
+    const apiKey = settings.tts[provider].apiKey;
+    
+    if (!apiKey) {
         openModal();
-        alert('Please save your OpenAI API Key first for TTS.');
+        alert(`Please save your ${provider.toUpperCase()} API Key first for TTS.`);
         return;
     }
     
@@ -379,8 +470,9 @@ async function handleSpeak(text, btn) {
     let audioUrl = null;
     
     try {
-        if (typeof callOpenAITTS === 'undefined') throw new Error("API script not loaded.");
-        audioUrl = await callOpenAITTS(text, openAiKey);
+        const model = settings.tts[provider].model;
+        const voice = settings.tts[provider].voice; // Only for OpenAI
+        audioUrl = await callTTS(provider, text, apiKey, model, voice);
         currentAudio = new Audio();
         
         // Reset button when audio finishes or errors
