@@ -325,12 +325,8 @@ window.addEventListener('click', (e) => {
 // Functions
 function openModal() {
     if (!settingsModal) return;
+    populateSettingsForm(); // Refresh form with current settings
     settingsModal.classList.add('show');
-    if (apiKeyInput) {
-            apiKeyInput.value = apiKey; 
-            apiKeyInput.focus();
-    }
-    if (openAiKeyInput) openAiKeyInput.value = openAiKey;
 }
 
 function closeModal() {
