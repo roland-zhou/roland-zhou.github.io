@@ -370,13 +370,17 @@ textarea::placeholder {
 
 .modal-content {
     width: 90%;
-    max-width: 400px;
+    max-width: 500px;
     background: var(--card-bg);
     padding: 0;
     display: flex;
     flex-direction: column;
     transform: translateY(20px);
     transition: transform 0.3s ease;
+    max-height: 80vh;
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
 }
 
 .modal.show .modal-content {
@@ -411,6 +415,9 @@ textarea::placeholder {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
 }
 
 .form-group {
