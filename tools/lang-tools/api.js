@@ -137,6 +137,11 @@ async function callGeminiAPI(prompt, apiKey, model = 'gemini-2.5-flash-latest') 
 async function callOpenAILLM(prompt, apiKey, model = 'gpt-4o') {
     const url = 'https://api.openai.com/v1/chat/completions';
     
+    // GPT-5-mini and reasoning models (o1, o3) typically require temperature=1 (default)
+    // Error observed: "temperature does not support 0... Only the default (1) value is supported"
+    const isFixedTempModel = model.includes('o1') || model.includes('o3') || model.includes('gpt-5-mini');
+    const temperature = isFixedTempModel ? 1 : 0;
+    
     const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -149,7 +154,7 @@ async function callOpenAILLM(prompt, apiKey, model = 'gpt-4o') {
                 role: 'user',
                 content: prompt
             }],
-            temperature: 0
+            temperature: temperature
         })
     });
 
