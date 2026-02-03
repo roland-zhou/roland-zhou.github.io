@@ -10,124 +10,58 @@ function constructPrompt(action, text) {
 First, detect the language of the text:
 - If the text is entirely in English, you MUST translate it into Chinese (Simplified Chinese).
 - If the text contains any Chinese, you MUST translate it into English.
-- If the text contains only emojis or symbols (no natural language), you MUST interpret and translate it into English.
+- If the text contains only emojis or symbols, interpret and translate to English.
 
-Provide the main translation first, then 2-3 DIFFERENT alternative translations in the same target language. If there are no meaningful alternatives, provide only the main translation without repeating it.
+**OUTPUT FORMAT RULES (Strictly Follow):**
 
-**Additional content based on input type:**
-- Single English word: Add pronunciation in IPA format + 2-3 usage examples showing the word in context
-- Single Chinese word/term (1-2 characters): Add 2-3 usage examples only (DO NOT ADD PRONUNCIATION - NO IPA, NO PINYIN)
-- Short phrase (2-5 words, no complete sentence structure): Add 2-3 usage examples only (no pronunciation)
-- **Complete sentence: STOP after translations - NO examples, NO pronunciation**
+**Scenario A: Input is a Word or Phrase (Fragment)**
+(e.g., "apple", "cold brew", "keep in mind", "take off")
+Output structure:
+1. Main translation
+2. Alternative translations (2-3 lines)
+3. [Empty Line]
+4. Pronunciation (IPA) - ONLY for single English words. OMIT for phrases/Chinese input.
+5. [Empty Line]
+6. Usage Examples (2-3 sentences showing the input in context)
 
-**How to identify a complete sentence (ALL conditions must be met):**
-1. Has a subject AND a predicate (a verb with its arguments)
-2. Expresses a complete action or statement
-3. Typically 6+ words (English) or 6+ characters (Chinese)
+**Scenario B: Input is a Complete Sentence**
+(e.g., "I went home.", "The coffee is cold.")
+Output structure:
+1. Main translation
+2. Alternative translations
+(STOP HERE. No pronunciation, no examples.)
 
-**Examples of COMPLETE SENTENCES (no examples needed):**
-- "I went to the store yesterday." ✓ (subject: I, predicate: went)
-- "中国有很多方言" ✓ (subject: 中国, predicate: 有很多方言)
-- "She is reading a book." ✓ (subject: She, predicate: is reading)
+**CRITICAL NEGATIVE CONSTRAINTS:**
+- NEVER output explanations like "This is a phrase" or "This is a sentence".
+- NEVER explain grammar or why you chose a format.
+- JUST OUTPUT THE CONTENT.
 
-**Examples of PHRASES/TERMS (need examples):**
-- "household registration" ✗ (noun phrase, no verb)
-- "户口登记" ✗ (noun phrase, no verb)
-- "keep in mind" ✗ (verb phrase, but no subject - not a complete sentence)
-- "导演" ✗ (single word/term)
+**How to decide:**
+- If it lacks a subject AND a main verb, treat it as a **Phrase (Scenario A)** -> PROVIDE EXAMPLES.
+- If it's just a noun (e.g., "tonic cold brew"), it is a **Phrase (Scenario A)** -> PROVIDE EXAMPLES.
 
-**Key distinction:** If there's no subject performing an action, it's NOT a complete sentence - provide examples.
-
-**CRITICAL OUTPUT RULE:**
-- For complete sentences: Output ONLY the translation alternatives. Do NOT add any explanatory text like "This is a complete sentence..." or "no additional content will be provided". Just translations, nothing else.
-- For words/phrases: Output translations, then pronunciation (English words only), then usage examples. No explanations.
-
-**CRITICAL RULE FOR CHINESE INPUT:**
-If the input contains ANY Chinese characters, DO NOT include ANY pronunciation line. Skip directly from translations to examples.
-
-**IMPORTANT formatting rules:**
-- Add ONE empty line between translations and pronunciation (English words only)
-- Add ONE empty line between pronunciation and usage examples
-- Add ONE empty line between each section
-
-Output only the translations without any markdown formatting, labels, or explanations.
-
-**Example 1 (Single Word):**
+**Example 1 (Phrase):**
 <INPUT>
-apple
+tonic cold brew
 </INPUT>
 <OUTPUT>
-苹果
-苹果派
-红苹果
+汤力冷萃咖啡
+汤力水冷萃
+气泡冷萃
 
-/ˈæpəl/
-
-I ate an apple for breakfast.
-The apple tree in our garden is blooming.
-She bought a bag of fresh apples.
+I ordered a refreshing tonic cold brew at the cafe.
+Tonic cold brew is perfect for a hot summer day.
+Have you ever tried mixing tonic water with cold brew coffee?
 </OUTPUT>
 
-**Example 2 (Phrase):**
+**Example 2 (Sentence):**
 <INPUT>
-keep in mind
+I like coffee.
 </INPUT>
 <OUTPUT>
-记住
-牢记
-别忘了
-
-Keep in mind that the deadline is Friday.
-You should keep in mind his advice.
-Please keep in mind the safety rules.
-</OUTPUT>
-
-**Example 3 (Chinese Word to English - NO PRONUNCIATION):**
-<INPUT>
-苹果
-</INPUT>
-<OUTPUT>
-apple
-apple pie
-red apple
-
-I ate an apple for breakfast.
-This apple is very sweet.
-The apple tree is blooming.
-</OUTPUT>
-
-**Example 4 (Chinese Word to English - 导演):**
-<INPUT>
-导演
-</INPUT>
-<OUTPUT>
-director
-film director
-to direct
-
-The director of this film is very famous.
-She is a talented director.
-The director is shooting a new movie.
-</OUTPUT>
-
-**Example 5 (English Sentence - NO EXAMPLES):**
-<INPUT>
-I went to the store yesterday.
-</INPUT>
-<OUTPUT>
-我昨天去了商店。
-昨天我去商店了。
-我昨天去过那家店。
-</OUTPUT>
-
-**Example 6 (Chinese Sentence - NO EXAMPLES):**
-<INPUT>
-中国有很多方言
-</INPUT>
-<OUTPUT>
-China has many dialects.
-There are numerous dialects in China.
-China is home to a wide variety of dialects.
+我喜欢咖啡。
+我很爱喝咖啡。
+咖啡是我的最爱。
 </OUTPUT>
 
 <text-to-be-translated>${text}</text-to-be-translated>`;
