@@ -318,5 +318,4 @@ if (typeof window !== 'undefined') {
     window.callAnthropicAPI = callAnthropicAPI;
     window.callOpenAITTS = callOpenAITTS;
     window.callElevenLabsTTS = callElevenLabsTTS;
-    window.fetchModels = fetchModels;
 }
