@@ -459,6 +459,9 @@ textarea::placeholder {
     display: flex;
     justify-content: flex-end;
     gap: 0.75rem;
+    flex-shrink: 0; /* Don't shrink footer */
+    background-color: var(--card-bg); /* Ensure background is opaque */
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
 .primary-btn,
