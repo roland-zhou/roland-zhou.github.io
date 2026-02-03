@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=0.2.13">
+    <link rel="stylesheet" href="style.css?v=0.2.14">
     <link rel="icon" href="icon.png" type="image/png">
     <link rel="apple-touch-icon" href="icon.png">
 </head>
@@ -179,6 +179,22 @@
                             </select>
                         </div>
                     </div>
+
+                    <!-- Kimi (Moonshot AI) -->
+                    <div class="provider-group">
+                        <label class="radio-label">
+                            <input type="radio" name="llm-provider" value="kimi" id="llm-kimi">
+                            <span>Kimi (Moonshot AI)</span>
+                        </label>
+                        <div class="provider-config" id="config-llm-kimi">
+                            <input type="password" class="api-key-input" id="kimi-api-key" placeholder="Enter Kimi API key">
+                            <select class="model-select" id="kimi-model">
+                                <option value="moonshot-v1-8k">moonshot-v1-8k (Fast)</option>
+                                <option value="moonshot-v1-32k">moonshot-v1-32k</option>
+                                <option value="moonshot-v1-128k">moonshot-v1-128k (Long Context)</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- TTS Section -->
@@ -245,10 +261,10 @@
     <script src="libs/jszip.min.js"></script>
     <script src="libs/genanki.js"></script>
 
-    <div class="version">v0.2.13</div>
-    <script src="prompts.js?v=0.2.13"></script>
-    <script src="api.js?v=0.2.13"></script>
-    <script src="script.js?v=0.2.13"></script>
+    <div class="version">v0.2.14</div>
+    <script src="prompts.js?v=0.2.14"></script>
+    <script src="api.js?v=0.2.14"></script>
+    <script src="script.js?v=0.2.14"></script>
 </body>
 
 </html>

@@ -25,9 +25,10 @@ const ankiBtn = document.getElementById('anki-btn');
 let settings = {
     llm: {
         provider: 'gemini',
-        gemini: { apiKey: '', model: 'gemini-2.5-flash-latest' },
+        gemini: { apiKey: '', model: 'gemini-3-pro-preview' },
         openai: { apiKey: '', model: 'gpt-4o' },
-        anthropic: { apiKey: '', model: 'claude-3-5-sonnet-20241022' }
+        anthropic: { apiKey: '', model: 'claude-sonnet-4-5' },
+        kimi: { apiKey: '', model: 'moonshot-v1-8k' }
     },
     tts: {
         provider: 'openai',
@@ -115,6 +116,8 @@ function populateSettingsForm() {
     document.getElementById('openai-llm-model').value = settings.llm.openai.model;
     document.getElementById('anthropic-api-key').value = settings.llm.anthropic.apiKey;
     document.getElementById('anthropic-model').value = settings.llm.anthropic.model;
+    document.getElementById('kimi-api-key').value = settings.llm.kimi?.apiKey || '';
+    document.getElementById('kimi-model').value = settings.llm.kimi?.model || 'moonshot-v1-8k';
     
     // Show/hide LLM configs
     document.querySelectorAll('[id^="config-llm-"]').forEach(config => {
@@ -386,7 +389,12 @@ function saveSettings() {
         settings.llm.openai.apiKey = document.getElementById('openai-llm-api-key')?.value.trim() || '';
         settings.llm.openai.model = document.getElementById('openai-llm-model')?.value || 'gpt-4o';
         settings.llm.anthropic.apiKey = document.getElementById('anthropic-api-key')?.value.trim() || '';
-        settings.llm.anthropic.model = document.getElementById('anthropic-model')?.value || 'claude-3-5-sonnet-20241022';
+        settings.llm.anthropic.model = document.getElementById('anthropic-model')?.value || 'claude-sonnet-4-5';
+        
+        // Save Kimi settings (ensure object exists if migrating)
+        if (!settings.llm.kimi) settings.llm.kimi = {};
+        settings.llm.kimi.apiKey = document.getElementById('kimi-api-key')?.value.trim() || '';
+        settings.llm.kimi.model = document.getElementById('kimi-model')?.value || 'moonshot-v1-8k';
         
         // Save TTS settings
         settings.tts.openai.apiKey = document.getElementById('openai-tts-api-key')?.value.trim() || '';
