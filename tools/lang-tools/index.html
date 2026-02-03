@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=0.2.5">
+    <link rel="stylesheet" href="style.css?v=0.2.6">
     <link rel="icon" href="icon.png" type="image/png">
     <link rel="apple-touch-icon" href="icon.png">
 </head>
@@ -137,13 +137,16 @@
                         </label>
                         <div class="provider-config" id="config-llm-gemini">
                             <input type="password" class="api-key-input" id="gemini-api-key" placeholder="Enter Gemini API key">
-                            <select class="model-select" id="gemini-model">
-                                <option value="gemini-2.5-flash-latest">gemini-2.5-flash-latest</option>
-                                <option value="gemini-2.5-pro-latest">gemini-2.5-pro-latest</option>
-                                <option value="gemini-2.0-flash">gemini-2.0-flash</option>
-                                <option value="gemini-1.5-pro-latest">gemini-1.5-pro-latest</option>
-                                <option value="gemini-1.5-flash-latest">gemini-1.5-flash-latest</option>
-                            </select>
+                            <div class="select-wrapper">
+                                <select class="model-select" id="gemini-model">
+                                    <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+                                    <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+                                    <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+                                </select>
+                                <button class="refresh-btn" data-provider="gemini" title="Fetch latest models">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6"></path><path d="M21.34 15.57a10 10 0 1 1-.57-8.38"></path></svg>
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -155,12 +158,16 @@
                         </label>
                         <div class="provider-config" id="config-llm-openai">
                             <input type="password" class="api-key-input" id="openai-llm-api-key" placeholder="Enter OpenAI API key">
-                            <select class="model-select" id="openai-llm-model">
-                                <option value="gpt-4o">gpt-4o</option>
-                                <option value="gpt-4o-mini">gpt-4o-mini</option>
-                                <option value="gpt-4-turbo">gpt-4-turbo</option>
-                                <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
-                            </select>
+                            <div class="select-wrapper">
+                                <select class="model-select" id="openai-llm-model">
+                                    <option value="gpt-4o">gpt-4o</option>
+                                    <option value="gpt-4o-mini">gpt-4o-mini</option>
+                                    <option value="gpt-4-turbo">gpt-4-turbo</option>
+                                </select>
+                                <button class="refresh-btn" data-provider="openai" title="Fetch latest models">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6"></path><path d="M21.34 15.57a10 10 0 1 1-.57-8.38"></path></svg>
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -172,11 +179,16 @@
                         </label>
                         <div class="provider-config" id="config-llm-anthropic">
                             <input type="password" class="api-key-input" id="anthropic-api-key" placeholder="Enter Anthropic API key">
-                            <select class="model-select" id="anthropic-model">
-                                <option value="claude-3-5-sonnet-20241022">claude-3-5-sonnet</option>
-                                <option value="claude-3-5-haiku-20241022">claude-3-5-haiku</option>
-                                <option value="claude-3-opus-20240229">claude-3-opus</option>
-                            </select>
+                            <div class="select-wrapper">
+                                <select class="model-select" id="anthropic-model">
+                                    <option value="claude-3-5-sonnet-20241022">claude-3-5-sonnet-latest</option>
+                                    <option value="claude-3-5-haiku-20241022">claude-3-5-haiku-latest</option>
+                                    <option value="claude-3-opus-20240229">claude-3-opus-latest</option>
+                                </select>
+                                <button class="refresh-btn" data-provider="anthropic" title="Fetch latest models">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6"></path><path d="M21.34 15.57a10 10 0 1 1-.57-8.38"></path></svg>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -216,11 +228,15 @@
                         </label>
                         <div class="provider-config" id="config-tts-elevenlabs">
                             <input type="password" class="api-key-input" id="elevenlabs-api-key" placeholder="Enter ElevenLabs API key">
-                            <select class="model-select" id="elevenlabs-model">
-                                <option value="eleven_turbo_v2_5">Eleven Turbo v2.5</option>
-                                <option value="eleven_multilingual_v2">Eleven Multilingual v2</option>
-                                <option value="eleven_monolingual_v1">Eleven Monolingual v1</option>
-                            </select>
+                            <div class="select-wrapper">
+                                <select class="model-select" id="elevenlabs-model">
+                                    <option value="eleven_turbo_v2_5">Eleven Turbo v2.5</option>
+                                    <option value="eleven_multilingual_v2">Eleven Multilingual v2</option>
+                                </select>
+                                <button class="refresh-btn" data-provider="elevenlabs" title="Fetch latest models">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6"></path><path d="M21.34 15.57a10 10 0 1 1-.57-8.38"></path></svg>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -242,10 +258,10 @@
     <script src="libs/jszip.min.js"></script>
     <script src="libs/genanki.js"></script>
 
-    <div class="version">v0.2.5</div>
-    <script src="prompts.js?v=0.2.5"></script>
-    <script src="api.js?v=0.2.5"></script>
-    <script src="script.js?v=0.2.5"></script>
+    <div class="version">v0.2.6</div>
+    <script src="prompts.js?v=0.2.6"></script>
+    <script src="api.js?v=0.2.6"></script>
+    <script src="script.js?v=0.2.6"></script>
 </body>
 
 </html>

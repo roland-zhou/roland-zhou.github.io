@@ -193,13 +193,81 @@ llmRadios.forEach(radio => {
     });
 });
 
-ttsRadios.forEach(radio => {
+    ttsRadios.forEach(radio => {
     radio.addEventListener('change', () => {
         document.querySelectorAll('[id^="config-tts-"]').forEach(config => {
             config.style.display = 'none';
         });
         const selectedConfig = document.getElementById(`config-tts-${radio.value}`);
         if (selectedConfig) selectedConfig.style.display = 'flex';
+    });
+});
+
+// Refresh Models Handlers
+document.querySelectorAll('.refresh-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+        const provider = btn.dataset.provider;
+        let selectId, apiKeyInputId;
+
+        // Logic to find the right input fields based on provider
+        if (provider === 'gemini') {
+            selectId = 'gemini-model';
+            apiKeyInputId = 'gemini-api-key';
+        } else if (provider === 'anthropic') {
+            selectId = 'anthropic-model';
+            apiKeyInputId = 'anthropic-api-key';
+        } else if (provider === 'elevenlabs') {
+            selectId = 'elevenlabs-model';
+            apiKeyInputId = 'elevenlabs-api-key';
+        } else if (provider === 'openai') {
+            if (btn.closest('#config-tts-openai')) {
+                selectId = 'openai-tts-model';
+                apiKeyInputId = 'openai-tts-api-key';
+            } else {
+                selectId = 'openai-llm-model';
+                apiKeyInputId = 'openai-llm-api-key';
+            }
+        }
+        
+        const apiKey = document.getElementById(apiKeyInputId).value.trim();
+        const select = document.getElementById(selectId);
+        
+        if (!apiKey) {
+            alert('Please enter an API Key first');
+            return;
+        }
+
+        btn.classList.add('loading');
+        try {
+            if (typeof fetchModels === 'undefined') throw new Error("API script not loaded.");
+            
+            const models = await fetchModels(provider, apiKey);
+            
+            if (models && models.length > 0) {
+                const currentVal = select.value;
+                select.innerHTML = '';
+                models.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m;
+                    opt.textContent = m;
+                    select.appendChild(opt);
+                });
+                
+                if (models.includes(currentVal)) {
+                    select.value = currentVal;
+                } else {
+                    select.value = models[0];
+                }
+                alert(`Updated ${provider} models!`);
+            } else {
+                alert('No models found.');
+            }
+        } catch (err) {
+            console.error(err);
+            alert(`Error: ${err.message}`);
+        } finally {
+            btn.classList.remove('loading');
+        }
     });
 });
 

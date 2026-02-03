@@ -3,6 +3,78 @@
  * This module works in both Node.js and browser environments
  */
 
+async function fetchModels(provider, apiKey) {
+    if (!apiKey) throw new Error("API Key required");
+
+    let models = [];
+    
+    try {
+        if (provider === 'gemini') {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+            const data = await response.json();
+            if (data.models) {
+                // Filter for content generation models and sort by name to put newer versions first (heuristic)
+                models = data.models
+                    .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
+                    .map(m => m.name.replace('models/', ''))
+                    // Filter out legacy/vision-only if needed, but Gemini unified models are good
+                    .filter(name => !name.includes('vision') && !name.includes('embedding'))
+                    // Sort descending to get "2.0" before "1.5"
+                    .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+            }
+        } else if (provider === 'openai') {
+            const response = await fetch('https://api.openai.com/v1/models', {
+                headers: { 'Authorization': `Bearer ${apiKey}` }
+            });
+            const data = await response.json();
+            if (data.data) {
+                // Filter for GPT models, exclude old ones
+                const now = new Date().getTime();
+                models = data.data
+                    .filter(m => m.id.startsWith('gpt-4') || m.id.startsWith('gpt-3.5') || m.id.startsWith('o1') || m.id.startsWith('o3'))
+                    .filter(m => !m.id.includes('instruct') && !m.id.includes('audio') && !m.id.includes('realtime'))
+                     // Sort by created time descending
+                    .sort((a, b) => b.created - a.created)
+                    .map(m => m.id);
+            }
+        } else if (provider === 'anthropic') {
+             // Anthropic API might not be CORS friendly for fetching models directly from browser in some cases,
+             // but let's try the standard endpoint.
+             const response = await fetch('https://api.anthropic.com/v1/models', {
+                headers: { 
+                    'x-api-key': apiKey,
+                    'anthropic-version': '2023-06-01',
+                    'content-type': 'application/json'
+                }
+            });
+            const data = await response.json();
+            if (data.data) {
+                 models = data.data
+                    .sort((a, b) => b.created_at - a.created_at) // Assuming they send created_at
+                    .map(m => m.id);
+            }
+        } else if (provider === 'elevenlabs') {
+            const response = await fetch('https://api.elevenlabs.io/v1/models', {
+                headers: { 'xi-api-key': apiKey }
+            });
+            const data = await response.json();
+            if (Array.isArray(data)) {
+                // ElevenLabs returns list of objects
+                 models = data
+                    .filter(m => m.can_do_text_to_speech)
+                    .map(m => m.model_id);
+            }
+        }
+        
+        // Return top 5
+        return models.slice(0, 5);
+        
+    } catch (e) {
+        console.error(`Failed to fetch models for ${provider}:`, e);
+        throw new Error(`Failed to fetch models: ${e.message}`);
+    }
+}
+
 // Main LLM router
 async function callLLM(provider, prompt, apiKey, model) {
     switch (provider) {
@@ -246,4 +318,5 @@ if (typeof window !== 'undefined') {
     window.callAnthropicAPI = callAnthropicAPI;
     window.callOpenAITTS = callOpenAITTS;
     window.callElevenLabsTTS = callElevenLabsTTS;
+    window.fetchModels = fetchModels;
 }
