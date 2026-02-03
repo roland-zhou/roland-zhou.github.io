@@ -105,7 +105,8 @@ function loadSettings() {
 function populateSettingsForm() {
     // LLM Provider
     const llmProvider = settings.llm.provider;
-    document.getElementById(`llm-${llmProvider}`)?.setAttribute('checked', 'checked');
+    const llmRadio = document.getElementById(`llm-${llmProvider}`);
+    if (llmRadio) llmRadio.checked = true;
     
     // LLM Keys and Models
     document.getElementById('gemini-api-key').value = settings.llm.gemini.apiKey;
@@ -115,9 +116,17 @@ function populateSettingsForm() {
     document.getElementById('anthropic-api-key').value = settings.llm.anthropic.apiKey;
     document.getElementById('anthropic-model').value = settings.llm.anthropic.model;
     
+    // Show/hide LLM configs
+    document.querySelectorAll('[id^="config-llm-"]').forEach(config => {
+        config.style.display = 'none';
+    });
+    const selectedLlmConfig = document.getElementById(`config-llm-${llmProvider}`);
+    if (selectedLlmConfig) selectedLlmConfig.style.display = 'flex';
+    
     // TTS Provider
     const ttsProvider = settings.tts.provider;
-    document.getElementById(`tts-${ttsProvider}`)?.setAttribute('checked', 'checked');
+    const ttsRadio = document.getElementById(`tts-${ttsProvider}`);
+    if (ttsRadio) ttsRadio.checked = true;
     
     // TTS Keys and Models
     document.getElementById('openai-tts-api-key').value = settings.tts.openai.apiKey;
@@ -125,6 +134,13 @@ function populateSettingsForm() {
     document.getElementById('openai-tts-voice').value = settings.tts.openai.voice;
     document.getElementById('elevenlabs-api-key').value = settings.tts.elevenlabs.apiKey;
     document.getElementById('elevenlabs-model').value = settings.tts.elevenlabs.model;
+    
+    // Show/hide TTS configs
+    document.querySelectorAll('[id^="config-tts-"]').forEach(config => {
+        config.style.display = 'none';
+    });
+    const selectedTtsConfig = document.getElementById(`config-tts-${ttsProvider}`);
+    if (selectedTtsConfig) selectedTtsConfig.style.display = 'flex';
 }
 
 // Event Listeners
@@ -162,6 +178,30 @@ if (settingsBtn) {
 if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
 if (cancelSettingsBtn) cancelSettingsBtn.addEventListener('click', closeModal);
 if (saveSettingsBtn) saveSettingsBtn.addEventListener('click', saveSettings);
+
+// Provider radio button handlers
+const llmRadios = document.querySelectorAll('input[name="llm-provider"]');
+const ttsRadios = document.querySelectorAll('input[name="tts-provider"]');
+
+llmRadios.forEach(radio => {
+    radio.addEventListener('change', () => {
+        document.querySelectorAll('[id^="config-llm-"]').forEach(config => {
+            config.style.display = 'none';
+        });
+        const selectedConfig = document.getElementById(`config-llm-${radio.value}`);
+        if (selectedConfig) selectedConfig.style.display = 'flex';
+    });
+});
+
+ttsRadios.forEach(radio => {
+    radio.addEventListener('change', () => {
+        document.querySelectorAll('[id^="config-tts-"]').forEach(config => {
+            config.style.display = 'none';
+        });
+        const selectedConfig = document.getElementById(`config-tts-${radio.value}`);
+        if (selectedConfig) selectedConfig.style.display = 'flex';
+    });
+});
 
 if (cleanBtn) {
     cleanBtn.addEventListener('click', () => {
