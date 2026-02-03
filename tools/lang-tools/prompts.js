@@ -34,6 +34,7 @@ Output structure:
 **CRITICAL NEGATIVE CONSTRAINTS:**
 - NEVER output explanations like "This is a phrase" or "This is a sentence".
 - NEVER explain grammar or why you chose a format.
+- NEVER include XML tags like <OUTPUT> or </OUTPUT> in your response. Just the raw text.
 - JUST OUTPUT THE CONTENT.
 
 **How to decide:**
@@ -41,10 +42,8 @@ Output structure:
 - If it's just a noun (e.g., "tonic cold brew"), it is a **Phrase (Scenario A)** -> PROVIDE EXAMPLES.
 
 **Example 1 (Phrase):**
-<INPUT>
-tonic cold brew
-</INPUT>
-<OUTPUT>
+Input: tonic cold brew
+Output:
 汤力冷萃咖啡
 汤力水冷萃
 气泡冷萃
@@ -52,17 +51,13 @@ tonic cold brew
 I ordered a refreshing tonic cold brew at the cafe.
 Tonic cold brew is perfect for a hot summer day.
 Have you ever tried mixing tonic water with cold brew coffee?
-</OUTPUT>
 
 **Example 2 (Sentence):**
-<INPUT>
-I like coffee.
-</INPUT>
-<OUTPUT>
+Input: I like coffee.
+Output:
 我喜欢咖啡。
 我很爱喝咖啡。
 咖啡是我的最爱。
-</OUTPUT>
 
 <text-to-be-translated>${text}</text-to-be-translated>`;
         case 'rewrite':
