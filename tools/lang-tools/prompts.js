@@ -41,7 +41,18 @@ Output structure:
 - If it lacks a subject AND a main verb, treat it as a **Phrase (Scenario A)** -> PROVIDE EXAMPLES.
 - If it's just a noun (e.g., "tonic cold brew"), it is a **Phrase (Scenario A)** -> PROVIDE EXAMPLES.
 
-**Example 1 (Phrase):**
+**Example 1 (Single Word):**
+Input: apple
+Output:
+苹果
+[noun] 苹果树
+
+/ˈæp.əl/
+
+I ate a delicious apple.
+An apple a day keeps the doctor away.
+
+**Example 2 (Phrase):**
 Input: tonic cold brew
 Output:
 汤力冷萃咖啡
@@ -52,7 +63,7 @@ I ordered a refreshing tonic cold brew at the cafe.
 Tonic cold brew is perfect for a hot summer day.
 Have you ever tried mixing tonic water with cold brew coffee?
 
-**Example 2 (Sentence):**
+**Example 3 (Sentence):**
 Input: I like coffee.
 Output:
 我喜欢咖啡。
