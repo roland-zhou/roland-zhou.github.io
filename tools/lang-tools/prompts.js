@@ -35,6 +35,8 @@ Output structure:
 - NEVER output explanations like "This is a phrase" or "This is a sentence".
 - NEVER explain grammar or why you chose a format.
 - NEVER include XML tags like <OUTPUT> or </OUTPUT> in your response. Just the raw text.
+- NEVER output metadata like "Language detected:", "Input type:", "Input:", or "Output:".
+- Start directly with the translation. NO LABELS. NO HEADERS.
 - JUST OUTPUT THE CONTENT.
 
 **How to decide:**
