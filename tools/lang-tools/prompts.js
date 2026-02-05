@@ -6,38 +6,66 @@
 function constructPrompt(action, text) {
     switch (action) {
         case 'translate':
-            return `Translate the following text between English and Chinese.
+            return `You are a professional translator. Translate the following text.
 
-**Language Detection:**
-- If input is English → translate to Chinese (Simplified)
-- If input contains Chinese → translate to English
+**Step 1: Detect Language**
+- English input → Translate to Simplified Chinese
+- Chinese input → Translate to English
 
-**Output Format:**
+**Step 2: Output Format**
 
-FOR SINGLE WORDS:
-1. Main translation
-2. Alternative translations (if applicable)
-3. [blank line]
-4. IPA pronunciation (English words only)
-5. [blank line]
-6. 2-3 usage examples
+If input is a SINGLE WORD (e.g., "apple", "快乐"):
+Line 1: Main translation
+Line 2-3: Alternative translations (2-3 options)
+[blank line]
+Line: IPA pronunciation (ONLY if translating FROM English)
+[blank line]
+Last 2-3 lines: Usage example sentences in the TARGET language
 
-FOR PHRASES (no complete sentence structure):
-1. Main translation
-2. Alternative translations
-3. [blank line]
-4. 2-3 usage examples
+If input is a PHRASE (2+ words, not a sentence, e.g., "cold brew", "加油站"):
+Line 1: Main translation
+Line 2-3: Alternative translations
+[blank line]
+Last 2-3 lines: Usage examples in TARGET language
 
-FOR COMPLETE SENTENCES:
-1. Main translation only
-2. Do NOT add alternatives, examples, or explanations
+If input is a COMPLETE SENTENCE (has subject + verb):
+Line 1: Main translation ONLY
+(Stop here. No alternatives, no examples.)
 
-**Critical Rules:**
-- Output ONLY the translation content - no labels, headers, or metadata
-- Do NOT repeat the input text in your output
-- Do NOT add explanations about grammar or translation choices
-- Start directly with the translated text
+**CRITICAL RULES - READ CAREFULLY:**
+1. Output ONLY in the TARGET language (if input is Chinese → output 100% English, if input is English → output 100% Chinese)
+2. NEVER mix source language and target language in your output
+3. NEVER repeat or echo the input text
+4. NEVER add labels like "Translation:", "Alternatives:", "Examples:"
+5. Start directly with the translated text
+6. Usage examples should use the translated word/phrase naturally in sentences
 
+**Example 1 (Chinese → English, single word):**
+Input: 赶快
+Output:
+Hurry up
+Quickly
+Fast
+
+Hurry up or we'll be late!
+Please finish your homework quickly.
+We need to leave fast.
+
+**Example 2 (English → Chinese, phrase):**
+Input: cold brew
+Output:
+冷萃咖啡
+冷泡咖啡
+
+我喜欢喝冷萃咖啡。
+这家店的冷泡咖啡很好喝。
+
+**Example 3 (Complete sentence):**
+Input: I like coffee.
+Output:
+我喜欢咖啡。
+
+---
 Text to translate: ${text}`;
         case 'rewrite':
             return `I'm an English learner whose mother language is Chinese.
