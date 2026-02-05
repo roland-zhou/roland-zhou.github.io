@@ -247,7 +247,7 @@ if (ankiBtn) {
             const back = outputContent ? outputContent.value.trim().replace(/\n/g, '<br>') : "";
 
             if (!front && !back) {
-                 alert("Nothing to add.");
+                 showToast('Nothing to add', 'Please enter some text first', 'error', 2500);
                  return;
             }
 
@@ -260,7 +260,7 @@ if (ankiBtn) {
                 }
 
                 if (!window.SQL) {
-                    alert("Anki generator is still loading or failed. Please wait a few seconds and try again.");
+                    showToast('Please wait', 'Anki generator is still loading. Try again in a moment.', 'error', 3000);
                     return;
                 }
                 
@@ -352,7 +352,7 @@ if (ankiBtn) {
             }
         } catch (err) {
             console.error(err);
-            alert("Anki Error: " + err.message);
+            showToast('Anki Error', err.message, 'error', 4000);
             ankiBtn.innerText = "Create Anki Card";
             ankiBtn.disabled = false;
         }
@@ -472,10 +472,10 @@ function saveSettings() {
         localStorage.setItem('lang_tools_settings', JSON.stringify(settings));
         
         closeModal();
-        alert('Settings saved successfully!');
+        showToast('Success!', 'Settings saved successfully', 'success', 2500);
     } catch (e) {
         console.error('Error saving settings:', e);
-        alert('Error saving settings: ' + e.message);
+        showToast('Save Failed', 'Error saving settings: ' + e.message, 'error', 4000);
     }
 }
 
@@ -484,7 +484,7 @@ async function handleAction(action) {
         if (!inputText) return;
         const text = inputText.value.trim();
         if (!text) {
-            alert('Please enter some text first.');
+            showToast('No text', 'Please enter some text first', 'error', 2500);
             return;
         }
 
@@ -492,8 +492,8 @@ async function handleAction(action) {
         const apiKey = settings.llm[provider].apiKey;
         
         if (!apiKey) {
-            openModal();
-            alert(`Please save your ${provider.toUpperCase()} API Key first.`);
+            showToast('API Key Required', `Please configure your ${provider.toUpperCase()} API key in settings`, 'error', 3000);
+            setTimeout(() => openModal(), 500);
             return;
         }
 
@@ -510,7 +510,7 @@ async function handleAction(action) {
         showResult(result);
     } catch (error) {
         console.error('Error:', error);
-        alert(`Error: ${error.message || 'Unknown error'}`);
+        showToast('Processing Failed', error.message || 'Unknown error', 'error', 4000);
         // Reset loading state if error
         if (loadingIndicator) loadingIndicator.style.display = 'none';
         if (emptyState && !outputContent.value) emptyState.style.display = 'flex';
@@ -547,7 +547,7 @@ let currentAudio = null;
 
 async function handleSpeak(text, btn) {
     if (!text) {
-        alert('Nothing to read.');
+        showToast('Nothing to read', 'Please enter or generate some text first', 'error', 2500);
         return;
     }
     
@@ -555,8 +555,8 @@ async function handleSpeak(text, btn) {
     const apiKey = settings.tts[provider].apiKey;
     
     if (!apiKey) {
-        openModal();
-        alert(`Please save your ${provider.toUpperCase()} API Key first for TTS.`);
+        showToast('TTS API Key Required', `Please configure your ${provider.toUpperCase()} API key in settings`, 'error', 3000);
+        setTimeout(() => openModal(), 500);
         return;
     }
     
@@ -636,7 +636,7 @@ async function handleSpeak(text, btn) {
         console.log('Playback started successfully');
     } catch (error) {
         console.error('TTS Error:', error);
-        alert(`TTS Error: ${error.message}`);
+        showToast('TTS Failed', error.message, 'error', 4000);
         btn.innerHTML = originalIcon;
         btn.disabled = false;
         if (audioUrl) {
