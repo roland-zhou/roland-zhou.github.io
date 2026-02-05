@@ -7,72 +7,38 @@ function constructPrompt(action, text) {
     switch (action) {
         case 'translate':
             return `Translate the following text between English and Chinese.
-First, detect the language of the text:
-- If the text is entirely in English, you MUST translate it into Chinese (Simplified Chinese).
-- If the text contains any Chinese, you MUST translate it into English.
-- If the text contains only emojis or symbols, interpret and translate to English.
 
-**OUTPUT FORMAT RULES (Strictly Follow):**
+**Language Detection:**
+- If input is English → translate to Chinese (Simplified)
+- If input contains Chinese → translate to English
 
-**Scenario A: Input is a Word or Phrase (Fragment)**
-(e.g., "apple", "cold brew", "keep in mind", "take off")
-Output structure:
+**Output Format:**
+
+FOR SINGLE WORDS:
 1. Main translation
-2. Alternative translations (2-3 lines)
-3. [Empty Line]
-4. Pronunciation (IPA) - ONLY for single English words. OMIT for phrases/Chinese input.
-5. [Empty Line]
-6. Usage Examples (2-3 sentences showing the input in context)
+2. Alternative translations (if applicable)
+3. [blank line]
+4. IPA pronunciation (English words only)
+5. [blank line]
+6. 2-3 usage examples
 
-**Scenario B: Input is a Complete Sentence**
-(e.g., "I went home.", "The coffee is cold.")
-Output structure:
+FOR PHRASES (no complete sentence structure):
 1. Main translation
 2. Alternative translations
-(STOP HERE. No pronunciation, no examples.)
+3. [blank line]
+4. 2-3 usage examples
 
-**CRITICAL NEGATIVE CONSTRAINTS:**
-- NEVER output explanations like "This is a phrase" or "This is a sentence".
-- NEVER explain grammar or why you chose a format.
-- NEVER include XML tags like <OUTPUT> or </OUTPUT> in your response. Just the raw text.
-- NEVER output metadata like "Language detected:", "Input type:", "Input:", or "Output:".
-- Start directly with the translation. NO LABELS. NO HEADERS.
-- JUST OUTPUT THE CONTENT.
+FOR COMPLETE SENTENCES:
+1. Main translation only
+2. Do NOT add alternatives, examples, or explanations
 
-**How to decide:**
-- If it lacks a subject AND a main verb, treat it as a **Phrase (Scenario A)** -> PROVIDE EXAMPLES.
-- If it's just a noun (e.g., "tonic cold brew"), it is a **Phrase (Scenario A)** -> PROVIDE EXAMPLES.
+**Critical Rules:**
+- Output ONLY the translation content - no labels, headers, or metadata
+- Do NOT repeat the input text in your output
+- Do NOT add explanations about grammar or translation choices
+- Start directly with the translated text
 
-**Example 1 (Single Word):**
-Input: apple
-Output:
-苹果
-[noun] 苹果树
-
-/ˈæp.əl/
-
-I ate a delicious apple.
-An apple a day keeps the doctor away.
-
-**Example 2 (Phrase):**
-Input: tonic cold brew
-Output:
-汤力冷萃咖啡
-汤力水冷萃
-气泡冷萃
-
-I ordered a refreshing tonic cold brew at the cafe.
-Tonic cold brew is perfect for a hot summer day.
-Have you ever tried mixing tonic water with cold brew coffee?
-
-**Example 3 (Sentence):**
-Input: I like coffee.
-Output:
-我喜欢咖啡。
-我很爱喝咖啡。
-咖啡是我的最爱。
-
-<text-to-be-translated>${text}</text-to-be-translated>`;
+Text to translate: ${text}`;
         case 'rewrite':
             return `I'm an English learner whose mother language is Chinese.
 Please rewrite the following text (which may contain Chinglish, grammar errors, or unnatural phrasing) into natural, high-quality English.
