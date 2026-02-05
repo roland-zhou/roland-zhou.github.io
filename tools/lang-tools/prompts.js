@@ -29,8 +29,9 @@ Line 2-3: Alternative translations
 Last 2-3 lines: Usage examples in TARGET language
 
 If input is a COMPLETE SENTENCE (has subject + verb):
-Line 1: Main translation ONLY
-(Stop here. No alternatives, no examples.)
+Line 1: Main translation
+Line 2-3: Alternative translations (2-3 options with different tones/styles)
+(No examples, no explanations)
 
 **CRITICAL RULES - READ CAREFULLY:**
 1. Output ONLY in the TARGET language (if input is Chinese → output 100% English, if input is English → output 100% Chinese)
@@ -64,6 +65,8 @@ Output:
 Input: I like coffee.
 Output:
 我喜欢咖啡。
+我很爱喝咖啡。
+咖啡是我的最爱。
 
 ---
 Text to translate: ${text}`;
