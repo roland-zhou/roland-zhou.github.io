@@ -1,3 +1,9 @@
 # Test results
 test-results-*.json
 test-results-*.txt
+
+# Judge reports
+judge-report-*.json
+
+# Environment variables (API keys)
+.env
