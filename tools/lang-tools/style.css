@@ -521,6 +521,16 @@ textarea::placeholder {
     pointer-events: none;
 }
 
+.usage-count {
+    position: fixed;
+    bottom: 1rem;
+    left: 1rem;
+    color: var(--text-secondary);
+    opacity: 0.3;
+    font-size: 0.8rem;
+    pointer-events: none;
+}
+
 /* Choice Modal Styles */
 .choice-modal-body {
     flex-direction: row;

@@ -38,11 +38,54 @@ let settings = {
 };
 let lastAction = 'other';
 
+// Usage tracking
+function getTodayKey() {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+}
+
+function getTodayUsage() {
+    const todayKey = getTodayKey();
+    const stored = localStorage.getItem('usage_stats');
+    if (!stored) return 0;
+    try {
+        const stats = JSON.parse(stored);
+        return stats[todayKey] || 0;
+    } catch (e) {
+        return 0;
+    }
+}
+
+function incrementTodayUsage() {
+    const todayKey = getTodayKey();
+    let stats = {};
+    try {
+        const stored = localStorage.getItem('usage_stats');
+        if (stored) stats = JSON.parse(stored);
+    } catch (e) {
+        stats = {};
+    }
+    stats[todayKey] = (stats[todayKey] || 0) + 1;
+    localStorage.setItem('usage_stats', JSON.stringify(stats));
+    updateUsageDisplay();
+}
+
+function updateUsageDisplay() {
+    const count = getTodayUsage();
+    const usageEl = document.getElementById('usage-count');
+    if (usageEl) {
+        usageEl.textContent = `Today: ${count}`;
+    }
+}
+
 // Initialize
 function init() {
     try {
         // Load settings from localStorage
         loadSettings();
+        
+        // Update usage display
+        updateUsageDisplay();
         
         // Initialize SQL.js for Android APKG generation
         const config = {
@@ -507,6 +550,7 @@ async function handleAction(action) {
         const prompt = constructPrompt(action, text);
         const model = settings.llm[provider].model;
         const result = await callLLM(provider, prompt, apiKey, model);
+        incrementTodayUsage();
         showResult(result);
     } catch (error) {
         console.error('Error:', error);
