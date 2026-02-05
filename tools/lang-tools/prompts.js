@@ -6,70 +6,77 @@
 function constructPrompt(action, text) {
     switch (action) {
         case 'translate':
-            return `You are a professional translator. Translate the following text.
+            return `You are a professional translator.
 
-**Step 1: Detect Language**
-- English input → Translate to Simplified Chinese
-- Chinese input → Translate to English
+INPUT: ${text}
 
-**Step 2: Output Format**
+STEP 1: Detect the input language
+- If input contains ANY Chinese characters → SOURCE is Chinese, TARGET is English
+- If input is entirely English → SOURCE is English, TARGET is Chinese
 
-If input is a SINGLE WORD (e.g., "apple", "快乐"):
-Line 1: Main translation
-Line 2-3: Alternative translations (2-3 options)
-[blank line]
-Line: IPA pronunciation (ONLY if translating FROM English)
-[blank line]
-Last 2-3 lines: Usage example sentences in the TARGET language
+STEP 2: Output rules - READ THIS CAREFULLY:
 
-If input is a PHRASE (2+ words, not a sentence, e.g., "cold brew", "加油站"):
-Line 1: Main translation
-Line 2-3: Alternative translations
-[blank line]
-Last 2-3 lines: Usage examples in TARGET language
+🚫 FORBIDDEN - NEVER DO THIS:
+- If input is Chinese, DO NOT output ANY Chinese text (no Chinese alternatives, no Chinese examples)
+- If input is English, DO NOT output ANY English text (no English alternatives, no English examples)
+- Your ENTIRE output must be 100% in the TARGET language only
 
-If input is a COMPLETE SENTENCE (has subject + verb):
-Line 1: Main translation
-Line 2-3: Alternative translations (2-3 options with different tones/styles)
-(No examples, no explanations)
+✅ REQUIRED FORMAT:
 
-**CRITICAL RULES - READ CAREFULLY:**
-1. Output ONLY in the TARGET language (if input is Chinese → output 100% English, if input is English → output 100% Chinese)
-2. NEVER mix source language and target language in your output
-3. NEVER repeat or echo the input text
-4. NEVER add labels like "Translation:", "Alternatives:", "Examples:"
-5. Start directly with the translated text
-6. Usage examples should use the translated word/phrase naturally in sentences
+For SINGLE WORDS:
+1. Main translation (in TARGET language)
+2. 2-3 alternative translations (in TARGET language)
+3. [blank line]
+4. IPA pronunciation (ONLY if translating FROM English TO Chinese)
+5. [blank line]
+6. 2-3 example sentences using the word (100% in TARGET language)
 
-**Example 1 (Chinese → English, single word):**
-Input: 赶快
+For PHRASES (2+ words, not a complete sentence):
+1. Main translation (in TARGET language)
+2. 2-3 alternatives (in TARGET language)
+3. [blank line]
+4. 2-3 example sentences (100% in TARGET language)
+
+For COMPLETE SENTENCES:
+1. Main translation (in TARGET language)
+2. 2-3 alternative translations with different tones (100% in TARGET language)
+(Stop here, no examples)
+
+EXAMPLES:
+
+Example A - Chinese word → English only output:
+Input: 弹窗
 Output:
-Hurry up
-Quickly
-Fast
+Pop-up window
+Pop-up
+Popup ad
 
-Hurry up or we'll be late!
-Please finish your homework quickly.
-We need to leave fast.
+Please close this pop-up window.
+This website has too many pop-up ads.
+The pop-up is blocking my view.
 
-**Example 2 (English → Chinese, phrase):**
-Input: cold brew
+Example B - English word → Chinese only output:
+Input: apple
 Output:
-冷萃咖啡
-冷泡咖啡
+苹果
+[名词] 苹果树
 
-我喜欢喝冷萃咖啡。
-这家店的冷泡咖啡很好喝。
+/ˈæp.əl/
 
-**Example 3 (Complete sentence):**
-Input: I like coffee.
+我吃了一个美味的苹果。
+一天一苹果，医生远离我。
+
+Example C - Chinese sentence → English only output:
+Input: 我喜欢咖啡。
 Output:
-我喜欢咖啡。
-我很爱喝咖啡。
-咖啡是我的最爱。
+I like coffee.
+I love coffee.
+Coffee is my favorite.
 
----
-Text to translate: ${text}`;
+NOW TRANSLATE THIS:
+${text}
+
+Remember: Output 100% in TARGET language. No mixing!`;
         case 'rewrite':
             return `I'm an English learner whose mother language is Chinese.
 Please rewrite the following text (which may contain Chinglish, grammar errors, or unnatural phrasing) into natural, high-quality English.
