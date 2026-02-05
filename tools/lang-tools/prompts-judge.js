@@ -4,12 +4,20 @@
  * Prompt Quality Judge System
  * Tests prompts.js against multiple AI models and judges results
  * 
+ * IMPORTANT: Reuses API clients from api.js to ensure test results match production behavior
+ * (same temperature settings, model-specific logic, error handling, etc.)
+ * 
  * Usage:
  *   GOOGLE_API_KEY=xxx OPENAI_API_KEY=xxx ANTHROPIC_API_KEY=xxx node prompts-judge.js
  */
 
 const { constructPrompt } = require('./prompts.js');
 const { testCases } = require('./prompts-test-cases.js');
+const { 
+    callGeminiAPI, 
+    callOpenAILLM, 
+    callAnthropicAPI 
+} = require('./api.js');
 
 // ===== CORE JUDGING RULES =====
 const JUDGING_RULES = {
@@ -117,118 +125,40 @@ Score 0-10:
 `
 };
 
-// ===== API CLIENTS =====
+// ===== API CLIENTS (Reusing api.js for consistency) =====
+// This ensures we test with the EXACT same parameters as production
 
-class APIClient {
-    constructor(apiKey, baseUrl) {
-        this.apiKey = apiKey;
-        this.baseUrl = baseUrl;
-    }
-
-    async callAPI(endpoint, body) {
-        const response = await fetch(`${this.baseUrl}${endpoint}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${this.apiKey}`
-            },
-            body: JSON.stringify(body)
-        });
-
-        if (!response.ok) {
-            throw new Error(`API call failed: ${response.status} ${response.statusText}`);
-        }
-
-        return await response.json();
-    }
-}
-
-// Google Gemini API
-async function callGemini(model, prompt, apiKey) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            contents: [{
-                parts: [{ text: prompt }]
-            }],
-            generationConfig: {
-                temperature: 0.7,
-                maxOutputTokens: 2048
-            }
-        })
-    });
-
-    if (!response.ok) {
-        throw new Error(`Gemini API failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.candidates[0].content.parts[0].text;
-}
-
-// OpenAI API
-async function callOpenAI(model, prompt, apiKey) {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-            model: model,
-            messages: [{ role: 'user', content: prompt }],
-            temperature: 0.7,
-            max_tokens: 2048
-        })
-    });
-
-    if (!response.ok) {
-        throw new Error(`OpenAI API failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.choices[0].message.content;
-}
-
-// Anthropic Claude API
-async function callClaude(model, prompt, apiKey) {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify({
-            model: model,
-            max_tokens: 2048,
-            messages: [{ role: 'user', content: prompt }]
-        })
-    });
-
-    if (!response.ok) {
-        throw new Error(`Claude API failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.content[0].text;
-}
+// Note: api.js uses temperature=0 for most models (temperature=1 for o1/o3/gpt-5-mini)
+// This matches the actual production behavior of the app
 
 // ===== MODEL CONFIGURATIONS =====
+// Using exact model names and api.js functions to match production behavior
 const TEST_MODELS = [
-    { name: 'gemini-3-flash', call: (prompt, keys) => callGemini('gemini-2.0-flash-exp', prompt, keys.google) },
-    { name: 'gemini-2.5-flash-lite', call: (prompt, keys) => callGemini('gemini-2.5-flash-lite', prompt, keys.google) },
-    { name: 'gpt-5', call: (prompt, keys) => callOpenAI('gpt-5-preview', prompt, keys.openai) },
-    { name: 'gpt-4o', call: (prompt, keys) => callOpenAI('gpt-4o', prompt, keys.openai) },
-    { name: 'claude-sonnet-4.5', call: (prompt, keys) => callClaude('claude-sonnet-4-5', prompt, keys.anthropic) }
+    { 
+        name: 'gemini-2.0-flash-exp', 
+        call: (prompt, keys) => callGeminiAPI(prompt, keys.google, 'gemini-2.0-flash-exp') 
+    },
+    { 
+        name: 'gemini-2.5-flash-lite', 
+        call: (prompt, keys) => callGeminiAPI(prompt, keys.google, 'gemini-2.5-flash-lite') 
+    },
+    { 
+        name: 'gpt-4o', 
+        call: (prompt, keys) => callOpenAILLM(prompt, keys.openai, 'gpt-4o') 
+    },
+    { 
+        name: 'gpt-4o-mini', 
+        call: (prompt, keys) => callOpenAILLM(prompt, keys.openai, 'gpt-4o-mini') 
+    },
+    { 
+        name: 'claude-3-5-sonnet-20241022', 
+        call: (prompt, keys) => callAnthropicAPI(prompt, keys.anthropic, 'claude-3-5-sonnet-20241022') 
+    }
 ];
 
 const JUDGE_MODEL = {
-    name: 'gemini-3-pro',
-    call: (prompt, keys) => callGemini('gemini-exp-1206', prompt, keys.google)
+    name: 'gemini-exp-1206',
+    call: (prompt, keys) => callGeminiAPI(prompt, keys.google, 'gemini-exp-1206')
 };
 
 // ===== JUDGING LOGIC =====

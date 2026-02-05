@@ -54,13 +54,15 @@ node prompts-judge.js
 
 This will:
 1. Test each case against all configured models:
-   - `gemini-3-flash-preview`
+   - `gemini-2.0-flash-exp`
    - `gemini-2.5-flash-lite`
-   - `gpt-5`
    - `gpt-4o`
-   - `claude-sonnet-4.5`
+   - `gpt-4o-mini`
+   - `claude-3-5-sonnet-20241022`
 
-2. Judge each output using `gemini-3-pro-preview`
+2. Judge each output using `gemini-exp-1206` (Gemini Pro)
+
+**Note:** Uses API clients from `api.js` to ensure production-identical parameters (temperature=0 for most models)
 
 3. Calculate average scores per model
 
@@ -72,7 +74,7 @@ Edit `TEST_MODELS` array in `prompts-judge.js` to enable/disable models:
 
 ```javascript
 const TEST_MODELS = [
-    { name: 'gemini-3-flash', call: (prompt, keys) => callGemini('gemini-2.0-flash-exp', prompt, keys.google) },
+    { name: 'gemini-2.0-flash-exp', call: (prompt, keys) => callGeminiAPI(prompt, keys.google, 'gemini-2.0-flash-exp') },
     // Comment out models you don't want to test
 ];
 ```
@@ -192,8 +194,8 @@ Edit `JUDGE_MODEL` in `prompts-judge.js`:
 
 ```javascript
 const JUDGE_MODEL = {
-    name: 'gpt-5',
-    call: (prompt, keys) => callOpenAI('gpt-5-preview', prompt, keys.openai)
+    name: 'gpt-4o',
+    call: (prompt, keys) => callOpenAILLM(prompt, keys.openai, 'gpt-4o')
 };
 ```
 
