@@ -25,7 +25,7 @@ const JUDGING_RULES = {
 Core Rules for Translation Quality:
 
 1. LANGUAGE PURITY (Critical):
-   - Chinese input → Output must be 100% English (ZERO Chinese characters)
+   - Chinese input → Output must be 100% English (ZERO Chinese characters), no IPA
    - English input → Translation part must be 100% Chinese, IPA and usage examples must be 100% English
    - ANY mixing of source language → Output must be 100% English
 
@@ -34,15 +34,16 @@ Core Rules for Translation Quality:
    - Main translation
    - 2-3 alternatives
    - [blank line]
-   - IPA (ONLY for English→Chinese)
+   - IPA (ONLY for English→Chinese, strictly not for Chinese→English nor mixed of source language)
    - [blank line]
    - 2-3 example sentences (examples for BOTH directions must be in English)
    
-   Phrase (2+ words, not complete sentence):
+   Phrase (2 & 2+ words, not complete sentence):
    - Main translation
    - 2-3 alternatives
    - [blank line]
    - 2-3 example sentences (examples for BOTH directions must be in English)
+   - NO IPA
    
    Complete Sentence:
    - Main translation
@@ -205,6 +206,27 @@ Reasoning: [Brief explanation of score, cite specific rule violations or success
 async function runTests() {
     console.log('🧪 Prompt Quality Judge System\n');
     
+    // Parse command-line arguments
+    const args = process.argv.slice(2);
+    let filterModels = null;
+    let filterActions = null;
+    
+    for (let i = 0; i < args.length; i++) {
+        if (args[i] === '--models' && i + 1 < args.length) {
+            filterModels = args[i + 1].split(',').map(m => m.trim());
+            i++;
+        }
+        if (args[i] === '--actions' && i + 1 < args.length) {
+            filterActions = args[i + 1].split(',').map(a => a.trim().toLowerCase());
+            i++;
+        }
+    }
+    
+    console.log('📋 Configuration:');
+    if (filterModels) console.log(`  Models: ${filterModels.join(', ')}`);
+    if (filterActions) console.log(`  Actions: ${filterActions.join(', ')}`);
+    console.log('');
+    
     // Get API keys from environment
     const apiKeys = {
         google: process.env.GOOGLE_API_KEY,
@@ -220,7 +242,30 @@ async function runTests() {
     
     const results = {};
     
-    for (const model of TEST_MODELS) {
+    // Filter models
+    let modelsToTest = TEST_MODELS;
+    if (filterModels) {
+        modelsToTest = TEST_MODELS.filter(m => filterModels.includes(m.name));
+        if (modelsToTest.length === 0) {
+            console.error(`❌ No models matched: ${filterModels.join(', ')}`);
+            console.error(`Available models: ${TEST_MODELS.map(m => m.name).join(', ')}`);
+            process.exit(1);
+        }
+    }
+    
+    // Filter test cases
+    let casesToTest = testCases;
+    if (filterActions) {
+        casesToTest = testCases.filter(tc => filterActions.includes(tc.action.toLowerCase()));
+        if (casesToTest.length === 0) {
+            console.error(`❌ No test cases matched action: ${filterActions.join(', ')}`);
+            const availableActions = [...new Set(testCases.map(tc => tc.action))];
+            console.error(`Available actions: ${availableActions.join(', ')}`);
+            process.exit(1);
+        }
+    }
+    
+    for (const model of modelsToTest) {
         console.log(`\n${'='.repeat(60)}`);
         console.log(`📊 Testing: ${model.name}`);
         console.log('='.repeat(60));
@@ -230,11 +275,11 @@ async function runTests() {
             details: []
         };
         
-        for (let i = 0; i < testCases.length; i++) {
-            const testCase = testCases[i];
+        for (let i = 0; i < casesToTest.length; i++) {
+            const testCase = casesToTest[i];
             const testNum = i + 1;
             
-            console.log(`\n[${testNum}/${testCases.length}] ${testCase.description}`);
+            console.log(`\n[${testNum}/${casesToTest.length}] ${testCase.description}`);
             console.log(`Action: ${testCase.action} | Input: "${testCase.input}"`);
             
             try {

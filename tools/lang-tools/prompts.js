@@ -5,95 +5,70 @@
 
 function constructPrompt(action, text) {
     switch (action) {
-        case 'translate':
-            return `You are a professional translator.
+          case 'translate':
+                return `You are a professional translator used by language learners and an automatic judge.
 
 INPUT: ${text}
 
 INSTRUCTIONS (internal reasoning - do NOT output these steps):
-1. Detect the input language:
-   - If input contains ANY Chinese characters → SOURCE is Chinese, TARGET is English
-   - If input is entirely English → SOURCE is English, TARGET is Chinese
+1. Source language detection:
+    - If the input contains ANY Chinese characters → SOURCE is Chinese, TARGET is English.
+    - Otherwise (ASCII letters only) → SOURCE is English, TARGET is Chinese.
+    - If mixed-language input is detected, treat SOURCE as English for safety and follow Language Purity rules below.
 
 2. Classify input type:
-   - SINGLE WORD: One word only (e.g., "apple" or "苹果")
-   - PHRASE: 2+ words, but NOT a complete sentence (e.g., "break down" or "弹窗")
-   - COMPLETE SENTENCE: Has subject + verb, forms complete thought (e.g., "I like coffee")
+    - SINGLE WORD: a single token without spaces (e.g., "apple" or "苹果").
+    - PHRASE: two or more words but not a complete sentence (no clear subject+verb).
+    - COMPLETE SENTENCE: a full sentence with subject and verb (often ends with ., ?, or !).
 
-3. Output format - FOLLOW EXACTLY:
+3. OUTPUT FORMAT — FOLLOW EXACTLY (no extra commentary):
+    - Language Purity (CRITICAL):
+      * Chinese→English outputs must be 100% English (NO Chinese characters anywhere, NO IPA).
+      * English→Chinese: translation lines must be in Chinese; IPA and usage examples must be in English.
+      * Examples are ALWAYS in English for both directions.
 
-🎯 CRITICAL RULE - EXAMPLE LANGUAGE:
-- Chinese → English: Examples must be 100% ENGLISH
-- English → Chinese: Translation in Chinese, BUT examples must be 100% ENGLISH
-- NO EXCEPTIONS: Examples are ALWAYS in English regardless of translation direction
+    - IPA CRITICAL RULES (violating these = automatic failure):
+      * IPA ONLY appears for: English→Chinese + SINGLE WORD translations
+      * IPA MUST NOT appear for:
+        - Chinese→English translations (ANY type: word/phrase/sentence)
+        - Phrases (ANY direction: English→Chinese or Chinese→English)
+        - Complete sentences (ANY direction)
+      * IPA format: /.../ on a single line
 
-For SINGLE WORDS:
-1. Main translation (TARGET language)
-2. 2-3 alternatives (TARGET language)
-3. [blank line]
-4. IPA (ONLY for English→Chinese, format: /.../)
-5. [blank line]
-6. 2-3 example sentences (ALWAYS ENGLISH)
+    - SINGLE WORD:
+      1) Main translation (TARGET language) — one line
+      2) 2–3 short alternatives (TARGET language), MINIMUM 2 alternatives, each on its own line
+      3) [blank line]
+      4) IPA (ONLY if English→Chinese, format: /.../) — one line (OMIT completely for Chinese→English)
+      5) [blank line]
+      6) 2–3 example sentences (ALWAYS in English), MINIMUM 2 examples, each on its own line
 
-For PHRASES:
-1. Main translation (TARGET language)
-2. 2-3 alternatives (TARGET language)
-3. [blank line]
-4. 2-3 example sentences (ALWAYS ENGLISH)
-5. NO IPA for phrases
+    - PHRASE:
+      1) Main translation (TARGET language)
+      2) 2–3 alternatives (TARGET language), MINIMUM 2 alternatives
+      3) [blank line]
+      4) 2–3 example sentences (ALWAYS in English), MINIMUM 2 examples
+      5) ABSOLUTELY NO IPA FOR PHRASES (critical rule)
 
-For COMPLETE SENTENCES:
-1. Main translation (TARGET language)
-2. 2-3 alternative translations (TARGET language)
-3. NO examples, NO IPA
+    - COMPLETE SENTENCE:
+      1) Main translation (TARGET language)
+      2) 2–3 alternative translations (TARGET language), MINIMUM 2 alternatives
+      3) ABSOLUTELY NO examples and NO IPA for complete sentences (critical rule)
 
-OUTPUT EXAMPLES (only show the translation, NOT the steps):
-
-Example A - Chinese word → English:
-Input: 弹窗
-Output:
-Pop-up window
-Pop-up
-Modal dialog
-
-Please close this pop-up window.
-Too many pop-ups are blocking the content.
-The modal dialog requires your attention.
-
-Example B - English word → Chinese (NOTE: examples in English!):
-Input: apple
-Output:
-苹果
-水果苹果
-苹果树的果实
-
-/ˈæp.əl/
-
-I eat an apple every day.
-This apple tastes sweet and crisp.
-An apple a day keeps the doctor away.
-
-Example C - Chinese sentence → English:
-Input: 我喜欢咖啡。
-Output:
-I like coffee.
-I love coffee.
-Coffee is my favorite.
-
-Example D - English phrase → Chinese (NOTE: examples in English!):
-Input: break down
-Output:
-分解
-拆解
-故障
-
-The machine broke down yesterday.
-We need to break down this problem.
-His car breaks down frequently.
+4. QUALITY GUIDELINES:
+    - Main translation must be accurate and natural in the TARGET language.
+    - Alternatives should offer different tones or wordings (formal/informal, literal/idiomatic).
+    - ALWAYS provide at least 2 alternatives, never just 1.
+    - Example sentences must show varied, practical contexts and use the translated item naturally.
+    - IPA, when required (English→Chinese single word ONLY), must use standard phonetic notation and be wrapped in slashes.
 
 NOW TRANSLATE: ${text}
 
-REMINDER: Examples are ALWAYS in English, no matter which direction you're translating!`;
+CRITICAL REMINDERS:
+- Examples are ALWAYS in English, regardless of translation direction.
+- IPA ONLY for English→Chinese single words. NO IPA for Chinese→English, phrases, or sentences.
+- ALWAYS provide MINIMUM 2 alternatives, never just 1.
+- Complete sentences have NO examples and NO IPA.`;
         case 'rewrite':
             return `I'm an English learner whose mother language is Chinese.
 Please rewrite the following text (which may contain Chinglish, grammar errors, or unnatural phrasing) into natural, high-quality English.

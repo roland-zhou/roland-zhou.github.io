@@ -2,6 +2,11 @@
 
 # Example runner script for prompts-judge.js
 # Set your API keys here or source them from a .env file
+# 
+# Usage:
+#   ./run-judge.sh                    # Run all tests
+#   ./run-judge.sh --models gemini-2.5-flash-lite --actions translate
+#   ./run-judge.sh --models "gpt-4o,claude-haiku-4-5" --actions "translate,explain"
 
 echo "🧪 Starting Prompt Quality Judge..."
 echo ""
@@ -23,8 +28,8 @@ fi
 echo "✅ API keys loaded"
 echo ""
 
-# Run the judge
-node prompts-judge.js
+# Run the judge with all passed arguments
+node prompts-judge.js "$@"
 
 echo ""
 echo "✅ Judge completed!"
