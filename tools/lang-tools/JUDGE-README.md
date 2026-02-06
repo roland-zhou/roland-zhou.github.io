@@ -58,7 +58,7 @@ This will:
    - `gemini-2.5-flash-lite`
    - `gpt-4o`
    - `gpt-4o-mini`
-   - `claude-3-5-sonnet-20241022`
+   - `claude-haiku-4-5`
 
 2. Judge each output using `gemini-exp-1206` (Gemini Pro)
 

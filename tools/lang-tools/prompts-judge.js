@@ -147,8 +147,8 @@ const TEST_MODELS = [
         call: (prompt, keys) => callOpenAILLM(prompt, keys.openai, 'gpt-4o-mini') 
     },
     { 
-        name: 'claude-3-haiku-20240307', 
-        call: (prompt, keys) => callAnthropicAPI(prompt, keys.anthropic, 'claude-3-haiku-20240307') 
+        name: 'claude-haiku-4-5', 
+        call: (prompt, keys) => callAnthropicAPI(prompt, keys.anthropic, 'claude-haiku-4-5') 
     }
 ];
 
