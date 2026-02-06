@@ -6,69 +6,99 @@
 function constructPrompt(action, text) {
     switch (action) {
           case 'translate':
-                return `You are a professional translator used by language learners and an automatic judge.
+                const hasChineseChars = /[\u4e00-\u9fa5]/.test(text);
+                const isSentence = text.includes('。') || text.includes('.') || text.includes('?') || text.includes('？') || text.includes('!') || text.includes('！') || /\s.+\s/.test(text);
+                const isPhrase = text.includes(' ') && !isSentence;
 
-INPUT: ${text}
+                if (hasChineseChars) {
+                    // Chinese to English
+                    if (isSentence) {
+                        return `Translate this Chinese sentence to English. Provide 3 different English translations that express the SAME core meaning but with different tones/word choices. Keep the essential meaning intact - only vary formality, intensity, or wording.
 
-INSTRUCTIONS (internal reasoning - do NOT output these steps):
-1. Source language detection:
-    - If the input contains ANY Chinese characters → SOURCE is Chinese, TARGET is English.
-    - Otherwise (ASCII letters only) → SOURCE is English, TARGET is Chinese.
-    - If mixed-language input is detected, treat SOURCE as English for safety and follow Language Purity rules below.
+Input: ${text}
 
-2. Classify input type:
-    - SINGLE WORD: a single token without spaces (e.g., "apple" or "苹果").
-    - PHRASE: two or more words but not a complete sentence (no clear subject+verb).
-    - COMPLETE SENTENCE: a full sentence with subject and verb (often ends with ., ?, or !).
+Output exactly 3 lines:
+Line 1: first English translation (natural, direct)
+Line 2: second English translation (same meaning, different word choice or tone)
+Line 3: third English translation (same meaning, different word choice or tone)
 
-3. OUTPUT FORMAT — FOLLOW EXACTLY (no extra commentary):
-    - Language Purity (CRITICAL):
-      * Chinese→English outputs must be 100% English (NO Chinese characters anywhere, NO IPA).
-      * English→Chinese: translation lines must be in Chinese; IPA and usage examples must be in English.
-      * Examples are ALWAYS in English for both directions.
+IMPORTANT: All 3 translations must express the same core idea as "${text}" - only vary the style/tone/wording, NOT the fundamental meaning.`;
+                    } else if (isPhrase) {
+                        return `Translate this Chinese phrase to English. Output exactly 7 lines as shown below. NO IPA.
 
-    - IPA CRITICAL RULES (violating these = automatic failure):
-      * IPA ONLY appears for: English→Chinese + SINGLE WORD translations
-      * IPA MUST NOT appear for:
-        - Chinese→English translations (ANY type: word/phrase/sentence)
-        - Phrases (ANY direction: English→Chinese or Chinese→English)
-        - Complete sentences (ANY direction)
-      * IPA format: /.../ on a single line
+Input: ${text}
 
-    - SINGLE WORD:
-      1) Main translation (TARGET language) — one line
-      2) 2–3 short alternatives (TARGET language), MINIMUM 2 alternatives, each on its own line
-      3) [blank line]
-      4) IPA (ONLY if English→Chinese, format: /.../) — one line (OMIT completely for Chinese→English)
-      5) [blank line]
-      6) 2–3 example sentences (ALWAYS in English), MINIMUM 2 examples, each on its own line
+Required output format (copy this structure exactly):
+first English translation
+second English translation (different wording)
+third English translation (different wording)
+[empty line - press enter but write nothing]
+first example sentence using the phrase in English
+second example sentence using the phrase in English
+third example sentence using the phrase in English`;
+                    } else {
+                        return `Translate this Chinese word to English. Provide 3 REAL, VALID English words/terms. Use actual English synonyms or related terms.
 
-    - PHRASE:
-      1) Main translation (TARGET language)
-      2) 2–3 alternatives (TARGET language), MINIMUM 2 alternatives
-      3) [blank line]
-      4) 2–3 example sentences (ALWAYS in English), MINIMUM 2 examples
-      5) ABSOLUTELY NO IPA FOR PHRASES (critical rule)
+Input: ${text}
 
-    - COMPLETE SENTENCE:
-      1) Main translation (TARGET language)
-      2) 2–3 alternative translations (TARGET language), MINIMUM 2 alternatives
-      3) ABSOLUTELY NO examples and NO IPA for complete sentences (critical rule)
+Required output format (copy this structure exactly):
+main English translation (most common real word)
+alternative English word (real, valid, commonly used)
+alternative English word (real, valid, can be more formal/informal)
+[empty line - press enter but write nothing]
+first example sentence using the word in English
+second example sentence using the word in English
+third example sentence using the word in English
 
-4. QUALITY GUIDELINES:
-    - Main translation must be accurate and natural in the TARGET language.
-    - Alternatives should offer different tones or wordings (formal/informal, literal/idiomatic).
-    - ALWAYS provide at least 2 alternatives, never just 1.
-    - Example sentences must show varied, practical contexts and use the translated item naturally.
-    - IPA, when required (English→Chinese single word ONLY), must use standard phonetic notation and be wrapped in slashes.
+IMPORTANT: All English translations MUST be real, valid words that actually exist.`;
+                    }
+                } else {
+                    // English to Chinese
+                    if (isSentence) {
+                        return `Translate this English sentence to Chinese. Provide 3 different Chinese translations that express the SAME core meaning but with different tones/word choices. Keep the essential meaning intact - only vary formality, intensity, or wording.
 
-NOW TRANSLATE: ${text}
+Input: ${text}
 
-CRITICAL REMINDERS:
-- Examples are ALWAYS in English, regardless of translation direction.
-- IPA ONLY for English→Chinese single words. NO IPA for Chinese→English, phrases, or sentences.
-- ALWAYS provide MINIMUM 2 alternatives, never just 1.
-- Complete sentences have NO examples and NO IPA.`;
+Output exactly 3 lines:
+Line 1: first Chinese translation (natural, direct)
+Line 2: second Chinese translation (same meaning, different word choice or tone)
+Line 3: third Chinese translation (same meaning, different word choice or tone)
+
+IMPORTANT: All 3 translations must express the same core idea as "${text}" - only vary the style/tone/wording, NOT the fundamental meaning.`;
+                    } else if (isPhrase) {
+                        return `Translate this English phrase to Chinese. Provide 3 Chinese translations, then 3 English example sentences that demonstrate the FIRST/main translation's usage.
+
+Input: ${text}
+
+Required output format (copy this structure exactly):
+first Chinese translation (most common/versatile meaning)
+second Chinese translation (alternative meaning or context)
+third Chinese translation (alternative meaning or context)
+[empty line - press enter but write nothing]
+first example sentence - demonstrates the FIRST translation's meaning in English
+second example sentence - demonstrates the FIRST translation's meaning in English
+third example sentence - demonstrates the FIRST translation's meaning in English
+
+IMPORTANT: The example sentences should primarily illustrate how "${text}" is used in contexts that match the FIRST Chinese translation.`;
+                    } else {
+                        return `Translate this English word to Chinese. Provide 3 REAL, VALID Chinese words/terms that exist in the language. Do NOT fabricate or invent words. Use actual Chinese synonyms or related terms.
+
+Input: ${text}
+
+Required output format (copy this structure exactly):
+main Chinese translation (most common real word)
+alternative Chinese word (real, valid, commonly used)
+alternative Chinese word (real, valid, can be more formal/informal/literary)
+[empty line - press enter but write nothing]
+/IPA phonetic transcription of the ENGLISH word "${text}", like /ˈæpl/ - transcribe the ENGLISH pronunciation, NOT the Chinese/
+[empty line - press enter but write nothing]
+first example sentence using the word in English
+second example sentence using the word in English
+third example sentence using the word in English
+
+CRITICAL: The IPA must transcribe how to pronounce the ENGLISH word "${text}", NOT the Chinese translation. Use IPA phonetic symbols, NOT pinyin. Example: for "apple" use /ˈæpl/, NOT /píng guǒ/ or /ˈpʰiŋ.kwɔ/.`;
+                    }
+                }
         case 'rewrite':
             return `I'm an English learner whose mother language is Chinese.
 Please rewrite the following text (which may contain Chinglish, grammar errors, or unnatural phrasing) into natural, high-quality English.
