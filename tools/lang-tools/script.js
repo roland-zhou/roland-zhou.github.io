@@ -189,7 +189,8 @@ function populateSettingsForm() {
     if (selectedTtsConfig) selectedTtsConfig.style.display = 'flex';
 }
 
-// Event Listeners
+// Setup Event Listeners (called after DOM is ready)
+function setupEventListeners() {
 if (inputSpeakerBtn) {
     inputSpeakerBtn.addEventListener('click', () => {
         handleSpeak(inputText.value.trim(), inputSpeakerBtn);
@@ -408,6 +409,7 @@ window.addEventListener('click', (e) => {
         closeModal();
     }
 });
+}
 
 // Functions
 function showToast(title, message = '', type = 'success', duration = 3000) {
@@ -737,6 +739,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Run initialization
     init();
+    
+    // Setup all event listeners
+    setupEventListeners();
     
     // Initialize auto-resize
     if (inputText) autoResize(inputText);
