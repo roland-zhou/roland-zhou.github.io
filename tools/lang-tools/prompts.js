@@ -14,69 +14,85 @@ STEP 1: Detect the input language
 - If input contains ANY Chinese characters → SOURCE is Chinese, TARGET is English
 - If input is entirely English → SOURCE is English, TARGET is Chinese
 
-STEP 2: Output rules - READ THIS CAREFULLY:
+STEP 2: Classify input type
+- SINGLE WORD: One word only (e.g., "apple" or "苹果")
+- PHRASE: 2+ words, but NOT a complete sentence (e.g., "break down" or "弹窗")
+- COMPLETE SENTENCE: Has subject + verb, forms complete thought (e.g., "I like coffee")
 
-🚫 FORBIDDEN - NEVER DO THIS:
-- If input is Chinese, DO NOT output ANY Chinese text (no Chinese alternatives, no Chinese examples)
-- If input is English, DO NOT output ANY English text (no English alternatives, no English examples)
-- Your ENTIRE output must be 100% in the TARGET language only
+STEP 3: Output format - FOLLOW EXACTLY:
 
-✅ REQUIRED FORMAT:
+🎯 CRITICAL RULE - EXAMPLE LANGUAGE:
+- Chinese → English: Examples must be 100% ENGLISH
+- English → Chinese: Translation in Chinese, BUT examples must be 100% ENGLISH
+- NO EXCEPTIONS: Examples are ALWAYS in English regardless of translation direction
 
 For SINGLE WORDS:
-1. Main translation (in TARGET language)
-2. 2-3 alternative translations (in TARGET language)
+1. Main translation (TARGET language)
+2. 2-3 alternatives (TARGET language)
 3. [blank line]
-4. IPA pronunciation (ONLY if translating FROM English TO Chinese)
+4. IPA (ONLY for English→Chinese, format: /.../)
 5. [blank line]
-6. 2-3 example sentences using the word (100% in TARGET language)
+6. 2-3 example sentences (ALWAYS ENGLISH)
 
-For PHRASES (2+ words, not a complete sentence):
-1. Main translation (in TARGET language)
-2. 2-3 alternatives (in TARGET language)
+For PHRASES:
+1. Main translation (TARGET language)
+2. 2-3 alternatives (TARGET language)
 3. [blank line]
-4. 2-3 example sentences (100% in TARGET language)
+4. 2-3 example sentences (ALWAYS ENGLISH)
+5. NO IPA for phrases
 
 For COMPLETE SENTENCES:
-1. Main translation (in TARGET language)
-2. 2-3 alternative translations with different tones (100% in TARGET language)
-(Stop here, no examples)
+1. Main translation (TARGET language)
+2. 2-3 alternative translations (TARGET language)
+3. NO examples, NO IPA
 
 EXAMPLES:
 
-Example A - Chinese word → English only output:
+Example A - Chinese word → English:
 Input: 弹窗
 Output:
 Pop-up window
 Pop-up
-Popup ad
+Modal dialog
 
 Please close this pop-up window.
-This website has too many pop-up ads.
-The pop-up is blocking my view.
+Too many pop-ups are blocking the content.
+The modal dialog requires your attention.
 
-Example B - English word → Chinese only output:
+Example B - English word → Chinese (NOTE: examples in English!):
 Input: apple
 Output:
 苹果
-[名词] 苹果树
+水果苹果
+苹果树的果实
 
 /ˈæp.əl/
 
-我吃了一个美味的苹果。
-一天一苹果，医生远离我。
+I eat an apple every day.
+This apple tastes sweet and crisp.
+An apple a day keeps the doctor away.
 
-Example C - Chinese sentence → English only output:
+Example C - Chinese sentence → English:
 Input: 我喜欢咖啡。
 Output:
 I like coffee.
 I love coffee.
 Coffee is my favorite.
 
-NOW TRANSLATE THIS:
-${text}
+Example D - English phrase → Chinese (NOTE: examples in English!):
+Input: break down
+Output:
+分解
+拆解
+故障
 
-Remember: Output 100% in TARGET language. No mixing!`;
+The machine broke down yesterday.
+We need to break down this problem.
+His car breaks down frequently.
+
+NOW TRANSLATE: ${text}
+
+REMINDER: Examples are ALWAYS in English, no matter which direction you're translating!`;
         case 'rewrite':
             return `I'm an English learner whose mother language is Chinese.
 Please rewrite the following text (which may contain Chinglish, grammar errors, or unnatural phrasing) into natural, high-quality English.
