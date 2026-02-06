@@ -4,22 +4,22 @@ window.onerror = function(message, source, lineno, colno, error) {
     alert("System Error: " + message + "\nAt: " + lineno + ":" + colno);
 };
 
-// DOM Elements
-const inputText = document.getElementById('input-text');
-const cleanBtn = document.getElementById('clean-btn');
-const actionBtns = document.querySelectorAll('.action-btn[data-action]');
-const outputContainer = document.getElementById('output-container');
-const outputContent = document.getElementById('output-content');
-const loadingIndicator = document.getElementById('loading-indicator');
-const emptyState = document.getElementById('empty-state');
-const settingsBtn = document.getElementById('settings-btn');
-const settingsModal = document.getElementById('settings-modal');
-const closeModalBtn = document.getElementById('close-modal');
-const saveSettingsBtn = document.getElementById('save-settings');
-const cancelSettingsBtn = document.getElementById('cancel-settings');
-const inputSpeakerBtn = document.getElementById('input-speaker-btn');
-const outputSpeakerBtn = document.getElementById('output-speaker-btn');
-const ankiBtn = document.getElementById('anki-btn');
+// DOM Elements (will be initialized after DOM loads)
+let inputText;
+let cleanBtn;
+let actionBtns;
+let outputContainer;
+let outputContent;
+let loadingIndicator;
+let emptyState;
+let settingsBtn;
+let settingsModal;
+let closeModalBtn;
+let saveSettingsBtn;
+let cancelSettingsBtn;
+let inputSpeakerBtn;
+let outputSpeakerBtn;
+let ankiBtn;
 
 // Settings State
 let settings = {
@@ -716,11 +716,29 @@ function autoResize(element) {
     element.style.overflow = savedOverflow;
 }
 
-// Run init immediately
-init();
-
-// Initialize auto-resize after DOM is fully ready
+// Initialize everything after DOM is fully loaded
 document.addEventListener('DOMContentLoaded', () => {
+    // Query DOM elements
+    inputText = document.getElementById('input-text');
+    cleanBtn = document.getElementById('clean-btn');
+    actionBtns = document.querySelectorAll('.action-btn[data-action]');
+    outputContainer = document.getElementById('output-container');
+    outputContent = document.getElementById('output-content');
+    loadingIndicator = document.getElementById('loading-indicator');
+    emptyState = document.getElementById('empty-state');
+    settingsBtn = document.getElementById('settings-btn');
+    settingsModal = document.getElementById('settings-modal');
+    closeModalBtn = document.getElementById('close-modal');
+    saveSettingsBtn = document.getElementById('save-settings');
+    cancelSettingsBtn = document.getElementById('cancel-settings');
+    inputSpeakerBtn = document.getElementById('input-speaker-btn');
+    outputSpeakerBtn = document.getElementById('output-speaker-btn');
+    ankiBtn = document.getElementById('anki-btn');
+    
+    // Run initialization
+    init();
+    
+    // Initialize auto-resize
     if (inputText) autoResize(inputText);
     if (outputContent && outputContent.value) autoResize(outputContent);
 });
