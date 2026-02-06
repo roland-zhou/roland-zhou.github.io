@@ -15,8 +15,8 @@ else
 fi
 
 # Validate required API keys
-if [ -z "$GOOGLE_API_KEY" ]; then
-    echo "❌ GOOGLE_API_KEY not set (required for judge model)"
+if [ -z "$ANTHROPIC_API_KEY" ]; then
+    echo "❌ ANTHROPIC_API_KEY not set (required for judge model)"
     exit 1
 fi
 

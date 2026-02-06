@@ -2,13 +2,13 @@
 
 /**
  * Prompt Quality Judge System
- * Tests prompts.js against multiple AI models and judges results
+ * Tests prompts.js against multiple AI models and judges results with Claude
  * 
  * IMPORTANT: Reuses API clients from api.js to ensure test results match production behavior
  * (same temperature settings, model-specific logic, error handling, etc.)
  * 
  * Usage:
- *   GOOGLE_API_KEY=xxx OPENAI_API_KEY=xxx ANTHROPIC_API_KEY=xxx node prompts-judge.js
+ *   ANTHROPIC_API_KEY=xxx GOOGLE_API_KEY=xxx OPENAI_API_KEY=xxx node prompts-judge.js
  */
 
 const { constructPrompt } = require('./prompts.js');
@@ -26,8 +26,8 @@ Core Rules for Translation Quality:
 
 1. LANGUAGE PURITY (Critical):
    - Chinese input → Output must be 100% English (ZERO Chinese characters)
-   - English input → Output must be 100% Chinese (ZERO English words except IPA)
-   - ANY mixing of source language = automatic severe penalty
+   - English input → Translation part must be 100% Chinese, IPA and usage examples must be 100% English
+   - ANY mixing of source language → Output must be 100% English
 
 2. FORMAT COMPLIANCE:
    Single Word:
@@ -36,13 +36,13 @@ Core Rules for Translation Quality:
    - [blank line]
    - IPA (ONLY for English→Chinese)
    - [blank line]
-   - 2-3 example sentences
+   - 2-3 example sentences (examples for BOTH directions must be in English)
    
    Phrase (2+ words, not complete sentence):
    - Main translation
    - 2-3 alternatives
    - [blank line]
-   - 2-3 example sentences
+   - 2-3 example sentences (examples for BOTH directions must be in English)
    
    Complete Sentence:
    - Main translation
@@ -135,10 +135,6 @@ Score 0-10:
 // Using exact model names and api.js functions to match production behavior
 const TEST_MODELS = [
     { 
-        name: 'gemini-2.0-flash-exp', 
-        call: (prompt, keys) => callGeminiAPI(prompt, keys.google, 'gemini-2.0-flash-exp') 
-    },
-    { 
         name: 'gemini-2.5-flash-lite', 
         call: (prompt, keys) => callGeminiAPI(prompt, keys.google, 'gemini-2.5-flash-lite') 
     },
@@ -151,14 +147,14 @@ const TEST_MODELS = [
         call: (prompt, keys) => callOpenAILLM(prompt, keys.openai, 'gpt-4o-mini') 
     },
     { 
-        name: 'claude-3-5-sonnet-20241022', 
-        call: (prompt, keys) => callAnthropicAPI(prompt, keys.anthropic, 'claude-3-5-sonnet-20241022') 
+        name: 'claude-3-haiku-20240307', 
+        call: (prompt, keys) => callAnthropicAPI(prompt, keys.anthropic, 'claude-3-haiku-20240307') 
     }
 ];
 
 const JUDGE_MODEL = {
-    name: 'gemini-exp-1206',
-    call: (prompt, keys) => callGeminiAPI(prompt, keys.google, 'gemini-exp-1206')
+    name: 'claude-sonnet-4-5',
+    call: (prompt, keys) => callAnthropicAPI(prompt, keys.anthropic, 'claude-sonnet-4-5')
 };
 
 // ===== JUDGING LOGIC =====
@@ -217,8 +213,8 @@ async function runTests() {
     };
     
     // Validate API keys
-    if (!apiKeys.google) {
-        console.error('❌ GOOGLE_API_KEY not set');
+    if (!apiKeys.anthropic) {
+        console.error('❌ ANTHROPIC_API_KEY not set (required for judge model)');
         process.exit(1);
     }
     
