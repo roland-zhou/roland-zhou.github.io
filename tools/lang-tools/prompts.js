@@ -10,16 +10,17 @@ function constructPrompt(action, text) {
 
 INPUT: ${text}
 
-STEP 1: Detect the input language
-- If input contains ANY Chinese characters → SOURCE is Chinese, TARGET is English
-- If input is entirely English → SOURCE is English, TARGET is Chinese
+INSTRUCTIONS (internal reasoning - do NOT output these steps):
+1. Detect the input language:
+   - If input contains ANY Chinese characters → SOURCE is Chinese, TARGET is English
+   - If input is entirely English → SOURCE is English, TARGET is Chinese
 
-STEP 2: Classify input type
-- SINGLE WORD: One word only (e.g., "apple" or "苹果")
-- PHRASE: 2+ words, but NOT a complete sentence (e.g., "break down" or "弹窗")
-- COMPLETE SENTENCE: Has subject + verb, forms complete thought (e.g., "I like coffee")
+2. Classify input type:
+   - SINGLE WORD: One word only (e.g., "apple" or "苹果")
+   - PHRASE: 2+ words, but NOT a complete sentence (e.g., "break down" or "弹窗")
+   - COMPLETE SENTENCE: Has subject + verb, forms complete thought (e.g., "I like coffee")
 
-STEP 3: Output format - FOLLOW EXACTLY:
+3. Output format - FOLLOW EXACTLY:
 
 🎯 CRITICAL RULE - EXAMPLE LANGUAGE:
 - Chinese → English: Examples must be 100% ENGLISH
@@ -46,7 +47,7 @@ For COMPLETE SENTENCES:
 2. 2-3 alternative translations (TARGET language)
 3. NO examples, NO IPA
 
-EXAMPLES:
+OUTPUT EXAMPLES (only show the translation, NOT the steps):
 
 Example A - Chinese word → English:
 Input: 弹窗
