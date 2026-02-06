@@ -152,15 +152,23 @@ function populateSettingsForm() {
     const llmRadio = document.getElementById(`llm-${llmProvider}`);
     if (llmRadio) llmRadio.checked = true;
     
-    // LLM Keys and Models
-    document.getElementById('gemini-api-key').value = settings.llm.gemini.apiKey;
-    document.getElementById('gemini-model').value = settings.llm.gemini.model;
-    document.getElementById('openai-llm-api-key').value = settings.llm.openai.apiKey;
-    document.getElementById('openai-llm-model').value = settings.llm.openai.model;
-    document.getElementById('anthropic-api-key').value = settings.llm.anthropic.apiKey;
-    document.getElementById('anthropic-model').value = settings.llm.anthropic.model;
-    document.getElementById('kimi-api-key').value = settings.llm.kimi?.apiKey || '';
-    document.getElementById('kimi-model').value = settings.llm.kimi?.model || 'moonshot-v1-8k';
+    // LLM Keys and Models - with null checks
+    const geminiApiKey = document.getElementById('gemini-api-key');
+    if (geminiApiKey) geminiApiKey.value = settings.llm.gemini.apiKey;
+    const geminiModel = document.getElementById('gemini-model');
+    if (geminiModel) geminiModel.value = settings.llm.gemini.model;
+    const openaiLlmApiKey = document.getElementById('openai-llm-api-key');
+    if (openaiLlmApiKey) openaiLlmApiKey.value = settings.llm.openai.apiKey;
+    const openaiLlmModel = document.getElementById('openai-llm-model');
+    if (openaiLlmModel) openaiLlmModel.value = settings.llm.openai.model;
+    const anthropicApiKey = document.getElementById('anthropic-api-key');
+    if (anthropicApiKey) anthropicApiKey.value = settings.llm.anthropic.apiKey;
+    const anthropicModel = document.getElementById('anthropic-model');
+    if (anthropicModel) anthropicModel.value = settings.llm.anthropic.model;
+    const kimiApiKey = document.getElementById('kimi-api-key');
+    if (kimiApiKey) kimiApiKey.value = settings.llm.kimi?.apiKey || '';
+    const kimiModel = document.getElementById('kimi-model');
+    if (kimiModel) kimiModel.value = settings.llm.kimi?.model || 'moonshot-v1-8k';
     
     // Show/hide LLM configs
     document.querySelectorAll('[id^="config-llm-"]').forEach(config => {
@@ -174,12 +182,17 @@ function populateSettingsForm() {
     const ttsRadio = document.getElementById(`tts-${ttsProvider}`);
     if (ttsRadio) ttsRadio.checked = true;
     
-    // TTS Keys and Models
-    document.getElementById('openai-tts-api-key').value = settings.tts.openai.apiKey;
-    document.getElementById('openai-tts-model').value = settings.tts.openai.model;
-    document.getElementById('openai-tts-voice').value = settings.tts.openai.voice;
-    document.getElementById('elevenlabs-api-key').value = settings.tts.elevenlabs.apiKey;
-    document.getElementById('elevenlabs-model').value = settings.tts.elevenlabs.model;
+    // TTS Keys and Models - with null checks
+    const openaiTtsApiKey = document.getElementById('openai-tts-api-key');
+    if (openaiTtsApiKey) openaiTtsApiKey.value = settings.tts.openai.apiKey;
+    const openaiTtsModel = document.getElementById('openai-tts-model');
+    if (openaiTtsModel) openaiTtsModel.value = settings.tts.openai.model;
+    const openaiTtsVoice = document.getElementById('openai-tts-voice');
+    if (openaiTtsVoice) openaiTtsVoice.value = settings.tts.openai.voice;
+    const elevenlabsApiKey = document.getElementById('elevenlabs-api-key');
+    if (elevenlabsApiKey) elevenlabsApiKey.value = settings.tts.elevenlabs.apiKey;
+    const elevenlabsModel = document.getElementById('elevenlabs-model');
+    if (elevenlabsModel) elevenlabsModel.value = settings.tts.elevenlabs.model;
     
     // Show/hide TTS configs
     document.querySelectorAll('[id^="config-tts-"]').forEach(config => {
