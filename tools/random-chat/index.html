@@ -615,8 +615,15 @@ Avoid texting shortcuts like "lol", "nah", "tbh", "gonna", or unnecessary lowerc
             return div.innerHTML;
         }
 
-        // Send Message (Enter just makes line break, click button to send)
+        // Send Message (Cmd+Enter or Ctrl+Enter to send)
         sendBtn.addEventListener('click', sendMessage);
+
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
 
         async function sendMessage() {
             const content = messageInput.value.trim();
