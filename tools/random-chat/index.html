@@ -77,7 +77,7 @@
                 <!-- Chat items will be added here -->
             </div>
 
-            <div class="px-4 py-2 text-xs text-gray-500">v0.1.1</div>
+            <div class="px-4 py-2 text-xs text-gray-500">v0.1.2</div>
         </aside>
 
         <!-- Context Menu -->
@@ -136,7 +136,7 @@
             <!-- Input Area -->
             <div class="border-t border-gray-200 p-2 lg:p-4 bg-white" style="padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));">
                 <div class="flex gap-2 items-end">
-                    <textarea id="messageInput" class="flex-1 p-2 lg:p-3 border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm lg:text-base" rows="1" placeholder="Say something..."></textarea>
+                    <textarea id="messageInput" class="flex-1 p-2 lg:p-3 border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500" style="font-size: 16px;" rows="2" placeholder="Say something..."></textarea>
                     <button id="rewriteBtn" class="p-2 lg:p-3 bg-gray-200 hover:bg-gray-300 rounded-lg transition flex items-center justify-center shrink-0" title="Rewrite">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
@@ -724,16 +724,20 @@ Use lowercase sometimes, like real texting. It's ok to use "lol", "nah", "tbh", 
         // Handle mobile keyboard resize via visualViewport
         if (window.visualViewport) {
             const appContainer = document.getElementById('appContainer');
+            let pendingUpdate = false;
             function onViewportResize() {
-                const height = window.visualViewport.height;
-                const offsetTop = window.visualViewport.offsetTop;
-                document.body.style.height = height + 'px';
-                appContainer.style.height = height + 'px';
-                document.body.style.transform = `translateY(${offsetTop}px)`;
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                if (pendingUpdate) return;
+                pendingUpdate = true;
+                requestAnimationFrame(() => {
+                    const height = window.visualViewport.height;
+                    document.body.style.height = height + 'px';
+                    appContainer.style.height = height + 'px';
+                    window.scrollTo(0, 0);
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                    pendingUpdate = false;
+                });
             }
             window.visualViewport.addEventListener('resize', onViewportResize);
-            window.visualViewport.addEventListener('scroll', onViewportResize);
         }
 
         // Initialize
