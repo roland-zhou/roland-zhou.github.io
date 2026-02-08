@@ -103,7 +103,7 @@
                 <!-- Chat items will be added here -->
             </div>
 
-            <div class="px-4 py-2 text-xs text-gray-500 dark:text-gray-400">v0.1.6</div>
+            <div class="px-4 py-2 text-xs text-gray-500 dark:text-gray-400">v0.1.7</div>
         </aside>
 
         <!-- Context Menu -->
@@ -460,18 +460,12 @@ Avoid texting shortcuts like "lol", "nah", "tbh", "gonna", or unnecessary lowerc
         function saveChats() {
             const nonEmptyChats = chats.filter(chat => chat.messages.length > 0);
             localStorage.setItem('randomChats', JSON.stringify(nonEmptyChats));
-            localStorage.setItem('currentChatId', currentChatId);
         }
 
         function loadChats() {
             const savedChats = localStorage.getItem('randomChats');
-            const savedChatId = localStorage.getItem('currentChatId');
             if (savedChats) {
                 chats = JSON.parse(savedChats);
-                currentChatId = savedChatId ? parseInt(savedChatId) : null;
-                if (currentChatId && chats.find(c => c.id === currentChatId)) {
-                    selectChat(currentChatId);
-                }
                 renderChatList();
             }
         }
@@ -766,12 +760,7 @@ Avoid texting shortcuts like "lol", "nah", "tbh", "gonna", or unnecessary lowerc
 
         // Initialize
         loadChats();
-        if (chats.length === 0) {
-            createNewChat();
-        } else if (!currentChatId || !chats.find(c => c.id === currentChatId)) {
-            // Fallback: select the most recent chat if none is selected
-            selectChat(chats[0].id);
-        }
+        createNewChat();
     </script>
 </body>
 </html>
