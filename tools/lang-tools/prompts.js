@@ -7,11 +7,20 @@ function constructPrompt(action, text) {
     switch (action) {
           case 'translate':
                 const hasChineseChars = /[\u4e00-\u9fa5]/.test(text);
+                
                 // Improved sentence detection
                 const hasEndingPunctuation = /[。.?？!！]$/.test(text);
-                const hasMultipleWords = /\S+\s+\S+/.test(text); // Multiple words separated by spaces
-                const chineseQuestionParticle = /[吗呢]$/.test(text); // Common Chinese question particles
-                const isSentence = hasEndingPunctuation || hasMultipleWords || chineseQuestionParticle;
+                const hasMultipleWords = /\S+\s+\S+/.test(text); // Multiple words separated by spaces (for English)
+                
+                // Chinese sentence indicators
+                const chineseQuestionParticle = /[吗呢啊吧]$/.test(text); // Common particles
+                const chineseLength = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
+                const isLongChineseText = chineseLength >= 4; // 4+ Chinese chars likely a sentence
+                
+                // Common Chinese sentence patterns (subject-predicate, verb phrases, etc.)
+                const hasChineseSubjectPredicate = /[\u4e00-\u9fa5]{1,3}[很是在有能会][\u4e00-\u9fa5]+/.test(text);
+                
+                const isSentence = hasEndingPunctuation || hasMultipleWords || chineseQuestionParticle || isLongChineseText || hasChineseSubjectPredicate;
                 const isPhrase = text.includes(' ') && !isSentence;
 
                 if (hasChineseChars) {

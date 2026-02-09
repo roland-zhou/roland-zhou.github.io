@@ -69,6 +69,14 @@ Coffee is my favorite.`
 Did you eat?
 Are you hungry?`
     },
+    {
+        action: 'translate',
+        input: '这个很好',
+        description: 'Chinese sentence without punctuation (subject-predicate structure)',
+        expectedOutput: `This is good.
+This is great.
+This is excellent.`
+    },
     
     // ===== REWRITE TESTS =====
     {
