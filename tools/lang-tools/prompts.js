@@ -7,7 +7,11 @@ function constructPrompt(action, text) {
     switch (action) {
           case 'translate':
                 const hasChineseChars = /[\u4e00-\u9fa5]/.test(text);
-                const isSentence = text.includes('。') || text.includes('.') || text.includes('?') || text.includes('？') || text.includes('!') || text.includes('！') || /\s.+\s/.test(text);
+                // Improved sentence detection
+                const hasEndingPunctuation = /[。.?？!！]$/.test(text);
+                const hasMultipleWords = /\S+\s+\S+/.test(text); // Multiple words separated by spaces
+                const chineseQuestionParticle = /[吗呢]$/.test(text); // Common Chinese question particles
+                const isSentence = hasEndingPunctuation || hasMultipleWords || chineseQuestionParticle;
                 const isPhrase = text.includes(' ') && !isSentence;
 
                 if (hasChineseChars) {

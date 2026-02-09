@@ -61,6 +61,14 @@ Coffee is my favorite.`
 机器突然崩溃了。
 让我们把这个任务拆分开来。`
     },
+    {
+        action: 'translate',
+        input: '吃饭了吗',
+        description: 'Chinese sentence without punctuation (question particle 吗 indicates sentence)',
+        expectedOutput: `Have you eaten?
+Did you eat?
+Are you hungry?`
+    },
     
     // ===== REWRITE TESTS =====
     {
