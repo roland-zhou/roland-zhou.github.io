@@ -42,7 +42,7 @@
             align-items: center;
         }
 
-        #timeInput {
+        #timeInput, #dateInput {
             flex: 1;
             padding: 12px;
             font-size: 16px;
@@ -51,15 +51,40 @@
             background: #f8f8f8;
         }
 
-        #dateInput {
+        .copied {
+            background: #2196F3 !important;
+        }
+
+        .section-title {
+            font-size: 13px;
+            color: #888;
+            margin-bottom: 8px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .section {
+            margin-bottom: 16px;
+        }
+
+        .timestamp-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .timestamp-row input {
             flex: 1;
             padding: 12px;
             font-size: 16px;
             border: 1px solid #ddd;
             border-radius: 6px;
+            background: #f8f8f8;
+            font-family: monospace;
         }
 
-        #copyTimeBtn {
+        .copy-btn {
             padding: 12px 20px;
             background: #4CAF50;
             color: white;
@@ -68,39 +93,22 @@
             cursor: pointer;
             font-size: 16px;
             transition: background 0.3s;
+            white-space: nowrap;
         }
 
-        #copyTimeBtn:hover {
+        .copy-btn:hover {
             background: #45a049;
-        }
-
-        #copyDateBtn {
-            padding: 12px 20px;
-            background: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 6px; 
-            cursor: pointer;
-            font-size: 16px;
-            transition: background 0.3s;
-        }
-
-        #copyDateBtn:hover {
-            background: #45a049;
-        }
-        .copied {
-            background: #2196F3 !important;
         }
 
         @media (max-width: 480px) {
             .container {
                 padding: 15px;
             }
-            
+
             #timeInput {
                 font-size: 14px;
             }
-            
+
             #copyBtn {
                 padding: 12px 15px;
                 font-size: 14px;
@@ -110,14 +118,40 @@
 </head>
 <body>
     <div class="container">
-        <div class="date-display">
-            <input type="text" id="dateInput" readonly>
-            <button id="copyDateBtn">Copy</button>
+        <div class="section">
+            <div class="section-title">Date</div>
+            <div class="date-display">
+                <input type="text" id="dateInput" readonly>
+                <button id="copyDateBtn" class="copy-btn">Copy</button>
+            </div>
         </div>
-        <br/>
-        <div class="time-display">
-            <input type="text" id="timeInput" readonly>
-            <button id="copyTimeBtn">Copy</button>
+        <div class="section">
+            <div class="section-title">Time</div>
+            <div class="time-display">
+                <input type="text" id="timeInput" readonly>
+                <button id="copyTimeBtn" class="copy-btn">Copy</button>
+            </div>
+        </div>
+        <div class="section">
+            <div class="section-title">Unix Timestamp (seconds)</div>
+            <div class="timestamp-row">
+                <input type="text" id="tsSeconds" readonly>
+                <button class="copy-btn" data-target="tsSeconds">Copy</button>
+            </div>
+        </div>
+        <div class="section">
+            <div class="section-title">Unix Timestamp (milliseconds)</div>
+            <div class="timestamp-row">
+                <input type="text" id="tsMillis" readonly>
+                <button class="copy-btn" data-target="tsMillis">Copy</button>
+            </div>
+        </div>
+        <div class="section">
+            <div class="section-title">Unix Timestamp (nanoseconds)</div>
+            <div class="timestamp-row">
+                <input type="text" id="tsNanos" readonly>
+                <button class="copy-btn" data-target="tsNanos">Copy</button>
+            </div>
         </div>
     </div>
 
@@ -151,37 +185,45 @@
         updateTime();
         setInterval(updateTime, 1000);
 
-        // Copy functionality
-        const copyTimeBtn = document.getElementById('copyTimeBtn');
-        copyTimeBtn.addEventListener('click', async () => {
-            const timeInput = document.getElementById('timeInput');
+        function updateTimestamps() {
+            const now = new Date();
+            const ms = now.getTime();
+            document.getElementById('tsSeconds').value = Math.floor(ms / 1000);
+            document.getElementById('tsMillis').value = ms;
+            document.getElementById('tsNanos').value = ms + '000000';
+        }
+
+        updateTimestamps();
+        setInterval(updateTimestamps, 1000);
+
+        // Generic copy helper
+        async function copyText(btn, text) {
             try {
-                await navigator.clipboard.writeText(timeInput.value);
-                copyTimeBtn.textContent = 'Copied!';
-                copyTimeBtn.classList.add('copied');
+                await navigator.clipboard.writeText(text);
+                btn.textContent = 'Copied!';
+                btn.classList.add('copied');
                 setTimeout(() => {
-                    copyTimeBtn.textContent = 'Copy';
-                    copyTimeBtn.classList.remove('copied');
+                    btn.textContent = 'Copy';
+                    btn.classList.remove('copied');
                 }, 2000);
             } catch (err) {
                 console.error('Failed to copy text: ', err);
             }
+        }
+
+        // Copy functionality
+        document.getElementById('copyTimeBtn').addEventListener('click', function() {
+            copyText(this, document.getElementById('timeInput').value);
         });
 
-        const copyDateBtn = document.getElementById('copyDateBtn');
-        copyDateBtn.addEventListener('click', async () => {
-            const dateInput = document.getElementById('dateInput');
-            try {
-                await navigator.clipboard.writeText(dateInput.value);
-                copyDateBtn.textContent = 'Copied!';
-                copyDateBtn.classList.add('copied');
-                setTimeout(() => {
-                    copyDateBtn.textContent = 'Copy';
-                    copyDateBtn.classList.remove('copied');
-                }, 2000);
-            } catch (err) { 
-                console.error('Failed to copy text: ', err);
-            }
+        document.getElementById('copyDateBtn').addEventListener('click', function() {
+            copyText(this, document.getElementById('dateInput').value);
+        });
+
+        document.querySelectorAll('.copy-btn[data-target]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                copyText(this, document.getElementById(this.dataset.target).value);
+            });
         });
     </script>
 </body>
