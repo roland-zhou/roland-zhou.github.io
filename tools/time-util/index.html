@@ -240,6 +240,12 @@
                 <input type="text" id="convNanos" class="converter-input">
             </div>
         </div>
+        <div class="section">
+            <div class="section-title">Snowflake ID (seconds &lt;&lt; 32)</div>
+            <div class="timestamp-row">
+                <input type="text" id="convSnowflake" class="converter-input">
+            </div>
+        </div>
     </div>
 
     <script>
@@ -348,6 +354,7 @@
         const convSeconds     = document.getElementById('convSeconds');
         const convMillis      = document.getElementById('convMillis');
         const convNanos       = document.getElementById('convNanos');
+        const convSnowflake   = document.getElementById('convSnowflake');
 
         function formatDatetime(date) {
             const y  = date.getFullYear();
@@ -389,6 +396,10 @@
             el.classList.toggle('error', hasError);
         }
 
+        function msToSnowflake(ms) {
+            return String(BigInt(Math.floor(ms / 1000)) << 32n);
+        }
+
         function fillFromMs(ms, skip) {
             const date = new Date(ms);
             if (skip !== convDatetime)    convDatetime.value    = formatDatetime(date);
@@ -396,6 +407,7 @@
             if (skip !== convSeconds)     convSeconds.value     = Math.floor(ms / 1000);
             if (skip !== convMillis)      convMillis.value      = ms;
             if (skip !== convNanos)       convNanos.value       = ms + '000000';
+            if (skip !== convSnowflake)   convSnowflake.value   = msToSnowflake(ms);
         }
 
         // Seed converter with current time on load
@@ -407,6 +419,7 @@
             convSeconds.value     = Math.floor(ms / 1000);
             convMillis.value      = ms;
             convNanos.value       = ms + '000000';
+            convSnowflake.value   = msToSnowflake(ms);
         })();
 
         convDatetime.addEventListener('input', function() {
@@ -445,6 +458,20 @@
                 // Drop last 6 digits (nanosecond precision beyond ms) to get ms
                 const ms = Math.floor(Number(val) / 1_000_000);
                 fillFromMs(ms, this);
+            }
+        });
+
+        convSnowflake.addEventListener('input', function() {
+            const val = this.value.trim();
+            const ok = val !== '' && /^\d+$/.test(val);
+            setError(this, val !== '' && !ok);
+            if (ok) {
+                try {
+                    const ms = Number(BigInt(val) >> 32n) * 1000;
+                    fillFromMs(ms, this);
+                } catch (e) {
+                    setError(this, true);
+                }
             }
         });
     </script>
