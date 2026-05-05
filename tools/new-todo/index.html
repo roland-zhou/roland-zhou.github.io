@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="light dark">
     <title>New Todo · TickTick Quick Add</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <link rel="apple-touch-icon" href="icon.png">
     <style>
         :root {
             --bg: #f5f7fa;
@@ -304,6 +306,15 @@
         }
 
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        .version {
+            position: fixed;
+            bottom: 0.75rem;
+            right: 0.75rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            opacity: 0.4;
+        }
     </style>
 </head>
 
@@ -383,6 +394,8 @@
             </div>
         </div>
     </div>
+
+    <div class="version">v0.1.0</div>
 
     <script>
         const STORAGE_KEY = 'new-todo:settings';
