@@ -394,7 +394,7 @@
         </div>
     </div>
 
-    <div class="version">v0.1.2</div>
+    <div class="version">v0.1.3</div>
 
     <script>
         const STORAGE_KEY = 'new-todo:settings';
@@ -549,7 +549,7 @@ User timezone: ${tz}
 
 Rules:
 - Always call the create_task tool.
-- Keep titles short and imperative; put extra details in content.
+- Title must be self-contained: a reader should understand the key action and its specifics from the title alone, without needing to open the notes. Include the concrete object/target (e.g. "Pay May rent to landlord", not "Pay rent"; "Email Sarah the Q2 budget draft", not "Email Sarah"). Keep it imperative and reasonably concise, but prefer clarity over brevity. Use content/notes only for extra context that doesn't belong in the title.
 - Dates/times: only set startDate or dueDate when the user explicitly mentions a time (absolute like "May 12 at 3pm" or relative like "tomorrow", "next Monday", "in 2 hours", "tonight", "this weekend"). If the user does not mention any time, OMIT both startDate and dueDate entirely — do NOT guess, default, or invent a due date. When a time is given, resolve it against the current local time and emit ISO 8601 with the user's timezone offset.
 - Priority: only set when the user explicitly signals it (e.g. "urgent", "high priority", "P0", "!!", "low priority", "P3"). P-levels go highest-first: P0 is the top priority, P1 is next, then P2, P3. Map P0/urgent/!! → 5 (High), P1/high → 5 (High), P2/medium → 3 (Medium), P3/low → 1 (Low). If the user does not mention priority at all, OMIT the priority field entirely — do not default to 0 or any other value.
 - Omit any field the user did not specify rather than guessing.`;
