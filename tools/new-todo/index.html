@@ -329,6 +329,66 @@
             gap: 8px;
         }
 
+        .share-section {
+            border-top: 1px solid var(--border);
+            padding-top: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .share-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .share-row label {
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .share-buttons {
+            display: flex;
+            gap: 6px;
+        }
+
+        button.small {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+        }
+
+        #share-blob {
+            min-height: 90px;
+            padding: 8px 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--card-bg);
+            color: var(--text);
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 0.78rem;
+            resize: vertical;
+            outline: none;
+            word-break: break-all;
+        }
+
+        #share-blob:focus { border-color: var(--primary); }
+
+        .share-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 6px;
+        }
+
+        .share-status {
+            font-size: 0.8rem;
+            min-height: 1em;
+        }
+
+        .share-status.error { color: var(--danger); }
+        .share-status.success { color: #228b22; }
+
         .spinner {
             display: inline-block;
             width: 14px;
@@ -433,6 +493,24 @@
                 </div>
 
                 <div class="help">All keys are stored locally in your browser.</div>
+
+                <div class="share-section">
+                    <div class="share-row">
+                        <label>Backup / Share</label>
+                        <div class="share-buttons">
+                            <button class="secondary small" id="export-btn" type="button">Export</button>
+                            <button class="secondary small" id="import-btn" type="button">Import</button>
+                        </div>
+                    </div>
+                    <textarea id="share-blob" placeholder="Encrypted configuration will appear here, or paste an exported string to import." style="display: none;"></textarea>
+                    <div class="share-status" id="share-status"></div>
+                    <div class="share-actions" id="share-actions" style="display: none;">
+                        <button class="secondary small" id="share-close" type="button">Close</button>
+                        <button class="secondary small" id="share-copy" type="button" style="display: none;">Copy</button>
+                        <button class="primary small" id="share-apply" type="button" style="display: none;">Apply</button>
+                    </div>
+                    <div class="help">Encrypted with an app-specific key — anyone using this tool can decrypt the blob, so don't post it publicly. Safe to share via chat with trusted contacts.</div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="secondary" id="cancel-settings">Cancel</button>
@@ -441,7 +519,7 @@
         </div>
     </div>
 
-    <div class="version">v0.1.6</div>
+    <div class="version">v0.1.7</div>
 
     <script>
         const STORAGE_KEY = 'new-todo:settings';
@@ -501,6 +579,14 @@
             imagePreview: document.getElementById('image-preview'),
             imageThumb: document.getElementById('image-thumb'),
             removeImg: document.getElementById('remove-img'),
+            exportBtn: document.getElementById('export-btn'),
+            importBtn: document.getElementById('import-btn'),
+            shareBlob: document.getElementById('share-blob'),
+            shareStatus: document.getElementById('share-status'),
+            shareActions: document.getElementById('share-actions'),
+            shareClose: document.getElementById('share-close'),
+            shareCopy: document.getElementById('share-copy'),
+            shareApply: document.getElementById('share-apply'),
         };
 
         let settings = loadSettings();
@@ -537,6 +623,7 @@
             refreshModelOptions(settings.provider, settings.model);
             els.llmKey.value = settings.llmKey;
             els.ticktickToken.value = settings.ticktickToken;
+            hideShare();
             els.settingsModal.classList.add('show');
         }
 
@@ -777,6 +864,135 @@ Rules:
             if (!supportsVision && pendingImage) clearImage();
         }
 
+        // ---------- Config import / export ----------
+        const SHARE_VERSION = 'NTD1';
+        const SHARE_SECRET = 'new-todo:share:v1:roland-zhou.github.io';
+
+        let shareKeyPromise = null;
+        function deriveShareKey() {
+            if (!shareKeyPromise) {
+                shareKeyPromise = (async () => {
+                    const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(SHARE_SECRET));
+                    return crypto.subtle.importKey('raw', hash, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+                })();
+            }
+            return shareKeyPromise;
+        }
+
+        function bytesToBase64(bytes) {
+            let s = '';
+            for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+            return btoa(s);
+        }
+
+        function base64ToBytes(b64) {
+            const s = atob(b64);
+            const bytes = new Uint8Array(s.length);
+            for (let i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i);
+            return bytes;
+        }
+
+        async function encryptConfig(obj) {
+            const key = await deriveShareKey();
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const data = new TextEncoder().encode(JSON.stringify(obj));
+            const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data));
+            const combined = new Uint8Array(iv.length + ct.length);
+            combined.set(iv, 0);
+            combined.set(ct, iv.length);
+            return SHARE_VERSION + ':' + bytesToBase64(combined);
+        }
+
+        async function decryptConfig(blob) {
+            const trimmed = blob.trim();
+            const idx = trimmed.indexOf(':');
+            if (idx < 0) throw new Error('Invalid format.');
+            const version = trimmed.slice(0, idx);
+            if (version !== SHARE_VERSION) throw new Error(`Unknown version "${version}".`);
+            const combined = base64ToBytes(trimmed.slice(idx + 1));
+            if (combined.length < 13) throw new Error('Payload too short.');
+            const iv = combined.slice(0, 12);
+            const ct = combined.slice(12);
+            const key = await deriveShareKey();
+            let pt;
+            try {
+                pt = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct));
+            } catch {
+                throw new Error('Decryption failed — blob may be corrupted or from a different app.');
+            }
+            return JSON.parse(new TextDecoder().decode(pt));
+        }
+
+        function setShareStatus(msg, kind = '') {
+            els.shareStatus.className = 'share-status' + (kind ? ' ' + kind : '');
+            els.shareStatus.textContent = msg || '';
+        }
+
+        function hideShare() {
+            els.shareBlob.style.display = 'none';
+            els.shareActions.style.display = 'none';
+            els.shareBlob.value = '';
+            setShareStatus('');
+        }
+
+        async function startExport() {
+            els.shareBlob.style.display = 'block';
+            els.shareBlob.readOnly = true;
+            els.shareActions.style.display = 'flex';
+            els.shareCopy.style.display = '';
+            els.shareApply.style.display = 'none';
+            els.shareBlob.value = 'Encrypting…';
+            setShareStatus('');
+            try {
+                const blob = await encryptConfig({
+                    provider: els.provider.value,
+                    model: els.model.value,
+                    llmKey: els.llmKey.value.trim(),
+                    ticktickToken: els.ticktickToken.value.trim()
+                });
+                els.shareBlob.value = blob;
+                els.shareBlob.select();
+                setShareStatus('Encrypted. Copy and share via chat.', 'success');
+            } catch (e) {
+                els.shareBlob.value = '';
+                setShareStatus('Export failed: ' + e.message, 'error');
+            }
+        }
+
+        function startImport() {
+            els.shareBlob.style.display = 'block';
+            els.shareBlob.readOnly = false;
+            els.shareActions.style.display = 'flex';
+            els.shareCopy.style.display = 'none';
+            els.shareApply.style.display = '';
+            els.shareBlob.value = '';
+            setShareStatus('Paste an exported string and click Apply.');
+            els.shareBlob.focus();
+        }
+
+        async function applyImport() {
+            const text = els.shareBlob.value.trim();
+            if (!text) {
+                setShareStatus('Nothing to import.', 'error');
+                return;
+            }
+            try {
+                const obj = await decryptConfig(text);
+                if (obj.provider && PROVIDERS[obj.provider]) {
+                    els.provider.value = obj.provider;
+                    refreshModelOptions(obj.provider, obj.model);
+                } else if (obj.model) {
+                    refreshModelOptions(els.provider.value, obj.model);
+                }
+                if (typeof obj.llmKey === 'string') els.llmKey.value = obj.llmKey;
+                if (typeof obj.ticktickToken === 'string') els.ticktickToken.value = obj.ticktickToken;
+                setShareStatus('Imported into the form. Click Save to apply.', 'success');
+                els.shareBlob.value = '';
+            } catch (e) {
+                setShareStatus('Import failed: ' + e.message, 'error');
+            }
+        }
+
         // ---------- Event wiring ----------
         els.settingsBtn.addEventListener('click', openSettings);
         els.closeSettings.addEventListener('click', closeSettings);
@@ -810,6 +1026,21 @@ Rules:
         });
 
         els.removeImg.addEventListener('click', clearImage);
+
+        els.exportBtn.addEventListener('click', startExport);
+        els.importBtn.addEventListener('click', startImport);
+        els.shareClose.addEventListener('click', hideShare);
+        els.shareApply.addEventListener('click', applyImport);
+        els.shareCopy.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(els.shareBlob.value);
+                setShareStatus('Copied to clipboard.', 'success');
+            } catch {
+                els.shareBlob.select();
+                document.execCommand('copy');
+                setShareStatus('Copied to clipboard.', 'success');
+            }
+        });
 
         els.input.addEventListener('paste', async (e) => {
             if (!PROVIDERS[settings.provider]?.vision) return;
