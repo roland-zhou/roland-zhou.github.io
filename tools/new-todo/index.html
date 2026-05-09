@@ -119,8 +119,44 @@
 
         .actions {
             display: flex;
+            align-items: center;
             justify-content: flex-end;
             gap: 8px;
+        }
+
+        .actions .spacer { flex: 1; }
+
+        .image-preview {
+            position: relative;
+            display: inline-block;
+        }
+
+        .image-preview img {
+            max-height: 64px;
+            max-width: 160px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            display: block;
+            object-fit: cover;
+        }
+
+        .remove-img {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--danger);
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
         }
 
         button.primary, button.secondary {
@@ -345,6 +381,17 @@
             </div>
 
             <div class="actions" id="parse-actions">
+                <button class="icon-btn" id="attach-btn" aria-label="Attach image" title="Attach image (or paste)" style="display: none;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                    </svg>
+                </button>
+                <div class="image-preview" id="image-preview" style="display: none;">
+                    <img id="image-thumb" alt="Attached image">
+                    <button class="remove-img" id="remove-img" aria-label="Remove image" title="Remove image">&times;</button>
+                </div>
+                <input type="file" id="image-input" accept="image/*" style="display: none;">
+                <span class="spacer"></span>
                 <button class="primary" id="parse-btn">Parse with AI</button>
             </div>
         </div>
@@ -394,7 +441,7 @@
         </div>
     </div>
 
-    <div class="version">v0.1.3</div>
+    <div class="version">v0.1.4</div>
 
     <script>
         const STORAGE_KEY = 'new-todo:settings';
@@ -403,19 +450,24 @@
             openai: {
                 label: 'OpenAI (ChatGPT)',
                 baseUrl: 'https://api.openai.com/v1',
-                models: ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-mini', 'gpt-4.1']
+                models: ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-mini', 'gpt-4.1'],
+                vision: true
             },
             gemini: {
                 label: 'Google Gemini',
                 baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
-                models: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash']
+                models: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash'],
+                vision: true
             },
             deepseek: {
                 label: 'DeepSeek',
                 baseUrl: 'https://api.deepseek.com/v1',
-                models: ['deepseek-chat', 'deepseek-reasoner']
+                models: ['deepseek-chat', 'deepseek-reasoner'],
+                vision: false
             }
         };
+
+        const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB
 
         const PRIORITY_LABELS = { 0: 'None', 1: 'Low', 3: 'Medium', 5: 'High' };
 
@@ -444,10 +496,16 @@
             model: document.getElementById('model'),
             llmKey: document.getElementById('llm-key'),
             ticktickToken: document.getElementById('ticktick-token'),
+            attachBtn: document.getElementById('attach-btn'),
+            imageInput: document.getElementById('image-input'),
+            imagePreview: document.getElementById('image-preview'),
+            imageThumb: document.getElementById('image-thumb'),
+            removeImg: document.getElementById('remove-img'),
         };
 
         let settings = loadSettings();
         let pendingTask = null;
+        let pendingImage = null; // base64 data URL, or null
 
         function loadSettings() {
             try {
@@ -552,17 +610,28 @@ Rules:
 - Title must be self-contained: a reader should understand the key action and its specifics from the title alone, without needing to open the notes. Include the concrete object/target (e.g. "Pay May rent to landlord", not "Pay rent"; "Email Sarah the Q2 budget draft", not "Email Sarah"). Keep it imperative and reasonably concise, but prefer clarity over brevity. Use content/notes only for extra context that doesn't belong in the title.
 - Dates/times: only set startDate or dueDate when the user explicitly mentions a time (absolute like "May 12 at 3pm" or relative like "tomorrow", "next Monday", "in 2 hours", "tonight", "this weekend"). If the user does not mention any time, OMIT both startDate and dueDate entirely — do NOT guess, default, or invent a due date. When a time is given, resolve it against the current local time and emit ISO 8601 with the user's timezone offset.
 - Priority: only set when the user explicitly signals it (e.g. "urgent", "high priority", "P0", "!!", "low priority", "P3"). P-levels go highest-first: P0 is the top priority, P1 is next, then P2, P3. Map P0/urgent/!! → 5 (High), P1/high → 5 (High), P2/medium → 3 (Medium), P3/low → 1 (Low). If the user does not mention priority at all, OMIT the priority field entirely — do not default to 0 or any other value.
+- The user may attach an image (often a screenshot of a message, document, or task list). Read the image content and extract the task from it. Apply all the rules above to whatever the image shows — still do not invent dates or priorities that are not visible in the image or accompanying text.
 - Omit any field the user did not specify rather than guessing.`;
         }
 
-        async function callLLM(text) {
+        async function callLLM(text, imageDataUrl) {
             const provider = PROVIDERS[settings.provider];
             const url = `${provider.baseUrl}/chat/completions`;
+
+            let userContent;
+            if (imageDataUrl) {
+                userContent = [];
+                if (text) userContent.push({ type: 'text', text });
+                userContent.push({ type: 'image_url', image_url: { url: imageDataUrl } });
+            } else {
+                userContent = text;
+            }
+
             const body = {
                 model: settings.model,
                 messages: [
                     { role: 'system', content: buildSystemPrompt() },
-                    { role: 'user', content: text }
+                    { role: 'user', content: userContent }
                 ],
                 tools: [TASK_TOOL],
                 tool_choice: { type: 'function', function: { name: 'create_task' } }
@@ -663,6 +732,49 @@ Rules:
             pendingTask = null;
         }
 
+        // ---------- Image handling ----------
+        function fileToDataUrl(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(new Error('Could not read image file.'));
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function attachImageFile(file) {
+            if (!file) return;
+            if (!file.type.startsWith('image/')) {
+                setStatus('Only image files are supported.', 'error');
+                return;
+            }
+            if (file.size > MAX_IMAGE_BYTES) {
+                setStatus(`Image is too large (max ${MAX_IMAGE_BYTES / 1024 / 1024}MB).`, 'error');
+                return;
+            }
+            try {
+                pendingImage = await fileToDataUrl(file);
+                els.imageThumb.src = pendingImage;
+                els.imagePreview.style.display = 'inline-block';
+                setStatus('');
+            } catch (e) {
+                setStatus(e.message, 'error');
+            }
+        }
+
+        function clearImage() {
+            pendingImage = null;
+            els.imageThumb.removeAttribute('src');
+            els.imagePreview.style.display = 'none';
+            els.imageInput.value = '';
+        }
+
+        function updateAttachVisibility() {
+            const supportsVision = !!PROVIDERS[settings.provider]?.vision;
+            els.attachBtn.style.display = supportsVision ? '' : 'none';
+            if (!supportsVision && pendingImage) clearImage();
+        }
+
         // ---------- Event wiring ----------
         els.settingsBtn.addEventListener('click', openSettings);
         els.closeSettings.addEventListener('click', closeSettings);
@@ -682,15 +794,41 @@ Rules:
                 llmKey: els.llmKey.value.trim(),
                 ticktickToken: els.ticktickToken.value.trim()
             });
+            updateAttachVisibility();
             closeSettings();
             setStatus('Settings saved.', 'success');
             setTimeout(() => setStatus(''), 2000);
         });
 
+        els.attachBtn.addEventListener('click', () => els.imageInput.click());
+
+        els.imageInput.addEventListener('change', async () => {
+            const file = els.imageInput.files?.[0];
+            if (file) await attachImageFile(file);
+        });
+
+        els.removeImg.addEventListener('click', clearImage);
+
+        els.input.addEventListener('paste', async (e) => {
+            if (!PROVIDERS[settings.provider]?.vision) return;
+            const items = e.clipboardData?.items;
+            if (!items) return;
+            for (const item of items) {
+                if (item.type && item.type.startsWith('image/')) {
+                    const file = item.getAsFile();
+                    if (file) {
+                        e.preventDefault();
+                        await attachImageFile(file);
+                    }
+                    return;
+                }
+            }
+        });
+
         els.parseBtn.addEventListener('click', async () => {
             const text = els.input.value.trim();
-            if (!text) {
-                setStatus('Type a task description first.', 'error');
+            if (!text && !pendingImage) {
+                setStatus('Type a task description or attach an image.', 'error');
                 return;
             }
             if (!ensureConfigured()) return;
@@ -698,7 +836,7 @@ Rules:
             setStatus('<span class="spinner"></span>Parsing with ' + settings.model + '...', 'info');
             els.parseBtn.disabled = true;
             try {
-                pendingTask = await callLLM(text);
+                pendingTask = await callLLM(text, pendingImage);
                 setStatus('');
                 renderPreview(pendingTask);
             } catch (e) {
@@ -719,6 +857,7 @@ Rules:
                 const result = await createTickTickTask(pendingTask);
                 setStatus(`Created: ${result.title || pendingTask.title}`, 'success');
                 els.input.value = '';
+                clearImage();
                 resetUI();
             } catch (e) {
                 setStatus(e.message, 'error');
@@ -727,6 +866,9 @@ Rules:
                 els.cancelBtn.disabled = false;
             }
         });
+
+        // Initial UI state
+        updateAttachVisibility();
 
         // First-run hint
         if (!settings.llmKey || !settings.ticktickToken) {
