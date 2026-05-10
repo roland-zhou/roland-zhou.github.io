@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
+    <title>Brief V2EX · Hot Topics Digest</title>
+    <style>
+        :root {
+            --bg: #f5f7fa;
+            --card-bg: #ffffff;
+            --text: #1f2937;
+            --text-secondary: #6b7280;
+            --border: #e5e7eb;
+            --primary: #0066cc;
+            --primary-hover: #0052a3;
+            --danger: #c0392b;
+            --accent: #f59e0b;
+            --radius: 10px;
+            --shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #111827;
+                --card-bg: #1f2937;
+                --text: #f3f4f6;
+                --text-secondary: #9ca3af;
+                --border: #374151;
+            }
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 32px 16px;
+            line-height: 1.55;
+        }
+
+        .app {
+            max-width: 820px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        @media (max-width: 600px) {
+            body { padding: 8px 6px; }
+        }
+
+        .toolbar {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 14px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .toolbar h1 {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .toolbar-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 600px) {
+            .toolbar {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+                padding: 12px 14px;
+            }
+            .toolbar h1 {
+                font-size: 1.1rem;
+                text-align: center;
+            }
+            .toolbar-right {
+                justify-content: space-between;
+                flex-wrap: nowrap;
+                gap: 6px;
+            }
+            .feed-control { flex-shrink: 0; }
+            #load-btn { flex: 1; min-width: 0; }
+        }
+
+        #topics {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .icon-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 6px;
+            display: inline-flex;
+        }
+
+        .icon-btn:hover {
+            background: rgba(0, 0, 0, 0.05);
+            color: var(--text);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .icon-btn:hover { background: rgba(255, 255, 255, 0.08); }
+        }
+
+        button.primary, button.secondary {
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: background 0.15s, opacity 0.15s;
+            font-family: inherit;
+        }
+
+        button.primary {
+            background: var(--primary);
+            color: #fff;
+        }
+
+        button.primary:hover { background: var(--primary-hover); }
+        button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        button.secondary {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        button.secondary:hover { background: rgba(0, 0, 0, 0.04); }
+
+        @media (prefers-color-scheme: dark) {
+            button.secondary:hover { background: rgba(255, 255, 255, 0.06); }
+        }
+
+        button.small { padding: 6px 10px; font-size: 0.82rem; }
+
+        select, input[type="number"], input[type="password"], input[type="text"] {
+            padding: 7px 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.88rem;
+            background: var(--card-bg);
+            color: var(--text);
+            outline: none;
+            font-family: inherit;
+        }
+
+        select:focus, input:focus { border-color: var(--primary); }
+
+        .feed-control { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--text-secondary); }
+
+        .status {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 12px 16px;
+            font-size: 0.9rem;
+            display: none;
+            box-shadow: var(--shadow);
+        }
+
+        .status.show { display: block; }
+        .status.error { color: var(--danger); }
+        .status.success { color: #228b22; }
+        .status.info { color: var(--primary); }
+
+        .topic {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 16px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .topic-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .topic-title {
+            font-size: 1rem;
+            font-weight: 600;
+            line-height: 1.4;
+        }
+
+        .topic-title a {
+            color: var(--text);
+            text-decoration: none;
+        }
+
+        .topic-title a:hover { color: var(--primary); }
+
+        .topic-meta {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .node-tag {
+            background: rgba(0, 102, 204, 0.1);
+            color: var(--primary);
+            padding: 1px 7px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .summary {
+            font-size: 0.93rem;
+            white-space: pre-wrap;
+        }
+
+        .summary.placeholder { color: var(--text-secondary); font-style: italic; }
+
+        .topic-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 4px;
+            flex-wrap: wrap;
+        }
+
+        details.raw {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 0.85rem;
+        }
+
+        details.raw summary {
+            cursor: pointer;
+            color: var(--text-secondary);
+            user-select: none;
+        }
+
+        details.raw .raw-body {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border);
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        details.raw .reply {
+            border-top: 1px solid var(--border);
+            padding: 8px 0;
+        }
+
+        details.raw .reply:first-of-type { border-top: none; }
+
+        .reply-meta {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid currentColor;
+            border-right-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            vertical-align: -2px;
+            margin-right: 6px;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ---------- Modal (settings) ---------- */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal.show { display: flex; }
+
+        .modal-content {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            width: 100%;
+            max-width: 480px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 { font-size: 1.1rem; font-weight: 600; }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            line-height: 1;
+        }
+
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .field-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .field-group label { font-size: 0.85rem; font-weight: 500; }
+
+        .help { font-size: 0.8rem; color: var(--text-secondary); }
+        .help a { color: var(--primary); }
+
+        .modal-footer {
+            padding: 14px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .share-section {
+            border-top: 1px solid var(--border);
+            padding-top: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .share-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .share-row label { font-size: 0.85rem; font-weight: 500; }
+
+        .share-buttons { display: flex; gap: 6px; }
+
+        #share-blob {
+            min-height: 90px;
+            padding: 8px 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--card-bg);
+            color: var(--text);
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 0.78rem;
+            resize: vertical;
+            outline: none;
+            word-break: break-all;
+        }
+
+        #share-blob:focus { border-color: var(--primary); }
+
+        .share-actions { display: flex; justify-content: flex-end; gap: 6px; }
+
+        .share-status { font-size: 0.8rem; min-height: 1em; }
+        .share-status.error { color: var(--danger); }
+        .share-status.success { color: #228b22; }
+
+        .version {
+            position: fixed;
+            bottom: max(0.75rem, env(safe-area-inset-bottom));
+            right: max(1.25rem, env(safe-area-inset-right));
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            opacity: 0.4;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app">
+        <div class="toolbar">
+            <h1>Brief V2EX</h1>
+            <div class="toolbar-right">
+                <div class="feed-control">
+                    <select id="feed">
+                        <option value="hot">Hot</option>
+                        <option value="latest">Latest</option>
+                    </select>
+                    <label for="topic-count">Top</label>
+                    <input type="number" id="topic-count" min="1" max="20" value="20" style="width: 64px;">
+                </div>
+                <button class="primary" id="load-btn">Load &amp; Summarize</button>
+                <button class="icon-btn" id="settings-btn" aria-label="Settings" title="Settings">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="status" id="status"></div>
+
+        <div id="topics"></div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal" id="settings-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <button class="close-btn" id="close-settings">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="field-group">
+                    <label for="provider">LLM Provider</label>
+                    <select id="provider">
+                        <option value="openai">OpenAI (ChatGPT)</option>
+                        <option value="gemini">Google Gemini</option>
+                        <option value="deepseek">DeepSeek</option>
+                    </select>
+                </div>
+
+                <div class="field-group">
+                    <label for="model">Model</label>
+                    <select id="model"></select>
+                </div>
+
+                <div class="field-group">
+                    <label for="llm-key">LLM API Key</label>
+                    <input type="password" id="llm-key" placeholder="sk-..." autocomplete="off">
+                </div>
+
+                <div class="field-group">
+                    <label for="v2ex-token">V2EX Personal Access Token</label>
+                    <input type="password" id="v2ex-token" placeholder="V2EX PAT (optional but recommended)" autocomplete="off">
+                    <div class="help">
+                        Create one at <a href="https://www.v2ex.com/settings/tokens" target="_blank" rel="noopener">v2ex.com/settings/tokens</a>.
+                        Without a token we fall back to the legacy v1 API, which is public but flaky and rate-limited.
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    <label for="cors-proxy">CORS proxy prefix</label>
+                    <input type="text" id="cors-proxy" placeholder="e.g. https://corsproxy.io/?url=" autocomplete="off">
+                    <div class="help">
+                        V2EX doesn't send CORS headers, so direct browser requests are blocked. A proxy URL will be prefixed
+                        before each V2EX URL (which is appended URL-encoded). Leave empty to call V2EX directly.
+                        Try <code>https://corsproxy.io/?url=</code> or <code>https://api.allorigins.win/raw?url=</code>.
+                        <strong>Warning:</strong> public proxies see all traffic, including any V2EX token. Delete your token
+                        before testing through one, or run your own proxy.
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    <label for="max-replies">Top replies per topic</label>
+                    <input type="number" id="max-replies" min="0" max="30" value="8">
+                    <div class="help">Replies are sorted by thanks count, then time. Higher = better summaries but more tokens.</div>
+                </div>
+
+                <div class="field-group">
+                    <label for="summary-lang">Summary language</label>
+                    <select id="summary-lang">
+                        <option value="auto">Auto (match topic)</option>
+                        <option value="zh">Chinese (中文)</option>
+                        <option value="en">English</option>
+                    </select>
+                </div>
+
+                <div class="help">All keys are stored locally in your browser.</div>
+
+                <div class="share-section">
+                    <div class="share-row">
+                        <label>Backup / Share</label>
+                        <div class="share-buttons">
+                            <button class="secondary small" id="export-btn" type="button">Export</button>
+                            <button class="secondary small" id="import-btn" type="button">Import</button>
+                        </div>
+                    </div>
+                    <textarea id="share-blob" placeholder="Encrypted configuration will appear here, or paste an exported string to import." style="display: none;"></textarea>
+                    <div class="share-status" id="share-status"></div>
+                    <div class="share-actions" id="share-actions" style="display: none;">
+                        <button class="secondary small" id="share-close" type="button">Close</button>
+                        <button class="secondary small" id="share-copy" type="button" style="display: none;">Copy</button>
+                        <button class="primary small" id="share-apply" type="button" style="display: none;">Apply</button>
+                    </div>
+                    <div class="help">Encrypted with an app-specific key — anyone using this tool can decrypt the blob, so don't post it publicly. Safe to share via chat with trusted contacts.</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="secondary" id="cancel-settings">Cancel</button>
+                <button class="primary" id="save-settings">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="version">v0.1.5</div>
+
+    <script>
+        // ============================================================
+        // Constants & defaults
+        // ============================================================
+        const STORAGE_KEY = 'brief-v2ex:settings';
+
+        const PROVIDERS = {
+            openai: {
+                label: 'OpenAI (ChatGPT)',
+                baseUrl: 'https://api.openai.com/v1',
+                models: ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-mini', 'gpt-4.1']
+            },
+            gemini: {
+                label: 'Google Gemini',
+                baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+                models: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash']
+            },
+            deepseek: {
+                label: 'DeepSeek',
+                baseUrl: 'https://api.deepseek.com/v1',
+                models: ['deepseek-chat', 'deepseek-reasoner']
+            }
+        };
+
+        const DEFAULTS = {
+            provider: 'openai',
+            model: PROVIDERS.openai.models[0],
+            llmKey: '',
+            v2exToken: '',
+            corsProxy: 'https://corsproxy.io/?url=',
+            maxReplies: 8,
+            summaryLang: 'auto'
+        };
+
+        // V2EX has two APIs:
+        //   v1 (/api/*.json)        — public, no token, but legacy & rate-limited.
+        //                             Only place to get hot/latest lists.
+        //   v2 (/api/v2/*)          — requires PAT via `Authorization: Bearer <token>`.
+        //                             Cleaner data, better limits.
+        // Strategy: always use v1 for the hot/latest list (no v2 equivalent),
+        // and use v2 for replies if a token is set, otherwise fall back to v1.
+        const V2EX_API = {
+            hot: 'https://www.v2ex.com/api/topics/hot.json',
+            latest: 'https://www.v2ex.com/api/topics/latest.json',
+            repliesV1: id => `https://www.v2ex.com/api/replies/show.json?topic_id=${encodeURIComponent(id)}`,
+            repliesV2: id => `https://www.v2ex.com/api/v2/topics/${encodeURIComponent(id)}/replies`
+        };
+
+        const MAX_CONTENT_CHARS = 4000;     // truncate topic body before sending to LLM
+        const MAX_REPLY_CHARS = 600;        // truncate each reply
+
+        const els = {
+            loadBtn: document.getElementById('load-btn'),
+            feed: document.getElementById('feed'),
+            topicCount: document.getElementById('topic-count'),
+            topics: document.getElementById('topics'),
+            status: document.getElementById('status'),
+            settingsBtn: document.getElementById('settings-btn'),
+            settingsModal: document.getElementById('settings-modal'),
+            closeSettings: document.getElementById('close-settings'),
+            cancelSettings: document.getElementById('cancel-settings'),
+            saveSettings: document.getElementById('save-settings'),
+            provider: document.getElementById('provider'),
+            model: document.getElementById('model'),
+            llmKey: document.getElementById('llm-key'),
+            v2exToken: document.getElementById('v2ex-token'),
+            corsProxy: document.getElementById('cors-proxy'),
+            maxReplies: document.getElementById('max-replies'),
+            summaryLang: document.getElementById('summary-lang'),
+            exportBtn: document.getElementById('export-btn'),
+            importBtn: document.getElementById('import-btn'),
+            shareBlob: document.getElementById('share-blob'),
+            shareStatus: document.getElementById('share-status'),
+            shareActions: document.getElementById('share-actions'),
+            shareClose: document.getElementById('share-close'),
+            shareCopy: document.getElementById('share-copy'),
+            shareApply: document.getElementById('share-apply'),
+        };
+
+        let settings = loadSettings();
+
+        // ============================================================
+        // Settings storage
+        // ============================================================
+        function loadSettings() {
+            try {
+                return { ...DEFAULTS, ...(JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}) };
+            } catch {
+                return { ...DEFAULTS };
+            }
+        }
+
+        function saveSettings(next) {
+            settings = next;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+        }
+
+        function refreshModelOptions(provider, selected) {
+            const models = PROVIDERS[provider].models;
+            els.model.innerHTML = '';
+            models.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m;
+                opt.textContent = m;
+                els.model.appendChild(opt);
+            });
+            els.model.value = models.includes(selected) ? selected : models[0];
+        }
+
+        function openSettings() {
+            els.provider.value = settings.provider;
+            refreshModelOptions(settings.provider, settings.model);
+            els.llmKey.value = settings.llmKey;
+            els.v2exToken.value = settings.v2exToken;
+            els.corsProxy.value = settings.corsProxy;
+            els.maxReplies.value = settings.maxReplies;
+            els.summaryLang.value = settings.summaryLang;
+            hideShare();
+            els.settingsModal.classList.add('show');
+        }
+
+        function closeSettings() {
+            els.settingsModal.classList.remove('show');
+        }
+
+        function setStatus(msg, kind = 'info') {
+            if (!msg) {
+                els.status.classList.remove('show');
+                els.status.textContent = '';
+                return;
+            }
+            els.status.className = `status show ${kind}`;
+            els.status.innerHTML = msg;
+        }
+
+        function ensureConfigured() {
+            if (!settings.llmKey) {
+                setStatus('Configure your LLM key in Settings to begin.', 'info');
+                openSettings();
+                return false;
+            }
+            return true;
+        }
+
+        // ============================================================
+        // V2EX API
+        // ============================================================
+        // Wrap a target URL in the configured CORS proxy.
+        // Convention: prefix + encodeURIComponent(targetUrl).
+        // Works for corsproxy.io ("https://corsproxy.io/?url=") and
+        // allorigins.win ("https://api.allorigins.win/raw?url=").
+        function viaProxy(url) {
+            const prefix = (settings.corsProxy || '').trim();
+            return prefix ? prefix + encodeURIComponent(url) : url;
+        }
+
+        async function fetchTopics(feed) {
+            // v1 only — there's no v2 hot/latest endpoint.
+            // No Authorization header: v1 endpoints are public, and adding a custom
+            // header turns this into a preflighted CORS request that some proxies
+            // (corsproxy.io free tier) don't handle.
+            const url = feed === 'latest' ? V2EX_API.latest : V2EX_API.hot;
+            const res = await fetch(viaProxy(url));
+            if (!res.ok) throw new Error(`V2EX ${feed} fetch failed: ${res.status}`);
+            return res.json();
+        }
+
+        async function fetchReplies(topicId) {
+            if (settings.v2exToken) {
+                // v2 returns { success, message, result: [...] }.
+                // This DOES need Authorization, so it triggers a CORS preflight —
+                // works with self-hosted proxies, may not work with public ones.
+                const res = await fetch(viaProxy(V2EX_API.repliesV2(topicId)), {
+                    headers: { 'Authorization': `Bearer ${settings.v2exToken}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data?.success && Array.isArray(data.result)) return data.result;
+                    if (Array.isArray(data)) return data;
+                }
+                // fall through to v1 if v2 misbehaves
+            }
+            const res = await fetch(viaProxy(V2EX_API.repliesV1(topicId)));
+            if (!res.ok) throw new Error(`V2EX replies fetch failed: ${res.status}`);
+            return res.json();
+        }
+
+        function pickTopReplies(replies, n) {
+            // Sort by thanks desc, then by created asc (earlier wins).
+            const sorted = [...replies].sort((a, b) => {
+                const ta = a.thanks ?? 0;
+                const tb = b.thanks ?? 0;
+                if (tb !== ta) return tb - ta;
+                return (a.created ?? 0) - (b.created ?? 0);
+            });
+            return sorted.slice(0, n);
+        }
+
+        function truncate(s, max) {
+            if (!s) return '';
+            return s.length > max ? s.slice(0, max) + '…' : s;
+        }
+
+        // ============================================================
+        // LLM
+        // ============================================================
+        function buildSystemPrompt() {
+            const langInstruction = settings.summaryLang === 'zh'
+                ? 'Write the summary in Chinese (中文).'
+                : settings.summaryLang === 'en'
+                    ? 'Write the summary in English.'
+                    : 'Match the dominant language of the topic and replies (V2EX is mostly Chinese, so default to Chinese unless the post is clearly English).';
+            return `You are a concise digest writer for the V2EX community forum.
+For each topic the user gives you, return a brief summary that helps a reader decide whether to click into the original post.
+${langInstruction}
+
+Output exactly two short paragraphs, no markdown headings:
+1. POST: 1-3 sentences capturing what the original poster is saying or asking. Include concrete specifics (numbers, products, decision being weighed) — not just the topic area.
+2. REPLIES: 1-3 sentences capturing the dominant takes from the comments. Note disagreements or strong consensus. If replies are sparse or mostly noise, say so briefly.
+
+Rules:
+- Be specific, not generic. "Discusses career options" is bad; "Asks whether to leave a 30k/month FAANG-CN job for a US startup with equity" is good.
+- Don't editorialize or add advice the source didn't contain.
+- If the post body is very short or empty, summarize from the title alone and say so.
+- No preamble, no closing remarks. Just the two paragraphs separated by a blank line.`;
+        }
+
+        function buildUserMessage(topic, replies) {
+            const parts = [];
+            parts.push(`TITLE: ${topic.title}`);
+            if (topic.node?.title) parts.push(`NODE: ${topic.node.title}`);
+            parts.push('');
+            parts.push('POST CONTENT:');
+            parts.push(truncate(topic.content || '(empty body)', MAX_CONTENT_CHARS));
+            parts.push('');
+            if (replies.length === 0) {
+                parts.push('REPLIES: (none)');
+            } else {
+                parts.push(`TOP ${replies.length} REPLIES (highest thanks first):`);
+                replies.forEach((r, i) => {
+                    const author = r.member?.username || 'anon';
+                    const thanks = r.thanks ?? 0;
+                    parts.push(`--- #${i + 1} by ${author} (${thanks} thanks) ---`);
+                    parts.push(truncate(r.content || '', MAX_REPLY_CHARS));
+                });
+            }
+            return parts.join('\n');
+        }
+
+        async function summarizeWithLLM(topic, replies) {
+            const provider = PROVIDERS[settings.provider];
+            const url = `${provider.baseUrl}/chat/completions`;
+            const body = {
+                model: settings.model,
+                messages: [
+                    { role: 'system', content: buildSystemPrompt() },
+                    { role: 'user', content: buildUserMessage(topic, replies) }
+                ],
+                temperature: 0.3
+            };
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${settings.llmKey}`
+                },
+                body: JSON.stringify(body)
+            });
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(`LLM error ${res.status}: ${text.slice(0, 300)}`);
+            }
+            const data = await res.json();
+            const msg = data.choices?.[0]?.message?.content;
+            if (!msg) throw new Error('LLM returned no content.');
+            return msg.trim();
+        }
+
+        // ============================================================
+        // Rendering
+        // ============================================================
+        function renderTopicCard(topic) {
+            const card = document.createElement('div');
+            card.className = 'topic';
+            card.dataset.topicId = topic.id;
+
+            const head = document.createElement('div');
+            head.className = 'topic-head';
+            const titleEl = document.createElement('div');
+            titleEl.className = 'topic-title';
+            const link = document.createElement('a');
+            link.href = topic.url || `https://www.v2ex.com/t/${topic.id}`;
+            link.target = '_blank';
+            link.rel = 'noopener';
+            link.textContent = topic.title;
+            titleEl.appendChild(link);
+            head.appendChild(titleEl);
+            card.appendChild(head);
+
+            const meta = document.createElement('div');
+            meta.className = 'topic-meta';
+            if (topic.node?.title) {
+                const tag = document.createElement('span');
+                tag.className = 'node-tag';
+                tag.textContent = topic.node.title;
+                meta.appendChild(tag);
+            }
+            if (topic.member?.username) {
+                const author = document.createElement('span');
+                author.textContent = `by ${topic.member.username}`;
+                meta.appendChild(author);
+            }
+            const replyCount = document.createElement('span');
+            replyCount.textContent = `${topic.replies ?? 0} replies`;
+            meta.appendChild(replyCount);
+            card.appendChild(meta);
+
+            const summary = document.createElement('div');
+            summary.className = 'summary placeholder';
+            summary.textContent = 'Waiting…';
+            card.appendChild(summary);
+
+            const raw = document.createElement('details');
+            raw.className = 'raw';
+            const rawSummary = document.createElement('summary');
+            rawSummary.textContent = 'Show raw content & replies';
+            raw.appendChild(rawSummary);
+            const rawBody = document.createElement('div');
+            rawBody.className = 'raw-body';
+            rawBody.textContent = '(loading on demand)';
+            raw.appendChild(rawBody);
+            card.appendChild(raw);
+
+            return { card, summary, rawBody };
+        }
+
+        function renderRawBody(rawBody, topic, replies) {
+            rawBody.innerHTML = '';
+            const post = document.createElement('div');
+            post.textContent = topic.content || '(empty body)';
+            rawBody.appendChild(post);
+
+            if (replies.length) {
+                replies.forEach((r, i) => {
+                    const wrap = document.createElement('div');
+                    wrap.className = 'reply';
+                    const meta = document.createElement('div');
+                    meta.className = 'reply-meta';
+                    const author = r.member?.username || 'anon';
+                    const thanks = r.thanks ?? 0;
+                    meta.textContent = `#${i + 1}  ${author}  ·  ${thanks} thanks`;
+                    wrap.appendChild(meta);
+                    const body = document.createElement('div');
+                    body.textContent = r.content || '';
+                    wrap.appendChild(body);
+                    rawBody.appendChild(wrap);
+                });
+            }
+        }
+
+        // ============================================================
+        // Main flow
+        // ============================================================
+        async function processTopic(topic, summaryEl, rawBody) {
+            try {
+                summaryEl.textContent = 'Fetching replies…';
+                let replies = [];
+                if ((topic.replies ?? 0) > 0) {
+                    try {
+                        const all = await fetchReplies(topic.id);
+                        replies = pickTopReplies(all, settings.maxReplies);
+                    } catch (e) {
+                        // Replies fetch is non-fatal; fall back to title+content only.
+                        console.warn('replies fetch failed for', topic.id, e);
+                    }
+                }
+                renderRawBody(rawBody, topic, replies);
+
+                summaryEl.innerHTML = '<span class="spinner"></span>Summarizing…';
+                const text = await summarizeWithLLM(topic, replies);
+                summaryEl.classList.remove('placeholder');
+                summaryEl.textContent = text;
+            } catch (e) {
+                summaryEl.classList.remove('placeholder');
+                summaryEl.textContent = 'Failed: ' + e.message;
+                summaryEl.style.color = 'var(--danger)';
+            }
+        }
+
+        async function loadAndSummarize() {
+            if (!ensureConfigured()) return;
+
+            const feed = els.feed.value;
+            const n = Math.max(1, Math.min(20, parseInt(els.topicCount.value, 10) || 20));
+            els.loadBtn.disabled = true;
+            els.topics.innerHTML = '';
+            setStatus('<span class="spinner"></span>Fetching topics from V2EX…', 'info');
+
+            let topics;
+            try {
+                topics = await fetchTopics(feed);
+            } catch (e) {
+                setStatus('V2EX fetch failed: ' + e.message + ' (CORS or rate limit?)', 'error');
+                els.loadBtn.disabled = false;
+                return;
+            }
+
+            const top = topics.slice(0, n);
+            if (top.length === 0) {
+                setStatus('V2EX returned no topics.', 'error');
+                els.loadBtn.disabled = false;
+                return;
+            }
+
+            setStatus(`Summarizing ${top.length} topics…`, 'info');
+
+            const tasks = top.map(topic => {
+                const { card, summary, rawBody } = renderTopicCard(topic);
+                els.topics.appendChild(card);
+                return processTopic(topic, summary, rawBody);
+            });
+
+            await Promise.allSettled(tasks);
+            setStatus('Done.', 'success');
+            setTimeout(() => setStatus(''), 1800);
+            els.loadBtn.disabled = false;
+        }
+
+        // ============================================================
+        // Encrypted import / export (same scheme as new-todo, separate secret)
+        // ============================================================
+        const SHARE_VERSION = 'BV21';
+        const SHARE_SECRET = 'brief-v2ex:share:v1:roland-zhou.github.io';
+
+        let shareKeyPromise = null;
+        function deriveShareKey() {
+            if (!shareKeyPromise) {
+                shareKeyPromise = (async () => {
+                    const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(SHARE_SECRET));
+                    return crypto.subtle.importKey('raw', hash, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+                })();
+            }
+            return shareKeyPromise;
+        }
+
+        function bytesToBase64(bytes) {
+            let s = '';
+            for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+            return btoa(s);
+        }
+
+        function base64ToBytes(b64) {
+            const s = atob(b64);
+            const bytes = new Uint8Array(s.length);
+            for (let i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i);
+            return bytes;
+        }
+
+        async function encryptConfig(obj) {
+            const key = await deriveShareKey();
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const data = new TextEncoder().encode(JSON.stringify(obj));
+            const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data));
+            const combined = new Uint8Array(iv.length + ct.length);
+            combined.set(iv, 0);
+            combined.set(ct, iv.length);
+            return SHARE_VERSION + ':' + bytesToBase64(combined);
+        }
+
+        async function decryptConfig(blob) {
+            const trimmed = blob.trim();
+            const idx = trimmed.indexOf(':');
+            if (idx < 0) throw new Error('Invalid format.');
+            const version = trimmed.slice(0, idx);
+            if (version !== SHARE_VERSION) throw new Error(`Unknown version "${version}".`);
+            const combined = base64ToBytes(trimmed.slice(idx + 1));
+            if (combined.length < 13) throw new Error('Payload too short.');
+            const iv = combined.slice(0, 12);
+            const ct = combined.slice(12);
+            const key = await deriveShareKey();
+            let pt;
+            try {
+                pt = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct));
+            } catch {
+                throw new Error('Decryption failed — blob may be corrupted or from a different app.');
+            }
+            return JSON.parse(new TextDecoder().decode(pt));
+        }
+
+        function setShareStatus(msg, kind = '') {
+            els.shareStatus.className = 'share-status' + (kind ? ' ' + kind : '');
+            els.shareStatus.textContent = msg || '';
+        }
+
+        function hideShare() {
+            els.shareBlob.style.display = 'none';
+            els.shareActions.style.display = 'none';
+            els.shareBlob.value = '';
+            setShareStatus('');
+        }
+
+        async function startExport() {
+            els.shareBlob.style.display = 'block';
+            els.shareBlob.readOnly = true;
+            els.shareActions.style.display = 'flex';
+            els.shareCopy.style.display = '';
+            els.shareApply.style.display = 'none';
+            els.shareBlob.value = 'Encrypting…';
+            setShareStatus('');
+            try {
+                const blob = await encryptConfig({
+                    provider: els.provider.value,
+                    model: els.model.value,
+                    llmKey: els.llmKey.value.trim(),
+                    v2exToken: els.v2exToken.value.trim(),
+                    corsProxy: els.corsProxy.value.trim(),
+                    maxReplies: parseInt(els.maxReplies.value, 10) || DEFAULTS.maxReplies,
+                    summaryLang: els.summaryLang.value
+                });
+                els.shareBlob.value = blob;
+                els.shareBlob.select();
+                setShareStatus('Encrypted. Copy and share via chat.', 'success');
+            } catch (e) {
+                els.shareBlob.value = '';
+                setShareStatus('Export failed: ' + e.message, 'error');
+            }
+        }
+
+        function startImport() {
+            els.shareBlob.style.display = 'block';
+            els.shareBlob.readOnly = false;
+            els.shareActions.style.display = 'flex';
+            els.shareCopy.style.display = 'none';
+            els.shareApply.style.display = '';
+            els.shareBlob.value = '';
+            setShareStatus('Paste an exported string and click Apply.');
+            els.shareBlob.focus();
+        }
+
+        async function applyImport() {
+            const text = els.shareBlob.value.trim();
+            if (!text) {
+                setShareStatus('Nothing to import.', 'error');
+                return;
+            }
+            try {
+                const obj = await decryptConfig(text);
+                if (obj.provider && PROVIDERS[obj.provider]) {
+                    els.provider.value = obj.provider;
+                    refreshModelOptions(obj.provider, obj.model);
+                } else if (obj.model) {
+                    refreshModelOptions(els.provider.value, obj.model);
+                }
+                if (typeof obj.llmKey === 'string') els.llmKey.value = obj.llmKey;
+                if (typeof obj.v2exToken === 'string') els.v2exToken.value = obj.v2exToken;
+                if (typeof obj.corsProxy === 'string') els.corsProxy.value = obj.corsProxy;
+                if (typeof obj.maxReplies === 'number') els.maxReplies.value = obj.maxReplies;
+                if (typeof obj.summaryLang === 'string') els.summaryLang.value = obj.summaryLang;
+                setShareStatus('Imported into the form. Click Save to apply.', 'success');
+                els.shareBlob.value = '';
+            } catch (e) {
+                setShareStatus('Import failed: ' + e.message, 'error');
+            }
+        }
+
+        // ============================================================
+        // Event wiring
+        // ============================================================
+        els.settingsBtn.addEventListener('click', openSettings);
+        els.closeSettings.addEventListener('click', closeSettings);
+        els.cancelSettings.addEventListener('click', closeSettings);
+        els.settingsModal.addEventListener('click', e => {
+            if (e.target === els.settingsModal) closeSettings();
+        });
+
+        els.provider.addEventListener('change', () => {
+            refreshModelOptions(els.provider.value, els.model.value);
+        });
+
+        els.saveSettings.addEventListener('click', () => {
+            saveSettings({
+                provider: els.provider.value,
+                model: els.model.value,
+                llmKey: els.llmKey.value.trim(),
+                v2exToken: els.v2exToken.value.trim(),
+                corsProxy: els.corsProxy.value.trim(),
+                maxReplies: Math.max(0, Math.min(30, parseInt(els.maxReplies.value, 10) || DEFAULTS.maxReplies)),
+                summaryLang: els.summaryLang.value
+            });
+            closeSettings();
+            setStatus('Settings saved.', 'success');
+            setTimeout(() => setStatus(''), 1500);
+        });
+
+        els.exportBtn.addEventListener('click', startExport);
+        els.importBtn.addEventListener('click', startImport);
+        els.shareClose.addEventListener('click', hideShare);
+        els.shareApply.addEventListener('click', applyImport);
+        els.shareCopy.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(els.shareBlob.value);
+                setShareStatus('Copied to clipboard.', 'success');
+            } catch {
+                els.shareBlob.select();
+                document.execCommand('copy');
+                setShareStatus('Copied to clipboard.', 'success');
+            }
+        });
+
+        els.loadBtn.addEventListener('click', loadAndSummarize);
+
+        // First-run hint
+        if (!settings.llmKey) {
+            setStatus('Open Settings to configure your LLM key, then click "Load &amp; Summarize".', 'info');
+        }
+    </script>
+</body>
+
+</html>
