@@ -486,11 +486,13 @@
 
                 <div class="field-group">
                     <label for="cors-proxy">CORS proxy prefix</label>
-                    <input type="text" id="cors-proxy" placeholder="e.g. https://corsproxy.io/?url=" autocomplete="off">
+                    <input type="text" id="cors-proxy" placeholder="e.g. https://v2ex-proxy.rolandzhou-x.workers.dev/?url=" autocomplete="off">
                     <div class="help">
                         V2EX doesn't send CORS headers, so direct browser requests are blocked. A proxy URL will be prefixed
                         before each V2EX URL (which is appended URL-encoded). Leave empty to call V2EX directly.
-                        Quick start: <code>https://corsproxy.io/?url=</code> or <code>https://api.allorigins.win/raw?url=</code>.
+                        Default: <code>https://v2ex-proxy.rolandzhou-x.workers.dev/?url=</code> (a Cloudflare Worker
+                        restricted to V2EX hosts). Public alternatives like <code>https://corsproxy.io/?url=</code>
+                        or <code>https://api.allorigins.win/raw?url=</code> work too but are flakier.
                         <strong>Recommended:</strong> deploy your own free Cloudflare Worker — see
                         <a href="cloudflare-worker.js" target="_blank" rel="noopener">cloudflare-worker.js</a>
                         for the script and 5-step setup. Free tier covers 100k requests/day, and only V2EX hosts are
@@ -542,7 +544,7 @@
         </div>
     </div>
 
-    <div class="version">v0.1.7</div>
+    <div class="version">v0.1.8</div>
 
     <script>
         // ============================================================
@@ -573,7 +575,7 @@
             model: PROVIDERS.openai.models[0],
             llmKey: '',
             v2exToken: '',
-            corsProxy: 'https://corsproxy.io/?url=',
+            corsProxy: 'https://v2ex-proxy.rolandzhou-x.workers.dev/?url=',
             maxReplies: 8,
             summaryLang: 'auto'
         };
@@ -693,8 +695,9 @@
         // ============================================================
         // Wrap a target URL in the configured CORS proxy.
         // Convention: prefix + encodeURIComponent(targetUrl).
-        // Works for corsproxy.io ("https://corsproxy.io/?url=") and
-        // allorigins.win ("https://api.allorigins.win/raw?url=").
+        // Works for the default Cloudflare Worker
+        // ("https://v2ex-proxy.rolandzhou-x.workers.dev/?url="), corsproxy.io,
+        // and allorigins.win.
         function viaProxy(url) {
             const prefix = (settings.corsProxy || '').trim();
             return prefix ? prefix + encodeURIComponent(url) : url;
