@@ -490,7 +490,11 @@
                     <div class="help">
                         V2EX doesn't send CORS headers, so direct browser requests are blocked. A proxy URL will be prefixed
                         before each V2EX URL (which is appended URL-encoded). Leave empty to call V2EX directly.
-                        Try <code>https://corsproxy.io/?url=</code> or <code>https://api.allorigins.win/raw?url=</code>.
+                        Quick start: <code>https://corsproxy.io/?url=</code> or <code>https://api.allorigins.win/raw?url=</code>.
+                        <strong>Recommended:</strong> deploy your own free Cloudflare Worker — see
+                        <a href="cloudflare-worker.js" target="_blank" rel="noopener">cloudflare-worker.js</a>
+                        for the script and 5-step setup. Free tier covers 100k requests/day, and only V2EX hosts are
+                        allowed so it can't be abused as an open proxy.
                         <strong>Warning:</strong> public proxies see all traffic, including any V2EX token. Delete your token
                         before testing through one, or run your own proxy.
                     </div>
@@ -538,7 +542,7 @@
         </div>
     </div>
 
-    <div class="version">v0.1.6</div>
+    <div class="version">v0.1.7</div>
 
     <script>
         // ============================================================
