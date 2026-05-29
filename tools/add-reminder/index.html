@@ -527,7 +527,7 @@
         </div>
     </div>
 
-    <div class="version">v0.1.0</div>
+    <div class="version">v0.1.1</div>
 
     <script>
         const STORAGE_KEY = 'add-reminder:settings';
@@ -688,6 +688,7 @@ Rules:
 - Always call the create_reminder tool.
 - Preserve the user's original language. Write the title and notes in the same language(s) the user used in their text or image — do not translate. If the user mixes languages, mirror that mix; do not normalize to one language.
 - Title must be self-contained: a reader should understand the key action and its specifics from the title alone, without needing to open the notes. Include the concrete object/target (e.g. "Pay May rent to landlord", not "Pay rent"; "Email Sarah the Q2 budget draft", not "Email Sarah"). Keep it imperative and reasonably concise, but prefer clarity over brevity. Use note only for extra context that doesn't belong in the title.
+- Do NOT repeat the scheduled time in the title. When you set the time field, strip the time expression out of the title so only the action/object remains — the time is already carried by the reminder's alert. Examples: "明天上午交房租" → title "交房租" (time = tomorrow 09:00); "下午3点开会" → title "开会" (time = today 15:00); "tomorrow at 9am call the dentist" → title "Call the dentist" (time = tomorrow 09:00). If removing the time would leave the title empty or unclear, keep just enough to make the action clear.
 - Time: only set the time field when the user explicitly mentions a time (absolute like "May 12 at 3pm" or relative like "tomorrow", "next Monday", "in 2 hours", "tonight", "this weekend"). If the user does not mention any time, OMIT the time field entirely — do NOT guess, default, or invent a time. When a time is given, resolve it against the current local time and emit ISO 8601 with the user's timezone offset.
 - Bare time-of-day words without an explicit date refer to TODAY. Map them to a concrete local time: "morning"/"上午" → 09:00, "noon"/"中午" → 12:00, "afternoon"/"下午" → 15:00, "evening"/"tonight"/"晚上" → 20:00, "late night"/"深夜" → 23:00. If the user gives an explicit time alongside the word (e.g. "下午3点", "tonight at 9"), use that exact time on today's date instead of the default.
 - The user may attach an image (often a screenshot of a message, document, or list). Read the image content and extract the reminder from it. Apply all the rules above to whatever the image shows — still do not invent a time that is not visible in the image or accompanying text.
