@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
+    <title>Add Reminder · Apple Reminders Quick Add</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+    <link rel="icon" href="favicon.ico" sizes="any">
+    <link rel="apple-touch-icon" href="icon.png">
+    <style>
+        :root {
+            --bg: #f5f7fa;
+            --card-bg: #ffffff;
+            --text: #1f2937;
+            --text-secondary: #6b7280;
+            --border: #e5e7eb;
+            --primary: #0066cc;
+            --primary-hover: #0052a3;
+            --danger: #c0392b;
+            --radius: 10px;
+            --shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #111827;
+                --card-bg: #1f2937;
+                --text: #f3f4f6;
+                --text-secondary: #9ca3af;
+                --border: #374151;
+            }
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .app {
+            max-width: 600px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        @media (max-width: 600px) {
+            body { padding: 8px 6px; }
+            header { padding: 12px 14px; }
+            .body { padding: 12px; gap: 12px; }
+            textarea { padding: 10px 12px; }
+            .preview { padding: 12px; }
+        }
+
+        header {
+            padding: 16px 18px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .icon-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 6px;
+            display: inline-flex;
+        }
+
+        .icon-btn:hover {
+            background: rgba(0, 0, 0, 0.05);
+            color: var(--text);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .icon-btn:hover { background: rgba(255, 255, 255, 0.08); }
+        }
+
+        .body {
+            padding: 16px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 1rem;
+            font-family: inherit;
+            background: var(--card-bg);
+            color: var(--text);
+            resize: vertical;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        textarea:focus {
+            border-color: var(--primary);
+        }
+
+        #input {
+            resize: none;
+            overflow-y: hidden;
+        }
+
+        .actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .actions .spacer { flex: 1; }
+
+        .image-preview {
+            position: relative;
+            display: inline-block;
+        }
+
+        .image-preview img {
+            max-height: 64px;
+            max-width: 160px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            display: block;
+            object-fit: cover;
+        }
+
+        .remove-img {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--danger);
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+
+        button.primary, button.secondary {
+            padding: 10px 18px;
+            border-radius: var(--radius);
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: background 0.15s, opacity 0.15s;
+        }
+
+        button.primary {
+            background: var(--primary);
+            color: #fff;
+        }
+
+        button.primary:hover { background: var(--primary-hover); }
+        button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        button.secondary {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        button.secondary:hover {
+            background: rgba(0, 0, 0, 0.04);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            button.secondary:hover { background: rgba(255, 255, 255, 0.06); }
+        }
+
+        .preview {
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+            background: rgba(0, 102, 204, 0.04);
+        }
+
+        .preview h3 {
+            font-size: 0.95rem;
+            margin-bottom: 12px;
+            color: var(--text-secondary);
+        }
+
+        .preview .field {
+            display: flex;
+            gap: 12px;
+            padding: 6px 0;
+            font-size: 0.9rem;
+        }
+
+        .preview .field .key {
+            color: var(--text-secondary);
+            min-width: 90px;
+        }
+
+        .preview .field .val {
+            flex: 1;
+            word-break: break-word;
+        }
+
+        .status {
+            font-size: 0.9rem;
+            padding: 10px 14px;
+            border-radius: var(--radius);
+            display: none;
+        }
+
+        .status.show { display: block; }
+        .status.error { background: rgba(192, 57, 43, 0.1); color: var(--danger); }
+        .status.success { background: rgba(34, 139, 34, 0.1); color: #228b22; }
+        .status.info { background: rgba(0, 102, 204, 0.1); color: var(--primary); }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal.show { display: flex; }
+
+        .modal-content {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            width: 100%;
+            max-width: 480px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 { font-size: 1.1rem; font-weight: 600; }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            line-height: 1;
+        }
+
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .field-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .field-group label {
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .field-group input,
+        .field-group select {
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            background: var(--card-bg);
+            color: var(--text);
+            outline: none;
+            font-family: inherit;
+        }
+
+        .field-group input:focus,
+        .field-group select:focus {
+            border-color: var(--primary);
+        }
+
+        .help {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .help a { color: var(--primary); }
+
+        .modal-footer {
+            padding: 14px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .share-section {
+            border-top: 1px solid var(--border);
+            padding-top: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .share-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .share-row label {
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .share-buttons {
+            display: flex;
+            gap: 6px;
+        }
+
+        button.small {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+        }
+
+        #share-blob {
+            min-height: 90px;
+            padding: 8px 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--card-bg);
+            color: var(--text);
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 0.78rem;
+            resize: vertical;
+            outline: none;
+            word-break: break-all;
+        }
+
+        #share-blob:focus { border-color: var(--primary); }
+
+        .share-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 6px;
+        }
+
+        .share-status {
+            font-size: 0.8rem;
+            min-height: 1em;
+        }
+
+        .share-status.error { color: var(--danger); }
+        .share-status.success { color: #228b22; }
+
+        .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid currentColor;
+            border-right-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            vertical-align: -2px;
+            margin-right: 6px;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .version {
+            position: fixed;
+            bottom: max(0.75rem, env(safe-area-inset-bottom));
+            right: max(1.25rem, env(safe-area-inset-right));
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            opacity: 0.4;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app">
+        <header>
+            <h1>Add Reminder · Apple</h1>
+            <button class="icon-btn" id="settings-btn" aria-label="Settings" title="Settings">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+            </button>
+        </header>
+
+        <div class="body">
+            <textarea id="input" placeholder="Describe a reminder in natural language. Example: Remind me to call the dentist tomorrow at 9am."></textarea>
+
+            <div class="status" id="status"></div>
+
+            <div class="preview" id="preview" style="display: none;">
+                <h3>Preview — please confirm</h3>
+                <div id="preview-fields"></div>
+                <div class="actions" style="margin-top: 16px;">
+                    <button class="secondary" id="cancel-btn">Cancel</button>
+                    <button class="primary" id="confirm-btn">Add to Reminders</button>
+                </div>
+            </div>
+
+            <div class="actions" id="parse-actions">
+                <button class="icon-btn" id="attach-btn" aria-label="Attach image" title="Attach image (or paste)" style="display: none;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                    </svg>
+                </button>
+                <div class="image-preview" id="image-preview" style="display: none;">
+                    <img id="image-thumb" alt="Attached image">
+                    <button class="remove-img" id="remove-img" aria-label="Remove image" title="Remove image">&times;</button>
+                </div>
+                <input type="file" id="image-input" accept="image/*" style="display: none;">
+                <span class="spacer"></span>
+                <button class="primary" id="parse-btn">Parse with AI</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal" id="settings-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <button class="close-btn" id="close-settings">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="field-group">
+                    <label for="provider">LLM Provider</label>
+                    <select id="provider">
+                        <option value="openai">OpenAI (ChatGPT)</option>
+                        <option value="gemini">Google Gemini</option>
+                        <option value="deepseek">DeepSeek</option>
+                    </select>
+                </div>
+
+                <div class="field-group">
+                    <label for="model">Model</label>
+                    <select id="model"></select>
+                </div>
+
+                <div class="field-group">
+                    <label for="llm-key">LLM API Key</label>
+                    <input type="password" id="llm-key" placeholder="sk-..." autocomplete="off">
+                </div>
+
+                <div class="field-group">
+                    <label for="shortcut-name">Shortcut Name</label>
+                    <input type="text" id="shortcut-name" placeholder="AddReminder" autocomplete="off">
+                    <div class="help">
+                        Name of the Apple Shortcut to run. It should read a dictionary input with
+                        <strong>title</strong>, <strong>time</strong>, and <strong>note</strong> keys.
+                    </div>
+                </div>
+
+                <div class="help">All keys are stored locally in your browser.</div>
+
+                <div class="share-section">
+                    <div class="share-row">
+                        <label>Backup / Share</label>
+                        <div class="share-buttons">
+                            <button class="secondary small" id="export-btn" type="button">Export</button>
+                            <button class="secondary small" id="import-btn" type="button">Import</button>
+                        </div>
+                    </div>
+                    <textarea id="share-blob" placeholder="Encrypted configuration will appear here, or paste an exported string to import." style="display: none;"></textarea>
+                    <div class="share-status" id="share-status"></div>
+                    <div class="share-actions" id="share-actions" style="display: none;">
+                        <button class="secondary small" id="share-close" type="button">Close</button>
+                        <button class="secondary small" id="share-copy" type="button" style="display: none;">Copy</button>
+                        <button class="primary small" id="share-apply" type="button" style="display: none;">Apply</button>
+                    </div>
+                    <div class="help">Encrypted with an app-specific key — anyone using this tool can decrypt the blob, so don't post it publicly. Safe to share via chat with trusted contacts.</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="secondary" id="cancel-settings">Cancel</button>
+                <button class="primary" id="save-settings">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="version">v0.1.0</div>
+
+    <script>
+        const STORAGE_KEY = 'add-reminder:settings';
+
+        const PROVIDERS = {
+            openai: {
+                label: 'OpenAI (ChatGPT)',
+                baseUrl: 'https://api.openai.com/v1',
+                models: ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-mini', 'gpt-4.1'],
+                vision: true
+            },
+            gemini: {
+                label: 'Google Gemini',
+                baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+                models: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash'],
+                vision: true
+            },
+            deepseek: {
+                label: 'DeepSeek',
+                baseUrl: 'https://api.deepseek.com/v1',
+                models: ['deepseek-chat', 'deepseek-reasoner'],
+                vision: false
+            }
+        };
+
+        const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB
+
+        const DEFAULTS = {
+            provider: 'openai',
+            model: PROVIDERS.openai.models[0],
+            llmKey: '',
+            shortcutName: 'AddReminder'
+        };
+
+        const els = {
+            input: document.getElementById('input'),
+            parseBtn: document.getElementById('parse-btn'),
+            parseActions: document.getElementById('parse-actions'),
+            preview: document.getElementById('preview'),
+            previewFields: document.getElementById('preview-fields'),
+            confirmBtn: document.getElementById('confirm-btn'),
+            cancelBtn: document.getElementById('cancel-btn'),
+            status: document.getElementById('status'),
+            settingsBtn: document.getElementById('settings-btn'),
+            settingsModal: document.getElementById('settings-modal'),
+            closeSettings: document.getElementById('close-settings'),
+            cancelSettings: document.getElementById('cancel-settings'),
+            saveSettings: document.getElementById('save-settings'),
+            provider: document.getElementById('provider'),
+            model: document.getElementById('model'),
+            llmKey: document.getElementById('llm-key'),
+            shortcutName: document.getElementById('shortcut-name'),
+            attachBtn: document.getElementById('attach-btn'),
+            imageInput: document.getElementById('image-input'),
+            imagePreview: document.getElementById('image-preview'),
+            imageThumb: document.getElementById('image-thumb'),
+            removeImg: document.getElementById('remove-img'),
+            exportBtn: document.getElementById('export-btn'),
+            importBtn: document.getElementById('import-btn'),
+            shareBlob: document.getElementById('share-blob'),
+            shareStatus: document.getElementById('share-status'),
+            shareActions: document.getElementById('share-actions'),
+            shareClose: document.getElementById('share-close'),
+            shareCopy: document.getElementById('share-copy'),
+            shareApply: document.getElementById('share-apply'),
+        };
+
+        let settings = loadSettings();
+        let pendingReminder = null;
+        let pendingImage = null; // base64 data URL, or null
+
+        function loadSettings() {
+            try {
+                return { ...DEFAULTS, ...(JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}) };
+            } catch {
+                return { ...DEFAULTS };
+            }
+        }
+
+        function saveSettings(next) {
+            settings = next;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+        }
+
+        function refreshModelOptions(provider, selected) {
+            const models = PROVIDERS[provider].models;
+            els.model.innerHTML = '';
+            models.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m;
+                opt.textContent = m;
+                els.model.appendChild(opt);
+            });
+            els.model.value = models.includes(selected) ? selected : models[0];
+        }
+
+        function openSettings() {
+            els.provider.value = settings.provider;
+            refreshModelOptions(settings.provider, settings.model);
+            els.llmKey.value = settings.llmKey;
+            els.shortcutName.value = settings.shortcutName || DEFAULTS.shortcutName;
+            hideShare();
+            els.settingsModal.classList.add('show');
+        }
+
+        function closeSettings() {
+            els.settingsModal.classList.remove('show');
+        }
+
+        function setStatus(msg, kind = 'info') {
+            if (!msg) {
+                els.status.classList.remove('show');
+                els.status.textContent = '';
+                return;
+            }
+            els.status.className = `status show ${kind}`;
+            els.status.innerHTML = msg;
+        }
+
+        function ensureConfigured() {
+            if (!settings.llmKey) {
+                setStatus('Add your LLM API key in Settings to begin.', 'info');
+                openSettings();
+                return false;
+            }
+            return true;
+        }
+
+        // ---------- Reminder tool schema ----------
+        const REMINDER_TOOL = {
+            type: 'function',
+            function: {
+                name: 'create_reminder',
+                description: 'Create an Apple Reminder from a natural-language description.',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        title: { type: 'string', description: 'Short reminder title.' },
+                        note: { type: 'string', description: 'Optional notes / details. Omit if none.' },
+                        time: {
+                            type: 'string',
+                            description: 'When to alert, ISO 8601 with timezone offset, e.g. 2025-05-06T09:00:00+0800. Omit entirely if the user did not mention a time.'
+                        }
+                    },
+                    required: ['title']
+                }
+            }
+        };
+
+        function buildSystemPrompt() {
+            const now = new Date();
+            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            return `You convert natural-language descriptions into Apple Reminder parameters.
+Current local time: ${now.toString()}
+User timezone: ${tz}
+
+Rules:
+- Always call the create_reminder tool.
+- Preserve the user's original language. Write the title and notes in the same language(s) the user used in their text or image — do not translate. If the user mixes languages, mirror that mix; do not normalize to one language.
+- Title must be self-contained: a reader should understand the key action and its specifics from the title alone, without needing to open the notes. Include the concrete object/target (e.g. "Pay May rent to landlord", not "Pay rent"; "Email Sarah the Q2 budget draft", not "Email Sarah"). Keep it imperative and reasonably concise, but prefer clarity over brevity. Use note only for extra context that doesn't belong in the title.
+- Time: only set the time field when the user explicitly mentions a time (absolute like "May 12 at 3pm" or relative like "tomorrow", "next Monday", "in 2 hours", "tonight", "this weekend"). If the user does not mention any time, OMIT the time field entirely — do NOT guess, default, or invent a time. When a time is given, resolve it against the current local time and emit ISO 8601 with the user's timezone offset.
+- Bare time-of-day words without an explicit date refer to TODAY. Map them to a concrete local time: "morning"/"上午" → 09:00, "noon"/"中午" → 12:00, "afternoon"/"下午" → 15:00, "evening"/"tonight"/"晚上" → 20:00, "late night"/"深夜" → 23:00. If the user gives an explicit time alongside the word (e.g. "下午3点", "tonight at 9"), use that exact time on today's date instead of the default.
+- The user may attach an image (often a screenshot of a message, document, or list). Read the image content and extract the reminder from it. Apply all the rules above to whatever the image shows — still do not invent a time that is not visible in the image or accompanying text.
+- Omit any field the user did not specify rather than guessing.`;
+        }
+
+        async function callLLM(text, imageDataUrl) {
+            const provider = PROVIDERS[settings.provider];
+            const url = `${provider.baseUrl}/chat/completions`;
+
+            let userContent;
+            if (imageDataUrl) {
+                userContent = [];
+                if (text) userContent.push({ type: 'text', text });
+                userContent.push({ type: 'image_url', image_url: { url: imageDataUrl } });
+            } else {
+                userContent = text;
+            }
+
+            const body = {
+                model: settings.model,
+                messages: [
+                    { role: 'system', content: buildSystemPrompt() },
+                    { role: 'user', content: userContent }
+                ],
+                tools: [REMINDER_TOOL],
+                tool_choice: { type: 'function', function: { name: 'create_reminder' } }
+            };
+
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${settings.llmKey}`
+                },
+                body: JSON.stringify(body)
+            });
+
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(`LLM error ${res.status}: ${text.slice(0, 300)}`);
+            }
+
+            const data = await res.json();
+            const call = data.choices?.[0]?.message?.tool_calls?.[0];
+            if (!call) throw new Error('LLM did not return a tool call.');
+
+            try {
+                return JSON.parse(call.function.arguments);
+            } catch (e) {
+                throw new Error('Could not parse tool arguments: ' + call.function.arguments);
+            }
+        }
+
+        function buildShortcutUrl(reminder) {
+            const dict = { title: reminder.title };
+            if (reminder.time) dict.time = reminder.time;
+            if (reminder.note) dict.note = reminder.note;
+            const name = settings.shortcutName || DEFAULTS.shortcutName;
+            return `shortcuts://run-shortcut?name=${encodeURIComponent(name)}&input=${encodeURIComponent(JSON.stringify(dict))}`;
+        }
+
+        function runShortcut(reminder) {
+            window.location.href = buildShortcutUrl(reminder);
+        }
+
+        function formatDateTime(iso) {
+            if (!iso) return iso;
+            const d = new Date(iso);
+            if (isNaN(d)) return iso;
+            try {
+                const opts = {
+                    year: 'numeric', month: '2-digit', day: '2-digit',
+                    hour: '2-digit', minute: '2-digit',
+                    hourCycle: 'h23',
+                    timeZoneName: 'short'
+                };
+                const parts = new Intl.DateTimeFormat('en-CA', opts).formatToParts(d);
+                const get = t => parts.find(p => p.type === t)?.value || '';
+                return `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')} ${get('timeZoneName')}`.trim();
+            } catch {
+                return iso;
+            }
+        }
+
+        function renderPreview(reminder) {
+            els.previewFields.innerHTML = '';
+            const fields = [
+                ['Title', reminder.title],
+                ['Note', reminder.note],
+                ['Time', reminder.time ? formatDateTime(reminder.time) : null],
+            ];
+            for (const [k, v] of fields) {
+                if (v == null || v === '') continue;
+                const row = document.createElement('div');
+                row.className = 'field';
+                const key = document.createElement('div');
+                key.className = 'key';
+                key.textContent = k;
+                const val = document.createElement('div');
+                val.className = 'val';
+                val.textContent = v;
+                row.append(key, val);
+                els.previewFields.appendChild(row);
+            }
+            if (!reminder.time) {
+                const row = document.createElement('div');
+                row.className = 'field';
+                const key = document.createElement('div');
+                key.className = 'key';
+                key.textContent = 'Time';
+                const val = document.createElement('div');
+                val.className = 'val';
+                val.style.color = 'var(--text-secondary)';
+                val.textContent = 'No alert (no time given)';
+                row.append(key, val);
+                els.previewFields.appendChild(row);
+            }
+            els.preview.style.display = 'block';
+            els.parseActions.style.display = 'none';
+        }
+
+        function resetUI() {
+            els.preview.style.display = 'none';
+            els.parseActions.style.display = 'flex';
+            pendingReminder = null;
+        }
+
+        // ---------- Image handling ----------
+        function fileToDataUrl(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(new Error('Could not read image file.'));
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function attachImageFile(file) {
+            if (!file) return;
+            if (!file.type.startsWith('image/')) {
+                setStatus('Only image files are supported.', 'error');
+                return;
+            }
+            if (file.size > MAX_IMAGE_BYTES) {
+                setStatus(`Image is too large (max ${MAX_IMAGE_BYTES / 1024 / 1024}MB).`, 'error');
+                return;
+            }
+            try {
+                pendingImage = await fileToDataUrl(file);
+                els.imageThumb.src = pendingImage;
+                els.imagePreview.style.display = 'inline-block';
+                setStatus('');
+            } catch (e) {
+                setStatus(e.message, 'error');
+            }
+        }
+
+        function clearImage() {
+            pendingImage = null;
+            els.imageThumb.removeAttribute('src');
+            els.imagePreview.style.display = 'none';
+            els.imageInput.value = '';
+        }
+
+        function updateAttachVisibility() {
+            const supportsVision = !!PROVIDERS[settings.provider]?.vision;
+            els.attachBtn.style.display = supportsVision ? '' : 'none';
+            if (!supportsVision && pendingImage) clearImage();
+        }
+
+        // ---------- Config import / export ----------
+        const SHARE_VERSION = 'ARM1';
+        const SHARE_SECRET = 'add-reminder:share:v1:roland-zhou.github.io';
+
+        let shareKeyPromise = null;
+        function deriveShareKey() {
+            if (!shareKeyPromise) {
+                shareKeyPromise = (async () => {
+                    const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(SHARE_SECRET));
+                    return crypto.subtle.importKey('raw', hash, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+                })();
+            }
+            return shareKeyPromise;
+        }
+
+        function bytesToBase64(bytes) {
+            let s = '';
+            for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+            return btoa(s);
+        }
+
+        function base64ToBytes(b64) {
+            const s = atob(b64);
+            const bytes = new Uint8Array(s.length);
+            for (let i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i);
+            return bytes;
+        }
+
+        async function encryptConfig(obj) {
+            const key = await deriveShareKey();
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const data = new TextEncoder().encode(JSON.stringify(obj));
+            const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data));
+            const combined = new Uint8Array(iv.length + ct.length);
+            combined.set(iv, 0);
+            combined.set(ct, iv.length);
+            return SHARE_VERSION + ':' + bytesToBase64(combined);
+        }
+
+        async function decryptConfig(blob) {
+            const trimmed = blob.trim();
+            const idx = trimmed.indexOf(':');
+            if (idx < 0) throw new Error('Invalid format.');
+            const version = trimmed.slice(0, idx);
+            if (version !== SHARE_VERSION) throw new Error(`Unknown version "${version}".`);
+            const combined = base64ToBytes(trimmed.slice(idx + 1));
+            if (combined.length < 13) throw new Error('Payload too short.');
+            const iv = combined.slice(0, 12);
+            const ct = combined.slice(12);
+            const key = await deriveShareKey();
+            let pt;
+            try {
+                pt = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct));
+            } catch {
+                throw new Error('Decryption failed — blob may be corrupted or from a different app.');
+            }
+            return JSON.parse(new TextDecoder().decode(pt));
+        }
+
+        function setShareStatus(msg, kind = '') {
+            els.shareStatus.className = 'share-status' + (kind ? ' ' + kind : '');
+            els.shareStatus.textContent = msg || '';
+        }
+
+        function hideShare() {
+            els.shareBlob.style.display = 'none';
+            els.shareActions.style.display = 'none';
+            els.shareBlob.value = '';
+            setShareStatus('');
+        }
+
+        async function startExport() {
+            els.shareBlob.style.display = 'block';
+            els.shareBlob.readOnly = true;
+            els.shareActions.style.display = 'flex';
+            els.shareCopy.style.display = '';
+            els.shareApply.style.display = 'none';
+            els.shareBlob.value = 'Encrypting…';
+            setShareStatus('');
+            try {
+                const blob = await encryptConfig({
+                    provider: els.provider.value,
+                    model: els.model.value,
+                    llmKey: els.llmKey.value.trim(),
+                    shortcutName: els.shortcutName.value.trim()
+                });
+                els.shareBlob.value = blob;
+                els.shareBlob.select();
+                setShareStatus('Encrypted. Copy and share via chat.', 'success');
+            } catch (e) {
+                els.shareBlob.value = '';
+                setShareStatus('Export failed: ' + e.message, 'error');
+            }
+        }
+
+        function startImport() {
+            els.shareBlob.style.display = 'block';
+            els.shareBlob.readOnly = false;
+            els.shareActions.style.display = 'flex';
+            els.shareCopy.style.display = 'none';
+            els.shareApply.style.display = '';
+            els.shareBlob.value = '';
+            setShareStatus('Paste an exported string and click Apply.');
+            els.shareBlob.focus();
+        }
+
+        async function applyImport() {
+            const text = els.shareBlob.value.trim();
+            if (!text) {
+                setShareStatus('Nothing to import.', 'error');
+                return;
+            }
+            try {
+                const obj = await decryptConfig(text);
+                if (obj.provider && PROVIDERS[obj.provider]) {
+                    els.provider.value = obj.provider;
+                    refreshModelOptions(obj.provider, obj.model);
+                } else if (obj.model) {
+                    refreshModelOptions(els.provider.value, obj.model);
+                }
+                if (typeof obj.llmKey === 'string') els.llmKey.value = obj.llmKey;
+                if (typeof obj.shortcutName === 'string' && obj.shortcutName) els.shortcutName.value = obj.shortcutName;
+                setShareStatus('Imported into the form. Click Save to apply.', 'success');
+                els.shareBlob.value = '';
+            } catch (e) {
+                setShareStatus('Import failed: ' + e.message, 'error');
+            }
+        }
+
+        // ---------- Event wiring ----------
+        els.settingsBtn.addEventListener('click', openSettings);
+        els.closeSettings.addEventListener('click', closeSettings);
+        els.cancelSettings.addEventListener('click', closeSettings);
+        els.settingsModal.addEventListener('click', e => {
+            if (e.target === els.settingsModal) closeSettings();
+        });
+
+        els.provider.addEventListener('change', () => {
+            refreshModelOptions(els.provider.value, els.model.value);
+        });
+
+        els.saveSettings.addEventListener('click', () => {
+            saveSettings({
+                provider: els.provider.value,
+                model: els.model.value,
+                llmKey: els.llmKey.value.trim(),
+                shortcutName: els.shortcutName.value.trim() || DEFAULTS.shortcutName
+            });
+            updateAttachVisibility();
+            closeSettings();
+            setStatus('Settings saved.', 'success');
+            setTimeout(() => setStatus(''), 2000);
+        });
+
+        els.attachBtn.addEventListener('click', () => els.imageInput.click());
+
+        els.imageInput.addEventListener('change', async () => {
+            const file = els.imageInput.files?.[0];
+            if (file) await attachImageFile(file);
+        });
+
+        els.removeImg.addEventListener('click', clearImage);
+
+        els.exportBtn.addEventListener('click', startExport);
+        els.importBtn.addEventListener('click', startImport);
+        els.shareClose.addEventListener('click', hideShare);
+        els.shareApply.addEventListener('click', applyImport);
+        els.shareCopy.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(els.shareBlob.value);
+                setShareStatus('Copied to clipboard.', 'success');
+            } catch {
+                els.shareBlob.select();
+                document.execCommand('copy');
+                setShareStatus('Copied to clipboard.', 'success');
+            }
+        });
+
+        function autoResizeInput() {
+            const el = els.input;
+            el.style.height = 'auto';
+            el.style.height = el.scrollHeight + 'px';
+        }
+        els.input.addEventListener('input', autoResizeInput);
+        // Initial sizing in case of restored value
+        autoResizeInput();
+
+        els.input.addEventListener('paste', async (e) => {
+            if (!PROVIDERS[settings.provider]?.vision) return;
+            const items = e.clipboardData?.items;
+            if (!items) return;
+            for (const item of items) {
+                if (item.type && item.type.startsWith('image/')) {
+                    const file = item.getAsFile();
+                    if (file) {
+                        e.preventDefault();
+                        await attachImageFile(file);
+                    }
+                    return;
+                }
+            }
+        });
+
+        els.parseBtn.addEventListener('click', async () => {
+            const text = els.input.value.trim();
+            if (!text && !pendingImage) {
+                setStatus('Type a reminder description or attach an image.', 'error');
+                return;
+            }
+            if (!ensureConfigured()) return;
+
+            setStatus('<span class="spinner"></span>Parsing with ' + settings.model + '...', 'info');
+            els.parseBtn.disabled = true;
+            try {
+                pendingReminder = await callLLM(text, pendingImage);
+                setStatus('');
+                renderPreview(pendingReminder);
+            } catch (e) {
+                setStatus(e.message, 'error');
+            } finally {
+                els.parseBtn.disabled = false;
+            }
+        });
+
+        els.cancelBtn.addEventListener('click', resetUI);
+
+        els.confirmBtn.addEventListener('click', () => {
+            if (!pendingReminder) return;
+            setStatus('<span class="spinner"></span>Opening Shortcuts…', 'info');
+            try {
+                runShortcut(pendingReminder);
+                setStatus(`Sent to “${settings.shortcutName || DEFAULTS.shortcutName}”: ${pendingReminder.title}`, 'success');
+                els.input.value = '';
+                autoResizeInput();
+                clearImage();
+                resetUI();
+            } catch (e) {
+                setStatus(e.message, 'error');
+            }
+        });
+
+        // Initial UI state
+        updateAttachVisibility();
+
+        // First-run hint
+        if (!settings.llmKey) {
+            setStatus('Open Settings to add your LLM API key.', 'info');
+        }
+    </script>
+</body>
+
+</html>
