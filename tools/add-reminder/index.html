@@ -527,7 +527,7 @@
         </div>
     </div>
 
-    <div class="version">v0.1.2</div>
+    <div class="version">v0.1.3</div>
 
     <script>
         const STORAGE_KEY = 'add-reminder:settings';
@@ -669,7 +669,7 @@
                         note: { type: 'string', description: 'Optional notes / details. Omit if none.' },
                         time: {
                             type: 'string',
-                            description: 'When to alert. Use ISO 8601 with timezone offset when a time-of-day is given, e.g. 2025-05-06T09:00:00+0800. Use a bare date YYYY-MM-DD when the user only mentioned a date (e.g. "today", "tomorrow", "May 6") with no time-of-day. Omit entirely if the user did not mention a date or time.'
+                            description: 'When to alert. ISO 8601 with timezone offset, e.g. 2025-05-06T09:00:00+0800. When the user only mentioned a date with no time-of-day, default the time-of-day to 23:00 local. Omit entirely if the user did not mention a date or time.'
                         }
                     },
                     required: ['title']
@@ -690,9 +690,8 @@ Rules:
 - Title must be self-contained: a reader should understand the key action and its specifics from the title alone, without needing to open the notes. Include the concrete object/target (e.g. "Pay May rent to landlord", not "Pay rent"; "Email Sarah the Q2 budget draft", not "Email Sarah"). Keep it imperative and reasonably concise, but prefer clarity over brevity. Use note only for extra context that doesn't belong in the title.
 - Do NOT repeat the scheduled time in the title. When you set the time field, strip the time expression out of the title so only the action/object remains — the time is already carried by the reminder's alert. Examples: "明天上午交房租" → title "交房租" (time = tomorrow 09:00); "下午3点开会" → title "开会" (time = today 15:00); "tomorrow at 9am call the dentist" → title "Call the dentist" (time = tomorrow 09:00). If removing the time would leave the title empty or unclear, keep just enough to make the action clear.
 - Time: only set the time field when the user explicitly mentions a date or a time (absolute like "May 12 at 3pm" or relative like "today", "tomorrow", "next Monday", "in 2 hours", "tonight", "this weekend"). If the user mentions neither a date nor a time, OMIT the time field entirely — do NOT guess, default, or invent one.
-- Date-only vs. datetime:
-  - If the user gave ONLY a date with no time-of-day (e.g. "today", "tomorrow", "明天", "下周一", "May 6"), emit a bare date string "YYYY-MM-DD" — do NOT append a time. Examples: "remind me today" → time "2026-05-31" (no time component); "明天交报告" → time "2026-06-01".
-  - If the user gave a time-of-day (with or without an explicit date), emit full ISO 8601 with the user's timezone offset.
+- Always emit time as full ISO 8601 with the user's timezone offset (e.g. 2026-06-01T09:00:00+0800).
+- Date-only inputs: if the user gave ONLY a date with no time-of-day (e.g. "today", "tomorrow", "明天", "下周一", "May 6"), default the time-of-day to 23:00 local. Examples: "remind me today" → time "2026-06-01T23:00:00+0800"; "明天交报告" → time "2026-06-02T23:00:00+0800".
 - Bare time-of-day words without an explicit date refer to TODAY and DO count as a time-of-day. Map them to a concrete local time: "morning"/"上午" → 09:00, "noon"/"中午" → 12:00, "afternoon"/"下午" → 15:00, "evening"/"tonight"/"晚上" → 20:00, "late night"/"深夜" → 23:00. If the user gives an explicit time alongside the word (e.g. "下午3点", "tonight at 9"), use that exact time on today's date instead of the default.
 - The user may attach an image (often a screenshot of a message, document, or list). Read the image content and extract the reminder from it. Apply all the rules above to whatever the image shows — still do not invent a time that is not visible in the image or accompanying text.
 - Omit any field the user did not specify rather than guessing.`;
@@ -760,7 +759,6 @@ Rules:
 
         function formatDateTime(iso) {
             if (!iso) return iso;
-            if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
             const d = new Date(iso);
             if (isNaN(d)) return iso;
             try {
