@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.2.34 - Add Card Endpoint
+
+### Changes
+- **Add** and **Add All** now POST cards to a single configurable HTTP endpoint instead of the per-platform Anki paths (Anki-Connect / AnkiMobile URL / `.apkg` download)
+- New **Add Card Endpoint** settings section: configure the endpoint URL plus optional Cloudflare Access headers `CF-Access-Client-Id` and `CF-Access-Client-Secret`
+- Request body is `{ "notes": [{ "front", "back" }] }`; the CF headers are sent only when set
+
+---
+
+## v0.2.33 - Learning Cards
+
+### New Features
+- **Generate Learning Cards**: Replaced the single "Create Anki Card" button with a "Generate Learning Cards" flow
+- Uses the LLM to break the original text and its translation into 1–5 knowledge-point flashcards, focused on the hard Chinese → English production direction
+- Each card BACK now includes two example sentences, with the translation, usage note, and examples separated by line breaks for readability
+- Each generated card is shown as editable Front/Back text boxes so you can tweak before saving
+- Per-card **Add** and **Delete** buttons, plus **Add All** / **Delete All** buttons to push every card to Anki or clear them at once
+- Desktop adds are batched via Anki-Connect (`addNotes`); Android bundles all cards into one `.apkg`
+
+### Technical Details
+- New `constructCardsPrompt(original, translation)` in `prompts.js`
+- New `pushNotesToAnki(notes)` helper in `script.js` consolidates the Android / iOS / desktop add paths
+
+---
+
 ## v0.2.1 - DeepSeek Provider
 
 ### New Features

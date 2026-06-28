@@ -19,7 +19,10 @@ let saveSettingsBtn;
 let cancelSettingsBtn;
 let inputSpeakerBtn;
 let outputSpeakerBtn;
-let ankiBtn;
+let generateCardsBtn;
+let addAllCardsBtn;
+let deleteAllCardsBtn;
+let cardsContainer;
 
 // Settings State
 let settings = {
@@ -28,13 +31,17 @@ let settings = {
         gemini: { apiKey: '', model: 'gemini-3-pro-preview' },
         openai: { apiKey: '', model: 'gpt-4o' },
         anthropic: { apiKey: '', model: 'claude-sonnet-4-5' },
-        kimi: { apiKey: '', model: 'moonshot-v1-8k' },
-        deepseek: { apiKey: '', model: 'deepseek-chat' }
+        deepseek: { apiKey: '', model: 'deepseek-v4-flash' }
     },
     tts: {
         provider: 'openai',
         openai: { apiKey: '', model: 'tts-1-hd', voice: 'alloy' },
         elevenlabs: { apiKey: '', model: 'eleven_turbo_v2_5' }
+    },
+    addCard: {
+        url: '',
+        cfClientId: '',
+        cfClientSecret: ''
     }
 };
 let lastAction = 'other';
@@ -136,7 +143,8 @@ function loadSettings() {
             // Merge with defaults to ensure all fields exist
             settings = {
                 llm: { ...settings.llm, ...loaded.llm },
-                tts: { ...settings.tts, ...loaded.tts }
+                tts: { ...settings.tts, ...loaded.tts },
+                addCard: { ...settings.addCard, ...loaded.addCard }
             };
         } catch (e) {
             console.error('Failed to parse settings:', e);
@@ -166,14 +174,10 @@ function populateSettingsForm() {
     if (anthropicApiKey) anthropicApiKey.value = settings.llm.anthropic.apiKey;
     const anthropicModel = document.getElementById('anthropic-model');
     if (anthropicModel) anthropicModel.value = settings.llm.anthropic.model;
-    const kimiApiKey = document.getElementById('kimi-api-key');
-    if (kimiApiKey) kimiApiKey.value = settings.llm.kimi?.apiKey || '';
-    const kimiModel = document.getElementById('kimi-model');
-    if (kimiModel) kimiModel.value = settings.llm.kimi?.model || 'moonshot-v1-8k';
     const deepseekApiKey = document.getElementById('deepseek-api-key');
     if (deepseekApiKey) deepseekApiKey.value = settings.llm.deepseek?.apiKey || '';
     const deepseekModel = document.getElementById('deepseek-model');
-    if (deepseekModel) deepseekModel.value = settings.llm.deepseek?.model || 'deepseek-chat';
+    if (deepseekModel) deepseekModel.value = settings.llm.deepseek?.model || 'deepseek-v4-flash';
     
     // Show/hide LLM configs
     document.querySelectorAll('[id^="config-llm-"]').forEach(config => {
@@ -205,6 +209,15 @@ function populateSettingsForm() {
     });
     const selectedTtsConfig = document.getElementById(`config-tts-${ttsProvider}`);
     if (selectedTtsConfig) selectedTtsConfig.style.display = 'flex';
+
+    // Add Card endpoint
+    const addCard = settings.addCard || {};
+    const addCardUrl = document.getElementById('addcard-url');
+    if (addCardUrl) addCardUrl.value = addCard.url || '';
+    const addCardClientId = document.getElementById('addcard-cf-client-id');
+    if (addCardClientId) addCardClientId.value = addCard.cfClientId || '';
+    const addCardClientSecret = document.getElementById('addcard-cf-client-secret');
+    if (addCardClientSecret) addCardClientSecret.value = addCard.cfClientSecret || '';
 }
 
 // Setup Event Listeners (called after DOM is ready)
@@ -299,126 +312,16 @@ if (outputContent) {
     });
 }
 
-if (ankiBtn) {
-    ankiBtn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        try {
-            const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
-            const isAndroid = /android/i.test(navigator.userAgent.toLowerCase());
-            const front = inputText ? inputText.value.trim().replace(/\n/g, '<br>') : "";
-            const back = outputContent ? outputContent.value.trim().replace(/\n/g, '<br>') : "";
+if (generateCardsBtn) {
+    generateCardsBtn.addEventListener('click', handleGenerateCards);
+}
 
-            if (!front && !back) {
-                 showToast('Nothing to add', 'Please enter some text first', 'error', 2500);
-                 return;
-            }
+if (addAllCardsBtn) {
+    addAllCardsBtn.addEventListener('click', handleAddAll);
+}
 
-            if (isAndroid) {
-                // Android: Generate .apkg file
-                // Try to load SQL if not ready
-                if (!window.SQL && window.initSqlJs) {
-                     const config = { locateFile: filename => `libs/sql-wasm.wasm` };
-                     window.SQL = await window.initSqlJs(config);
-                }
-
-                if (!window.SQL) {
-                    showToast('Please wait', 'Anki generator is still loading. Try again in a moment.', 'error', 3000);
-                    return;
-                }
-                
-                ankiBtn.disabled = true;
-                ankiBtn.innerText = "Generating...";
-                // Small delay to let UI update
-                await new Promise(r => setTimeout(r, 10));
-                
-                // Check if GenAnki classes are loaded
-                if (typeof Model === 'undefined' || typeof Package === 'undefined') {
-                    // Try to debug: what is available?
-                    console.log("Model undefined. Window keys starting with M:", Object.keys(window).filter(k => k.startsWith('M')));
-                    throw new Error("GenAnki library (Model/Package) not loaded. Please wait or refresh.");
-                }
-
-                // Define Basic Model
-                const m = new Model({
-                  name: "Basic",
-                  id: "1", // Use simple ID
-                  flds: [
-                    { name: "Front" },
-                    { name: "Back" }
-                  ],
-                  req: [
-                    [ 0, "all", [ 0 ] ]
-                  ],
-                  tmpls: [
-                    {
-                      name: "Card 1",
-                      qfmt: "{{Front}}",
-                      afmt: "{{FrontSide}}\n\n<hr id=answer>\n\n{{Back}}",
-                    }
-                  ],
-                });
-
-                // Create Deck - Use ID 1 (Default) to ensure it merges correctly
-                const d = new Deck(1, "Default");
-                const tags = lastAction ? [lastAction] : [];
-                d.addNote(m.note([front, back], tags));
-
-                const p = new Package();
-                p.addDeck(d);
-                
-                // Write to file (FileSaver)
-                p.writeToFile(`anki_card_${Date.now()}.apkg`);
-
-                ankiBtn.innerText = "Create Anki Card";
-                ankiBtn.disabled = false;
-            } else if (isMobile) {
-                const url = `anki://x-callback-url/addnote?type=Basic&deck=Default&fldFront=${encodeURIComponent(front)}&fldBack=${encodeURIComponent(back)}&tags=${encodeURIComponent(lastAction)}`;
-                window.location.href = url;
-            } else {
-                const payload = {
-                    action: "addNote",
-                    version: 6,
-                    params: {
-                        note: {
-                            deckName: "Default",
-                            modelName: "Basic",
-                            fields: {
-                                Front: front,
-                                Back: back
-                            },
-                            options: {
-                                allowDuplicate: false,
-                                duplicateScope: "deck"
-                            },
-                            tags: [lastAction]
-                        }
-                    }
-                };
-        
-                fetch('http://127.0.0.1:8765', {
-                    method: 'POST',
-                    body: JSON.stringify(payload)
-                })
-                .then(response => response.json())
-                .then(result => {
-                    if (result.error) {
-                        showToast('Anki Error', result.error, 'error', 4000);
-                    } else {
-                        showToast('Success!', 'Card added to Anki', 'success', 2500);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error calling Anki-Connect:', error);
-                    showToast('Connection Failed', 'Make sure Anki is running with Anki-Connect installed', 'error', 4000);
-                });
-            }
-        } catch (err) {
-            console.error(err);
-            showToast('Anki Error', err.message, 'error', 4000);
-            ankiBtn.innerText = "Create Anki Card";
-            ankiBtn.disabled = false;
-        }
-    });
+if (deleteAllCardsBtn) {
+    deleteAllCardsBtn.addEventListener('click', handleDeleteAll);
 }
 
 // Close Anki modal when clicking outside
@@ -519,15 +422,10 @@ function saveSettings() {
         settings.llm.anthropic.apiKey = document.getElementById('anthropic-api-key')?.value.trim() || '';
         settings.llm.anthropic.model = document.getElementById('anthropic-model')?.value || 'claude-sonnet-4-5';
         
-        // Save Kimi settings (ensure object exists if migrating)
-        if (!settings.llm.kimi) settings.llm.kimi = {};
-        settings.llm.kimi.apiKey = document.getElementById('kimi-api-key')?.value.trim() || '';
-        settings.llm.kimi.model = document.getElementById('kimi-model')?.value || 'moonshot-v1-8k';
-
         // Save DeepSeek settings (ensure object exists if migrating)
         if (!settings.llm.deepseek) settings.llm.deepseek = {};
         settings.llm.deepseek.apiKey = document.getElementById('deepseek-api-key')?.value.trim() || '';
-        settings.llm.deepseek.model = document.getElementById('deepseek-model')?.value || 'deepseek-chat';
+        settings.llm.deepseek.model = document.getElementById('deepseek-model')?.value || 'deepseek-v4-flash';
         
         // Save TTS settings
         settings.tts.openai.apiKey = document.getElementById('openai-tts-api-key')?.value.trim() || '';
@@ -535,7 +433,13 @@ function saveSettings() {
         settings.tts.openai.voice = document.getElementById('openai-tts-voice')?.value || 'alloy';
         settings.tts.elevenlabs.apiKey = document.getElementById('elevenlabs-api-key')?.value.trim() || '';
         settings.tts.elevenlabs.model = document.getElementById('elevenlabs-model')?.value || 'eleven_turbo_v2_5';
-        
+
+        // Save Add Card endpoint settings
+        if (!settings.addCard) settings.addCard = {};
+        settings.addCard.url = document.getElementById('addcard-url')?.value.trim() || '';
+        settings.addCard.cfClientId = document.getElementById('addcard-cf-client-id')?.value.trim() || '';
+        settings.addCard.cfClientSecret = document.getElementById('addcard-cf-client-secret')?.value.trim() || '';
+
         // Save to localStorage
         localStorage.setItem('lang_tools_settings', JSON.stringify(settings));
         
@@ -741,6 +645,225 @@ function autoResize(element) {
     element.style.overflow = savedOverflow;
 }
 
+// ---- Learning Cards ----
+
+// Parse the LLM response into an array of {front, back} cards.
+function parseCards(raw) {
+    let text = (raw || '').trim();
+    // Strip markdown code fences if present
+    text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+    // Isolate the JSON array
+    const start = text.indexOf('[');
+    const end = text.lastIndexOf(']');
+    if (start !== -1 && end !== -1 && end > start) {
+        text = text.slice(start, end + 1);
+    }
+    const arr = JSON.parse(text);
+    if (!Array.isArray(arr)) throw new Error('Response was not a JSON array');
+    return arr
+        .filter(c => c && (c.front || c.back))
+        .map(c => ({ front: String(c.front || ''), back: String(c.back || '') }));
+}
+
+async function handleGenerateCards() {
+    const original = inputText ? inputText.value.trim() : '';
+    const translation = outputContent ? outputContent.value.trim() : '';
+
+    if (!original || !translation) {
+        showToast('Need text', 'Enter text and generate a translation first', 'error', 3000);
+        return;
+    }
+
+    const provider = settings.llm.provider;
+    const apiKey = settings.llm[provider].apiKey;
+    if (!apiKey) {
+        showToast('API Key Required', `Please configure your ${provider.toUpperCase()} API key in settings`, 'error', 3000);
+        setTimeout(() => openModal(), 500);
+        return;
+    }
+
+    if (typeof constructCardsPrompt === 'undefined') {
+        showToast('Error', 'Helper scripts not loaded. Please refresh.', 'error', 4000);
+        return;
+    }
+
+    const originalLabel = generateCardsBtn.textContent;
+    generateCardsBtn.disabled = true;
+    generateCardsBtn.textContent = 'Generating...';
+
+    try {
+        const prompt = constructCardsPrompt(original, translation);
+        const model = settings.llm[provider].model;
+        const result = await callLLM(provider, prompt, apiKey, model);
+        incrementTodayUsage();
+
+        const cards = parseCards(result);
+        if (!cards.length) {
+            showToast('No cards', 'Could not generate any cards from this text', 'error', 3000);
+        } else {
+            renderCards(cards);
+        }
+    } catch (error) {
+        console.error('Error generating cards:', error);
+        showToast('Generation Failed', error.message || 'Unknown error', 'error', 4000);
+    } finally {
+        generateCardsBtn.textContent = originalLabel;
+        generateCardsBtn.disabled = false;
+    }
+}
+
+function renderCards(cards) {
+    if (!cardsContainer) return;
+    cardsContainer.innerHTML = '';
+    cards.forEach(card => cardsContainer.appendChild(createCardElement(card)));
+    updateAddAllVisibility();
+}
+
+function createCardElement(card) {
+    const el = document.createElement('div');
+    el.className = 'learning-card card';
+    el.innerHTML = `
+        <div class="learning-card-field">
+            <label>Front</label>
+            <textarea class="card-front"></textarea>
+        </div>
+        <div class="learning-card-field">
+            <label>Back</label>
+            <textarea class="card-back"></textarea>
+        </div>
+        <div class="learning-card-actions">
+            <button type="button" class="card-delete-btn secondary-btn">Delete</button>
+            <button type="button" class="card-add-btn primary-btn">Add</button>
+        </div>
+    `;
+
+    const front = el.querySelector('.card-front');
+    const back = el.querySelector('.card-back');
+    front.value = card.front;
+    back.value = card.back;
+
+    const resize = (t) => {
+        t.style.height = 'auto';
+        t.style.height = t.scrollHeight + 'px';
+    };
+    [front, back].forEach(t => {
+        t.addEventListener('input', () => resize(t));
+        setTimeout(() => resize(t), 0);
+    });
+
+    el.querySelector('.card-delete-btn').addEventListener('click', () => {
+        el.remove();
+        updateAddAllVisibility();
+    });
+
+    el.querySelector('.card-add-btn').addEventListener('click', async (e) => {
+        const btn = e.currentTarget;
+        const f = front.value.trim().replace(/\n/g, '<br>');
+        const b = back.value.trim().replace(/\n/g, '<br>');
+        if (!f && !b) {
+            showToast('Empty card', 'Nothing to add', 'error', 2000);
+            return;
+        }
+        const label = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Adding...';
+        try {
+            await pushNotesToAnki([{ front: f, back: b }]);
+            showToast('Success!', 'Card added to Anki', 'success', 2000);
+            btn.textContent = 'Added ✓';
+        } catch (err) {
+            console.error('Error adding card:', err);
+            showToast('Anki Error', err.message, 'error', 4000);
+            btn.textContent = label;
+            btn.disabled = false;
+        }
+    });
+
+    return el;
+}
+
+function updateAddAllVisibility() {
+    if (!cardsContainer) return;
+    const count = cardsContainer.querySelectorAll('.learning-card').length;
+    const display = count > 0 ? 'inline-block' : 'none';
+    if (addAllCardsBtn) addAllCardsBtn.style.display = display;
+    if (deleteAllCardsBtn) deleteAllCardsBtn.style.display = display;
+}
+
+function handleDeleteAll() {
+    if (!cardsContainer) return;
+    cardsContainer.innerHTML = '';
+    updateAddAllVisibility();
+}
+
+async function handleAddAll() {
+    if (!cardsContainer) return;
+    const notes = [...cardsContainer.querySelectorAll('.learning-card')]
+        .map(el => ({
+            front: el.querySelector('.card-front').value.trim().replace(/\n/g, '<br>'),
+            back: el.querySelector('.card-back').value.trim().replace(/\n/g, '<br>')
+        }))
+        .filter(n => n.front || n.back);
+
+    if (!notes.length) {
+        showToast('Empty', 'No cards to add', 'error', 2000);
+        return;
+    }
+
+    const label = addAllCardsBtn.textContent;
+    addAllCardsBtn.disabled = true;
+    addAllCardsBtn.textContent = 'Adding...';
+    try {
+        await pushNotesToAnki(notes);
+        showToast('Success!', `Added ${notes.length} card${notes.length > 1 ? 's' : ''} to Anki`, 'success', 2500);
+    } catch (err) {
+        console.error('Error adding cards:', err);
+        showToast('Anki Error', err.message, 'error', 4000);
+    } finally {
+        addAllCardsBtn.textContent = label;
+        addAllCardsBtn.disabled = false;
+    }
+}
+
+// Push one or more {front, back} notes to the configured Add Card endpoint.
+async function pushNotesToAnki(notes) {
+    const cfg = settings.addCard || {};
+    const url = (cfg.url || '').trim();
+
+    if (!url) {
+        showToast('Endpoint not set', 'Configure the Add Card URL in settings', 'error', 3000);
+        setTimeout(() => openModal(), 500);
+        throw new Error('Add Card endpoint URL is not configured');
+    }
+
+    const headers = { 'Content-Type': 'application/json' };
+    if (cfg.cfClientId) headers['CF-Access-Client-Id'] = cfg.cfClientId;
+    if (cfg.cfClientSecret) headers['CF-Access-Client-Secret'] = cfg.cfClientSecret;
+
+    const payload = {
+        notes: notes.map(n => ({ front: n.front, back: n.back }))
+    };
+
+    let response;
+    try {
+        response = await fetch(url, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(payload)
+        });
+    } catch (error) {
+        throw new Error('Could not reach the Add Card endpoint. Check the URL and your connection.');
+    }
+
+    if (!response.ok) {
+        let detail = '';
+        try { detail = (await response.text()).slice(0, 200); } catch (e) { /* ignore */ }
+        throw new Error(`Endpoint returned ${response.status}${detail ? ': ' + detail : ''}`);
+    }
+
+    return true;
+}
+
 // Initialize everything after DOM is fully loaded
 document.addEventListener('DOMContentLoaded', () => {
     // Query DOM elements
@@ -758,7 +881,10 @@ document.addEventListener('DOMContentLoaded', () => {
     cancelSettingsBtn = document.getElementById('cancel-settings');
     inputSpeakerBtn = document.getElementById('input-speaker-btn');
     outputSpeakerBtn = document.getElementById('output-speaker-btn');
-    ankiBtn = document.getElementById('anki-btn');
+    generateCardsBtn = document.getElementById('generate-cards-btn');
+    addAllCardsBtn = document.getElementById('add-all-cards-btn');
+    deleteAllCardsBtn = document.getElementById('delete-all-cards-btn');
+    cardsContainer = document.getElementById('cards-container');
     
     // Run initialization
     init();

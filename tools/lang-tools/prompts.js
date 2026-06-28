@@ -170,12 +170,35 @@ Strictly only output the explanation content, without markdown formatting, but c
     }
 }
 
+function constructCardsPrompt(original, translation) {
+    return `You are helping a Chinese native speaker learn to EXPRESS ideas in English. The hard direction is Chinese -> English production: understanding the meaning of English is relatively easy, but recalling how to say a Chinese idea in English is the real challenge, so focus the cards there.
+
+Given an original text and its translation, break it into useful "knowledge points" and create flashcards. Produce between 1 and 5 cards depending on how much there is to learn (a simple sentence may need only 1; a richer one up to 5). Each card has a FRONT (the prompt to recall) and a BACK (the answer / explanation).
+
+Card design rules:
+- For MOST cards, the FRONT is a Chinese word / phrase / collocation taken from the original (a single knowledge point), and the BACK is the natural English way(s) to say it, plus a brief usage note and TWO short example sentences in English.
+- Extract meaningful chunks and collocations, NOT the whole sentence. For example, from "今天晚上打电话" make points like "今天晚上" and "打电话". From "给家里打电话" also surface the reusable pattern "给某人打电话".
+- If the text contains a genuinely difficult or interesting ENGLISH word/expression worth studying on its own, you MAY add ONE card whose FRONT is that English word and whose BACK explains its meaning and usage (still with two example sentences). Use this sparingly.
+- Keep the FRONT short. Keep the BACK concise but useful.
+- Preserve the user's original wording exactly; do not alter or re-translate the Chinese knowledge points.
+
+BACK formatting: separate the distinct parts with line breaks (use \\n in the JSON string). Put the English translation(s) on the first line, the usage note on its own line, and EACH of the two example sentences on its own line. Example of one BACK value:
+"call sb. / give sb. a call\\nUsage: everyday, neutral; \\"call\\" is the most common verb.\\ne.g. I'll call you tonight.\\ne.g. Give me a call when you're free."
+
+Original: ${original}
+Translation: ${translation}
+
+Output ONLY a valid JSON array, with no markdown, no code fences, and no commentary. Format:
+[{"front": "...", "back": "..."}, {"front": "...", "back": "..."}]`;
+}
+
 // Export for Node.js (CommonJS)
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { constructPrompt };
+    module.exports = { constructPrompt, constructCardsPrompt };
 }
 
 // Export for browser (global)
 if (typeof window !== 'undefined') {
     window.constructPrompt = constructPrompt;
+    window.constructCardsPrompt = constructCardsPrompt;
 }

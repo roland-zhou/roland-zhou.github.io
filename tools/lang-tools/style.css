@@ -830,3 +830,99 @@ textarea::placeholder {
     }
 }
 
+/* Learning Cards */
+.cards-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.cards-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.cards-main-btn {
+    flex: none;
+    width: auto;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+}
+
+#delete-all-cards-btn {
+    margin-left: auto;
+}
+
+#cards-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.learning-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    animation: card-in 0.2s ease-out;
+}
+
+@keyframes card-in {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.learning-card-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.learning-card-field label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    opacity: 0.7;
+}
+
+.learning-card-field textarea {
+    width: 100%;
+    min-height: auto;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0.625rem 0.75rem;
+    font-family: inherit;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    background: var(--bg-color);
+    resize: none;
+    outline: none;
+    overflow-y: hidden;
+    transition: var(--transition);
+}
+
+.learning-card-field textarea:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.learning-card-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.card-add-btn,
+.card-delete-btn {
+    padding: 0.4rem 0.9rem;
+    font-size: 0.85rem;
+}
+

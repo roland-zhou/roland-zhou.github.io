@@ -92,8 +92,6 @@ async function callLLM(provider, prompt, apiKey, model) {
             return await callOpenAILLM(prompt, apiKey, model);
         case 'anthropic':
             return await callAnthropicAPI(prompt, apiKey, model);
-        case 'kimi':
-            return await callKimiAPI(prompt, apiKey, model);
         case 'deepseek':
             return await callDeepSeekAPI(prompt, apiKey, model);
         default:
@@ -217,39 +215,7 @@ async function callAnthropicAPI(prompt, apiKey, model = 'claude-3-5-sonnet-20241
     }
 }
 
-async function callKimiAPI(prompt, apiKey, model = 'moonshot-v1-8k') {
-    const url = 'https://api.moonshot.cn/v1/chat/completions';
-    
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            model: model,
-            messages: [{
-                role: 'user',
-                content: prompt
-            }],
-            temperature: 0.3 // Kimi generally handles standard temp well
-        })
-    });
-
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error?.message || 'Kimi API request failed');
-    }
-
-    const data = await response.json();
-    if (data.choices && data.choices.length > 0) {
-        return data.choices[0].message.content;
-    } else {
-        throw new Error('No content generated');
-    }
-}
-
-async function callDeepSeekAPI(prompt, apiKey, model = 'deepseek-chat') {
+async function callDeepSeekAPI(prompt, apiKey, model = 'deepseek-v4-flash') {
     // DeepSeek exposes an OpenAI-compatible endpoint.
     const url = 'https://api.deepseek.com/chat/completions';
 
@@ -390,7 +356,6 @@ if (typeof module !== 'undefined' && module.exports) {
         callGeminiAPI, 
         callOpenAILLM,
         callAnthropicAPI,
-        callKimiAPI,
         callDeepSeekAPI,
         callOpenAITTS,
         callElevenLabsTTS
@@ -404,7 +369,6 @@ if (typeof window !== 'undefined') {
     window.callGeminiAPI = callGeminiAPI;
     window.callOpenAILLM = callOpenAILLM;
     window.callAnthropicAPI = callAnthropicAPI;
-    window.callKimiAPI = callKimiAPI;
     window.callDeepSeekAPI = callDeepSeekAPI;
     window.callOpenAITTS = callOpenAITTS;
     window.callElevenLabsTTS = callElevenLabsTTS;

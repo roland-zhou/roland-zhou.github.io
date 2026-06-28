@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=0.2.30">
+    <link rel="stylesheet" href="style.css?v=0.2.33">
     <link rel="icon" href="icon.png" type="image/png">
     <link rel="apple-touch-icon" href="icon.png">
 </head>
@@ -109,10 +109,14 @@
                 <p>Results will appear here...</p>
             </div>
 
-            <div style="display: flex; justify-content: flex-start;">
-                <button id="anki-btn" class="action-btn"
-                    style="flex: none; width: auto; padding-left: 1.5rem; padding-right: 1.5rem;">Create Anki
-                    Card</button>
+            <div class="cards-section">
+                <div class="cards-header">
+                    <button id="generate-cards-btn" class="action-btn cards-main-btn">Generate Learning
+                        Cards</button>
+                    <button id="delete-all-cards-btn" class="secondary-btn" style="display: none;">Delete All</button>
+                    <button id="add-all-cards-btn" class="primary-btn" style="display: none;">Add All</button>
+                </div>
+                <div id="cards-container"></div>
             </div>
         </main>
     </div>
@@ -189,7 +193,7 @@
                             <select class="model-select" id="deepseek-model">
                                 <option value="deepseek-chat">deepseek-chat</option>
                                 <option value="deepseek-reasoner">deepseek-reasoner</option>
-                                <option value="deepseek-v4-flash">deepseek-v4-flash</option>
+                                <option value="deepseek-v4-flash" selected>deepseek-v4-flash</option>
                             </select>
                         </div>
                     </div>
@@ -242,6 +246,17 @@
                     </div>
                 </div>
 
+                <!-- Add Card Section -->
+                <div class="settings-section">
+                    <h3>Add Card Endpoint</h3>
+                    <div class="provider-config" style="display: flex;">
+                        <input type="text" class="api-key-input" id="addcard-url" placeholder="Endpoint URL (https://...)">
+                        <input type="text" class="api-key-input" id="addcard-cf-client-id" placeholder="CF-Access-Client-Id">
+                        <input type="password" class="api-key-input" id="addcard-cf-client-secret" placeholder="CF-Access-Client-Secret">
+                    </div>
+                    <p class="help-text">Add / Add All POST cards here. The two Cloudflare Access headers are optional.</p>
+                </div>
+
                 <p class="help-text">All API keys are stored locally in your browser.</p>
             </div>
             <div class="modal-footer">
@@ -259,11 +274,11 @@
     <script src="libs/jszip.min.js"></script>
     <script src="libs/genanki.js"></script>
 
-    <div class="version">v0.2.32</div>
+    <div class="version">v0.2.34</div>
     <div class="usage-count" id="usage-count">Today: 0</div>
-    <script src="prompts.js?v=0.2.32"></script>
-    <script src="api.js?v=0.2.32"></script>
-    <script src="script.js?v=0.2.32"></script>
+    <script src="prompts.js?v=0.2.34"></script>
+    <script src="api.js?v=0.2.34"></script>
+    <script src="script.js?v=0.2.34"></script>
 </body>
 
 </html>
