@@ -53,6 +53,14 @@ async function fetchModels(provider, apiKey) {
                     .sort((a, b) => b.created_at - a.created_at) // Assuming they send created_at
                     .map(m => m.id);
             }
+        } else if (provider === 'deepseek') {
+            const response = await fetch('https://api.deepseek.com/models', {
+                headers: { 'Authorization': `Bearer ${apiKey}` }
+            });
+            const data = await response.json();
+            if (data.data) {
+                models = data.data.map(m => m.id);
+            }
         } else if (provider === 'elevenlabs') {
             const response = await fetch('https://api.elevenlabs.io/v1/models', {
                 headers: { 'xi-api-key': apiKey }
@@ -86,6 +94,8 @@ async function callLLM(provider, prompt, apiKey, model) {
             return await callAnthropicAPI(prompt, apiKey, model);
         case 'kimi':
             return await callKimiAPI(prompt, apiKey, model);
+        case 'deepseek':
+            return await callDeepSeekAPI(prompt, apiKey, model);
         default:
             throw new Error(`Unknown LLM provider: ${provider}`);
     }
@@ -239,6 +249,43 @@ async function callKimiAPI(prompt, apiKey, model = 'moonshot-v1-8k') {
     }
 }
 
+async function callDeepSeekAPI(prompt, apiKey, model = 'deepseek-chat') {
+    // DeepSeek exposes an OpenAI-compatible endpoint.
+    const url = 'https://api.deepseek.com/chat/completions';
+
+    // The reasoner model rejects sampling params like temperature; omit it there.
+    const isReasoner = model.includes('reasoner');
+    const body = {
+        model: model,
+        messages: [{
+            role: 'user',
+            content: prompt
+        }]
+    };
+    if (!isReasoner) body.temperature = 0;
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'DeepSeek API request failed');
+    }
+
+    const data = await response.json();
+    if (data.choices && data.choices.length > 0) {
+        return data.choices[0].message.content;
+    } else {
+        throw new Error('No content generated');
+    }
+}
+
 async function callOpenAITTS(text, apiKey, model = 'tts-1-hd', voice = 'alloy') {
     const url = 'https://api.openai.com/v1/audio/speech';
     
@@ -343,6 +390,8 @@ if (typeof module !== 'undefined' && module.exports) {
         callGeminiAPI, 
         callOpenAILLM,
         callAnthropicAPI,
+        callKimiAPI,
+        callDeepSeekAPI,
         callOpenAITTS,
         callElevenLabsTTS
     };
@@ -356,6 +405,7 @@ if (typeof window !== 'undefined') {
     window.callOpenAILLM = callOpenAILLM;
     window.callAnthropicAPI = callAnthropicAPI;
     window.callKimiAPI = callKimiAPI;
+    window.callDeepSeekAPI = callDeepSeekAPI;
     window.callOpenAITTS = callOpenAITTS;
     window.callElevenLabsTTS = callElevenLabsTTS;
 }

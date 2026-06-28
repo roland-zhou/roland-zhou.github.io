@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.2.1 - DeepSeek Provider
+
+### New Features
+- **DeepSeek LLM Support**: Added DeepSeek as an LLM provider via its OpenAI-compatible API (`https://api.deepseek.com`)
+- Models: deepseek-chat (default), deepseek-reasoner, deepseek-v4-flash
+- Added `callDeepSeekAPI()` and wired it into the `callLLM()` router; temperature omitted for the reasoner model
+
+---
+
 ## v0.2.0 - Multi-Provider Support
 
 ### New Features

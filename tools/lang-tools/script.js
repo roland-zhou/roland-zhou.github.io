@@ -28,7 +28,8 @@ let settings = {
         gemini: { apiKey: '', model: 'gemini-3-pro-preview' },
         openai: { apiKey: '', model: 'gpt-4o' },
         anthropic: { apiKey: '', model: 'claude-sonnet-4-5' },
-        kimi: { apiKey: '', model: 'moonshot-v1-8k' }
+        kimi: { apiKey: '', model: 'moonshot-v1-8k' },
+        deepseek: { apiKey: '', model: 'deepseek-chat' }
     },
     tts: {
         provider: 'openai',
@@ -169,6 +170,10 @@ function populateSettingsForm() {
     if (kimiApiKey) kimiApiKey.value = settings.llm.kimi?.apiKey || '';
     const kimiModel = document.getElementById('kimi-model');
     if (kimiModel) kimiModel.value = settings.llm.kimi?.model || 'moonshot-v1-8k';
+    const deepseekApiKey = document.getElementById('deepseek-api-key');
+    if (deepseekApiKey) deepseekApiKey.value = settings.llm.deepseek?.apiKey || '';
+    const deepseekModel = document.getElementById('deepseek-model');
+    if (deepseekModel) deepseekModel.value = settings.llm.deepseek?.model || 'deepseek-chat';
     
     // Show/hide LLM configs
     document.querySelectorAll('[id^="config-llm-"]').forEach(config => {
@@ -518,6 +523,11 @@ function saveSettings() {
         if (!settings.llm.kimi) settings.llm.kimi = {};
         settings.llm.kimi.apiKey = document.getElementById('kimi-api-key')?.value.trim() || '';
         settings.llm.kimi.model = document.getElementById('kimi-model')?.value || 'moonshot-v1-8k';
+
+        // Save DeepSeek settings (ensure object exists if migrating)
+        if (!settings.llm.deepseek) settings.llm.deepseek = {};
+        settings.llm.deepseek.apiKey = document.getElementById('deepseek-api-key')?.value.trim() || '';
+        settings.llm.deepseek.model = document.getElementById('deepseek-model')?.value || 'deepseek-chat';
         
         // Save TTS settings
         settings.tts.openai.apiKey = document.getElementById('openai-tts-api-key')?.value.trim() || '';
