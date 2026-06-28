@@ -91,24 +91,9 @@ function init() {
     try {
         // Load settings from localStorage
         loadSettings();
-        
+
         // Update usage display
         updateUsageDisplay();
-        
-        // Initialize SQL.js for Android APKG generation
-        const config = {
-            locateFile: filename => `libs/sql-wasm.wasm`
-        };
-        
-        // Check if library loaded (it might be deferred)
-        if (window.initSqlJs) {
-            window.initSqlJs(config).then(function (sql) {
-                window.SQL = sql;
-                console.log("SQL.js initialized");
-            }).catch(err => console.error("SQL.js failed to load", err));
-        } else {
-            console.log("SQL.js not yet loaded (deferred)");
-        }
     } catch (e) {
         alert("Init Error: " + e.message);
     }
@@ -324,7 +309,7 @@ if (deleteAllCardsBtn) {
     deleteAllCardsBtn.addEventListener('click', handleDeleteAll);
 }
 
-// Close Anki modal when clicking outside
+// Close settings modal when clicking outside
 window.addEventListener('click', (e) => {
     if (settingsModal && e.target === settingsModal) {
         closeModal();
@@ -768,12 +753,12 @@ function createCardElement(card) {
         btn.disabled = true;
         btn.textContent = 'Adding...';
         try {
-            await pushNotesToAnki([{ front: f, back: b }]);
-            showToast('Success!', 'Card added to Anki', 'success', 2000);
+            await pushNotes([{ front: f, back: b }]);
+            showToast('Success!', 'Card added', 'success', 2000);
             btn.textContent = 'Added ✓';
         } catch (err) {
             console.error('Error adding card:', err);
-            showToast('Anki Error', err.message, 'error', 4000);
+            showToast('Add Failed', err.message, 'error', 4000);
             btn.textContent = label;
             btn.disabled = false;
         }
@@ -814,11 +799,11 @@ async function handleAddAll() {
     addAllCardsBtn.disabled = true;
     addAllCardsBtn.textContent = 'Adding...';
     try {
-        await pushNotesToAnki(notes);
-        showToast('Success!', `Added ${notes.length} card${notes.length > 1 ? 's' : ''} to Anki`, 'success', 2500);
+        await pushNotes(notes);
+        showToast('Success!', `Added ${notes.length} card${notes.length > 1 ? 's' : ''}`, 'success', 2500);
     } catch (err) {
         console.error('Error adding cards:', err);
-        showToast('Anki Error', err.message, 'error', 4000);
+        showToast('Add Failed', err.message, 'error', 4000);
     } finally {
         addAllCardsBtn.textContent = label;
         addAllCardsBtn.disabled = false;
@@ -826,7 +811,7 @@ async function handleAddAll() {
 }
 
 // Push one or more {front, back} notes to the configured Add Card endpoint.
-async function pushNotesToAnki(notes) {
+async function pushNotes(notes) {
     const cfg = settings.addCard || {};
     const url = (cfg.url || '').trim();
 
@@ -848,6 +833,7 @@ async function pushNotesToAnki(notes) {
     try {
         response = await fetch(url, {
             method: 'POST',
+            credentials: 'include',
             headers,
             body: JSON.stringify(payload)
         });

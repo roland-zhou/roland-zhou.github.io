@@ -6,6 +6,7 @@
 - **Add** and **Add All** now POST cards to a single configurable HTTP endpoint instead of the per-platform Anki paths (Anki-Connect / AnkiMobile URL / `.apkg` download)
 - New **Add Card Endpoint** settings section: configure the endpoint URL plus optional Cloudflare Access headers `CF-Access-Client-Id` and `CF-Access-Client-Secret`
 - Request body is `{ "notes": [{ "front", "back" }] }`; the CF headers are sent only when set
+- Removed all Anki-specific code and the local APKG libraries (`sql-wasm`, `genanki`, `jszip`, `FileSaver`) now that adds go through the endpoint
 
 ---
 
