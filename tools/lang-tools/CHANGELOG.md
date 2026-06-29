@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.2.35 - Speak Selection
+
+### Changes
+- The **Read Aloud** buttons now play only the selected text when a selection exists in the Input or Output box, falling back to the full contents when nothing is selected
+
+---
+
 ## v0.2.34 - Add Card Endpoint
 
 ### Changes

@@ -209,13 +209,13 @@ function populateSettingsForm() {
 function setupEventListeners() {
 if (inputSpeakerBtn) {
     inputSpeakerBtn.addEventListener('click', () => {
-        handleSpeak(inputText.value.trim(), inputSpeakerBtn);
+        handleSpeak(getSpeakText(inputText), inputSpeakerBtn);
     });
 }
 
 if (outputSpeakerBtn) {
     outputSpeakerBtn.addEventListener('click', () => {
-        handleSpeak(outputContent.value.trim(), outputSpeakerBtn);
+        handleSpeak(getSpeakText(outputContent), outputSpeakerBtn);
     });
 }
 
@@ -502,6 +502,18 @@ function showResult(text) {
 
 // Store current playing audio to prevent garbage collection
 let currentAudio = null;
+
+// Return the selected text within a textarea if there is a selection,
+// otherwise fall back to the full contents.
+function getSpeakText(textarea) {
+    if (!textarea) return '';
+    const { selectionStart, selectionEnd, value } = textarea;
+    if (selectionStart != null && selectionEnd != null && selectionEnd > selectionStart) {
+        const selected = value.slice(selectionStart, selectionEnd).trim();
+        if (selected) return selected;
+    }
+    return value.trim();
+}
 
 async function handleSpeak(text, btn) {
     if (!text) {
