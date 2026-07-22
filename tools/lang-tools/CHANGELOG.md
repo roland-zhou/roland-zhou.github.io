@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.2.36 - DeepSeek V4
+
+### Changes
+- Added the **deepseek-v4** model to the DeepSeek provider dropdown, alongside the existing `deepseek-v4-flash`
+- Removed the pre-V4 `deepseek-chat` and `deepseek-reasoner` options
+
+---
+
 ## v0.2.35 - Speak Selection
 
 ### Changes
