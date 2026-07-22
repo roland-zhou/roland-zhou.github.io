@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.2.38 - Drop Anthropic Provider
+
+### Changes
+- Removed **Anthropic** as a selectable LLM provider (settings group, model dropdown, and API routing)
+- The Anthropic API helper is retained internally for the prompts-judge evaluation harness only
+
+---
+
 ## v0.2.37 - Drop Gemini Provider
 
 ### Changes

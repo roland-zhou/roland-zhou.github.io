@@ -24,22 +24,6 @@ async function fetchModels(provider, apiKey) {
                     .sort((a, b) => b.created - a.created)
                     .map(m => m.id);
             }
-        } else if (provider === 'anthropic') {
-             // Anthropic API might not be CORS friendly for fetching models directly from browser in some cases,
-             // but let's try the standard endpoint.
-             const response = await fetch('https://api.anthropic.com/v1/models', {
-                headers: { 
-                    'x-api-key': apiKey,
-                    'anthropic-version': '2023-06-01',
-                    'content-type': 'application/json'
-                }
-            });
-            const data = await response.json();
-            if (data.data) {
-                 models = data.data
-                    .sort((a, b) => b.created_at - a.created_at) // Assuming they send created_at
-                    .map(m => m.id);
-            }
         } else if (provider === 'deepseek') {
             const response = await fetch('https://api.deepseek.com/models', {
                 headers: { 'Authorization': `Bearer ${apiKey}` }
@@ -75,8 +59,6 @@ async function callLLM(provider, prompt, apiKey, model) {
     switch (provider) {
         case 'openai':
             return await callOpenAILLM(prompt, apiKey, model);
-        case 'anthropic':
-            return await callAnthropicAPI(prompt, apiKey, model);
         case 'deepseek':
             return await callDeepSeekAPI(prompt, apiKey, model);
         default:
@@ -167,6 +149,7 @@ async function callOpenAILLM(prompt, apiKey, model = 'gpt-4o') {
     }
 }
 
+// Retained for the prompts-judge harness; not exposed as a UI provider.
 async function callAnthropicAPI(prompt, apiKey, model = 'claude-3-5-sonnet-20241022') {
     const url = 'https://api.anthropic.com/v1/messages';
     
@@ -353,7 +336,6 @@ if (typeof window !== 'undefined') {
     window.callLLM = callLLM;
     window.callTTS = callTTS;
     window.callOpenAILLM = callOpenAILLM;
-    window.callAnthropicAPI = callAnthropicAPI;
     window.callDeepSeekAPI = callDeepSeekAPI;
     window.callOpenAITTS = callOpenAITTS;
     window.callElevenLabsTTS = callElevenLabsTTS;

@@ -29,7 +29,6 @@ let settings = {
     llm: {
         provider: 'deepseek',
         openai: { apiKey: '', model: 'gpt-4o' },
-        anthropic: { apiKey: '', model: 'claude-sonnet-4-5' },
         deepseek: { apiKey: '', model: 'deepseek-v4-flash' }
     },
     tts: {
@@ -143,10 +142,6 @@ function populateSettingsForm() {
     if (openaiLlmApiKey) openaiLlmApiKey.value = settings.llm.openai.apiKey;
     const openaiLlmModel = document.getElementById('openai-llm-model');
     if (openaiLlmModel) openaiLlmModel.value = settings.llm.openai.model;
-    const anthropicApiKey = document.getElementById('anthropic-api-key');
-    if (anthropicApiKey) anthropicApiKey.value = settings.llm.anthropic.apiKey;
-    const anthropicModel = document.getElementById('anthropic-model');
-    if (anthropicModel) anthropicModel.value = settings.llm.anthropic.model;
     const deepseekApiKey = document.getElementById('deepseek-api-key');
     if (deepseekApiKey) deepseekApiKey.value = settings.llm.deepseek?.apiKey || '';
     const deepseekModel = document.getElementById('deepseek-model');
@@ -390,9 +385,7 @@ function saveSettings() {
         // Save LLM settings
         settings.llm.openai.apiKey = document.getElementById('openai-llm-api-key')?.value.trim() || '';
         settings.llm.openai.model = document.getElementById('openai-llm-model')?.value || 'gpt-4o';
-        settings.llm.anthropic.apiKey = document.getElementById('anthropic-api-key')?.value.trim() || '';
-        settings.llm.anthropic.model = document.getElementById('anthropic-model')?.value || 'claude-sonnet-4-5';
-        
+
         // Save DeepSeek settings (ensure object exists if migrating)
         if (!settings.llm.deepseek) settings.llm.deepseek = {};
         settings.llm.deepseek.apiKey = document.getElementById('deepseek-api-key')?.value.trim() || '';
