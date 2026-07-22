@@ -27,8 +27,7 @@ let cardsContainer;
 // Settings State
 let settings = {
     llm: {
-        provider: 'gemini',
-        gemini: { apiKey: '', model: 'gemini-3-pro-preview' },
+        provider: 'deepseek',
         openai: { apiKey: '', model: 'gpt-4o' },
         anthropic: { apiKey: '', model: 'claude-sonnet-4-5' },
         deepseek: { apiKey: '', model: 'deepseek-v4-flash' }
@@ -101,25 +100,18 @@ function init() {
 
 function loadSettings() {
     // Check for old settings format and migrate
-    const oldGeminiKey = localStorage.getItem('gemini_api_key');
     const oldOpenAiKey = localStorage.getItem('openai_api_key');
-    
-    if (oldGeminiKey || oldOpenAiKey) {
+
+    if (oldOpenAiKey) {
         // Migrate old settings
-        if (oldGeminiKey) {
-            settings.llm.gemini.apiKey = oldGeminiKey;
-        }
-        if (oldOpenAiKey) {
-            settings.tts.openai.apiKey = oldOpenAiKey;
-        }
+        settings.tts.openai.apiKey = oldOpenAiKey;
         // Save migrated settings
         localStorage.setItem('lang_tools_settings', JSON.stringify(settings));
         // Clean up old keys
-        localStorage.removeItem('gemini_api_key');
         localStorage.removeItem('openai_api_key');
         console.log('Migrated old settings to new format');
     }
-    
+
     // Load from localStorage or use defaults
     const saved = localStorage.getItem('lang_tools_settings');
     if (saved) {
@@ -147,10 +139,6 @@ function populateSettingsForm() {
     if (llmRadio) llmRadio.checked = true;
     
     // LLM Keys and Models - with null checks
-    const geminiApiKey = document.getElementById('gemini-api-key');
-    if (geminiApiKey) geminiApiKey.value = settings.llm.gemini.apiKey;
-    const geminiModel = document.getElementById('gemini-model');
-    if (geminiModel) geminiModel.value = settings.llm.gemini.model;
     const openaiLlmApiKey = document.getElementById('openai-llm-api-key');
     if (openaiLlmApiKey) openaiLlmApiKey.value = settings.llm.openai.apiKey;
     const openaiLlmModel = document.getElementById('openai-llm-model');
@@ -396,12 +384,10 @@ function closeModal() {
 function saveSettings() {
     try {
         // Get selected providers
-        settings.llm.provider = document.querySelector('input[name="llm-provider"]:checked')?.value || 'gemini';
+        settings.llm.provider = document.querySelector('input[name="llm-provider"]:checked')?.value || 'deepseek';
         settings.tts.provider = document.querySelector('input[name="tts-provider"]:checked')?.value || 'openai';
-        
+
         // Save LLM settings
-        settings.llm.gemini.apiKey = document.getElementById('gemini-api-key')?.value.trim() || '';
-        settings.llm.gemini.model = document.getElementById('gemini-model')?.value || 'gemini-2.5-flash-latest';
         settings.llm.openai.apiKey = document.getElementById('openai-llm-api-key')?.value.trim() || '';
         settings.llm.openai.model = document.getElementById('openai-llm-model')?.value || 'gpt-4o';
         settings.llm.anthropic.apiKey = document.getElementById('anthropic-api-key')?.value.trim() || '';

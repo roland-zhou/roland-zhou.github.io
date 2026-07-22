@@ -9,20 +9,7 @@ async function fetchModels(provider, apiKey) {
     let models = [];
     
     try {
-        if (provider === 'gemini') {
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-            const data = await response.json();
-            if (data.models) {
-                // Filter for content generation models and sort by name to put newer versions first (heuristic)
-                models = data.models
-                    .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
-                    .map(m => m.name.replace('models/', ''))
-                    // Filter out legacy/vision-only if needed, but Gemini unified models are good
-                    .filter(name => !name.includes('vision') && !name.includes('embedding'))
-                    // Sort descending to get "2.0" before "1.5"
-                    .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
-            }
-        } else if (provider === 'openai') {
+        if (provider === 'openai') {
             const response = await fetch('https://api.openai.com/v1/models', {
                 headers: { 'Authorization': `Bearer ${apiKey}` }
             });
@@ -86,8 +73,6 @@ async function fetchModels(provider, apiKey) {
 // Main LLM router
 async function callLLM(provider, prompt, apiKey, model) {
     switch (provider) {
-        case 'gemini':
-            return await callGeminiAPI(prompt, apiKey, model);
         case 'openai':
             return await callOpenAILLM(prompt, apiKey, model);
         case 'anthropic':
@@ -111,6 +96,7 @@ async function callTTS(provider, text, apiKey, model, voice) {
     }
 }
 
+// Retained for the prompts-judge harness; not exposed as a UI provider.
 async function callGeminiAPI(prompt, apiKey, model = 'gemini-2.5-flash-latest') {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}&fields=candidates.content.parts.text`;
 
@@ -351,9 +337,9 @@ async function callElevenLabsTTS(text, apiKey, model = 'eleven_turbo_v2_5') {
 // Export for Node.js (CommonJS)
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { 
-        callLLM, 
+        callLLM,
         callTTS,
-        callGeminiAPI, 
+        callGeminiAPI,
         callOpenAILLM,
         callAnthropicAPI,
         callDeepSeekAPI,
@@ -366,7 +352,6 @@ if (typeof module !== 'undefined' && module.exports) {
 if (typeof window !== 'undefined') {
     window.callLLM = callLLM;
     window.callTTS = callTTS;
-    window.callGeminiAPI = callGeminiAPI;
     window.callOpenAILLM = callOpenAILLM;
     window.callAnthropicAPI = callAnthropicAPI;
     window.callDeepSeekAPI = callDeepSeekAPI;

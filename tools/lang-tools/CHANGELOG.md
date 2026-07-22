@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.2.37 - Drop Gemini Provider
+
+### Changes
+- Removed **Google Gemini** as a selectable LLM provider (settings group, model dropdown, and API routing); the default provider is now DeepSeek
+- The Gemini API helper is retained internally for the prompts-judge evaluation harness only
+
+---
+
 ## v0.2.36 - DeepSeek V4
 
 ### Changes
