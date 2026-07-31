@@ -526,7 +526,7 @@
         </div>
     </div>
 
-    <div class="version">v0.1.6</div>
+    <div class="version">v0.1.7</div>
 
     <script>
         const STORAGE_KEY = 'add-reminder:settings';
@@ -542,7 +542,7 @@
                 label: 'Qwen (Aliyun)',
                 baseUrl: 'https://ws-xkvychz52zqy18jt.cn-beijing.maas.aliyuncs.com/compatible-mode/v1',
                 models: ['qwen3.7-flash'],
-                vision: false,
+                vision: true,
                 // Qwen rejects thinking mode on non-streaming calls; OpenAI rejects the unknown field.
                 extraBody: { enable_thinking: false }
             }
