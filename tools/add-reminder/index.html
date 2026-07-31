@@ -541,8 +541,10 @@
             qwen: {
                 label: 'Qwen (Aliyun)',
                 baseUrl: 'https://ws-xkvychz52zqy18jt.cn-beijing.maas.aliyuncs.com/compatible-mode/v1',
-                models: ['Qwen3.7-Flash'],
-                vision: false
+                models: ['qwen3.7-flash'],
+                vision: false,
+                // Qwen rejects thinking mode on non-streaming calls; OpenAI rejects the unknown field.
+                extraBody: { enable_thinking: false }
             }
         };
 
@@ -716,7 +718,8 @@ Rules:
                     { role: 'user', content: userContent }
                 ],
                 tools: [REMINDER_TOOL],
-                tool_choice: { type: 'function', function: { name: 'create_reminder' } }
+                tool_choice: { type: 'function', function: { name: 'create_reminder' } },
+                ...(provider.extraBody || {})
             };
 
             const res = await fetch(url, {
