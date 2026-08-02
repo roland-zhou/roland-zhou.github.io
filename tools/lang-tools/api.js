@@ -188,14 +188,15 @@ async function callDeepSeekAPI(prompt, apiKey, model = 'deepseek-v4-flash') {
     // DeepSeek exposes an OpenAI-compatible endpoint.
     const url = 'https://api.deepseek.com/chat/completions';
 
-    // The reasoner model rejects sampling params like temperature; omit it there.
+    // V4 defaults to thinking mode (slow); disable unless using the legacy reasoner alias.
     const isReasoner = model.includes('reasoner');
     const body = {
         model: model,
         messages: [{
             role: 'user',
             content: prompt
-        }]
+        }],
+        thinking: { type: isReasoner ? 'enabled' : 'disabled' }
     };
     if (!isReasoner) body.temperature = 0;
 

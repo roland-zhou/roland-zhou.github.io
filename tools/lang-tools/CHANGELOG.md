@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.2.39 - Disable DeepSeek Thinking
+
+### Changes
+- DeepSeek API calls now pass `"thinking": {"type": "disabled"}` by default, avoiding V4's slow reasoning path for translate, cards, and other structured tasks
+- Legacy `deepseek-reasoner` model name still enables thinking when explicitly selected
+
+---
+
 ## v0.2.38 - Drop Anthropic Provider
 
 ### Changes
