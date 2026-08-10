@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.2.40 - Add Translation as a Card
+
+### Changes
+- New **Add** button to the left of *Generate Learning Cards* posts the source text (front) and its translation (back) straight to the Add Card endpoint, no LLM call needed
+- Uses the same endpoint, newline-to-`<br>` handling, and toasts as the per-card **Add** buttons
+
+---
+
 ## v0.2.39 - Disable DeepSeek Thinking
 
 ### Changes

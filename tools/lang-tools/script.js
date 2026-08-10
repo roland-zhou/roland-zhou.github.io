@@ -20,6 +20,7 @@ let cancelSettingsBtn;
 let inputSpeakerBtn;
 let outputSpeakerBtn;
 let generateCardsBtn;
+let addTranslationBtn;
 let addAllCardsBtn;
 let deleteAllCardsBtn;
 let cardsContainer;
@@ -282,6 +283,10 @@ if (outputContent) {
 
 if (generateCardsBtn) {
     generateCardsBtn.addEventListener('click', handleGenerateCards);
+}
+
+if (addTranslationBtn) {
+    addTranslationBtn.addEventListener('click', handleAddTranslation);
 }
 
 if (addAllCardsBtn) {
@@ -772,6 +777,36 @@ function handleDeleteAll() {
     updateAddAllVisibility();
 }
 
+// Add the source text (front) and its translation (back) as a single card.
+async function handleAddTranslation() {
+    const original = inputText ? inputText.value.trim() : '';
+    const translation = outputContent ? outputContent.value.trim() : '';
+
+    if (!original || !translation) {
+        showToast('Need text', 'Enter text and generate a translation first', 'error', 3000);
+        return;
+    }
+
+    const front = original.replace(/\n/g, '<br>');
+    const back = translation.replace(/\n/g, '<br>');
+
+    const label = addTranslationBtn.textContent;
+    addTranslationBtn.disabled = true;
+    addTranslationBtn.textContent = 'Adding...';
+    try {
+        await pushNotes([{ front, back }]);
+        showToast('Success!', 'Card added', 'success', 2000);
+        addTranslationBtn.textContent = 'Added ✓';
+        setTimeout(() => { addTranslationBtn.textContent = label; }, 2000);
+    } catch (err) {
+        console.error('Error adding translation card:', err);
+        showToast('Add Failed', err.message, 'error', 4000);
+        addTranslationBtn.textContent = label;
+    } finally {
+        addTranslationBtn.disabled = false;
+    }
+}
+
 async function handleAddAll() {
     if (!cardsContainer) return;
     const notes = [...cardsContainer.querySelectorAll('.learning-card')]
@@ -859,6 +894,7 @@ document.addEventListener('DOMContentLoaded', () => {
     inputSpeakerBtn = document.getElementById('input-speaker-btn');
     outputSpeakerBtn = document.getElementById('output-speaker-btn');
     generateCardsBtn = document.getElementById('generate-cards-btn');
+    addTranslationBtn = document.getElementById('add-translation-btn');
     addAllCardsBtn = document.getElementById('add-all-cards-btn');
     deleteAllCardsBtn = document.getElementById('delete-all-cards-btn');
     cardsContainer = document.getElementById('cards-container');
