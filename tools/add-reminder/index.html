@@ -477,6 +477,7 @@
                     <select id="provider">
                         <option value="openai">OpenAI (ChatGPT)</option>
                         <option value="qwen">Qwen (Aliyun)</option>
+                        <option value="deepseek">DeepSeek</option>
                     </select>
                 </div>
 
@@ -526,7 +527,7 @@
         </div>
     </div>
 
-    <div class="version">v0.1.7</div>
+    <div class="version">v0.1.8</div>
 
     <script>
         const STORAGE_KEY = 'add-reminder:settings';
@@ -545,8 +546,23 @@
                 vision: true,
                 // Qwen rejects thinking mode on non-streaming calls; OpenAI rejects the unknown field.
                 extraBody: { enable_thinking: false }
+            },
+            deepseek: {
+                label: 'DeepSeek',
+                baseUrl: 'https://api.deepseek.com/v1',
+                models: ['deepseek-v4-flash-vision-exp', 'deepseek-v4-flash', 'deepseek-v4-pro'],
+                // Only the experimental vision model reads images; the V4 text models reject image parts.
+                vision: ['deepseek-v4-flash-vision-exp'],
+                // V4 thinks by default (effort high), which is slow for a single tool call.
+                extraBody: { thinking: { type: 'disabled' } }
             }
         };
+
+        // `vision: true` means every model of the provider sees images; an array lists the ones that do.
+        function supportsVision(provider = settings.provider, model = settings.model) {
+            const vision = PROVIDERS[provider]?.vision;
+            return Array.isArray(vision) ? vision.includes(model) : !!vision;
+        }
 
         const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB
 
@@ -718,18 +734,32 @@ Rules:
                     { role: 'user', content: userContent }
                 ],
                 tools: [REMINDER_TOOL],
-                tool_choice: { type: 'function', function: { name: 'create_reminder' } },
-                ...(provider.extraBody || {})
+                tool_choice: { type: 'function', function: { name: 'create_reminder' } }
             };
 
-            const res = await fetch(url, {
+            const post = (payload) => fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${settings.llmKey}`
                 },
-                body: JSON.stringify(body)
+                body: JSON.stringify(payload)
             });
+
+            const extras = provider.extraBody || {};
+            const extraKeys = Object.keys(extras);
+            let res = await post({ ...body, ...extras });
+
+            // Vendor-specific switches (thinking mode etc.) are not accepted by every model of a
+            // provider — retry once without them if that is what the request was rejected for.
+            if (!res.ok && res.status === 400 && extraKeys.length) {
+                const errText = await res.text();
+                if (extraKeys.some(k => errText.includes(k))) {
+                    res = await post(body);
+                } else {
+                    throw new Error(`LLM error 400: ${errText.slice(0, 300)}`);
+                }
+            }
 
             if (!res.ok) {
                 const text = await res.text();
@@ -859,9 +889,9 @@ Rules:
         }
 
         function updateAttachVisibility() {
-            const supportsVision = !!PROVIDERS[settings.provider]?.vision;
-            els.attachBtn.style.display = supportsVision ? '' : 'none';
-            if (!supportsVision && pendingImage) clearImage();
+            const canSeeImages = supportsVision();
+            els.attachBtn.style.display = canSeeImages ? '' : 'none';
+            if (!canSeeImages && pendingImage) clearImage();
         }
 
         // ---------- Config import / export ----------
@@ -1052,7 +1082,7 @@ Rules:
         autoResizeInput();
 
         els.input.addEventListener('paste', async (e) => {
-            if (!PROVIDERS[settings.provider]?.vision) return;
+            if (!supportsVision()) return;
             const items = e.clipboardData?.items;
             if (!items) return;
             for (const item of items) {
