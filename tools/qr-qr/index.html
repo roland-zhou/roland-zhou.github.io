@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
+    <title>QR-QR · Generate & Read QR Codes</title>
+    <link rel="icon"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230066cc'/%3E%3Cg fill='%23fff'%3E%3Crect x='6' y='6' width='8' height='8'/%3E%3Crect x='18' y='6' width='8' height='8'/%3E%3Crect x='6' y='18' width='8' height='8'/%3E%3Crect x='18' y='18' width='3' height='3'/%3E%3Crect x='23' y='23' width='3' height='3'/%3E%3C/g%3E%3C/svg%3E">
+    <style>
+        :root {
+            --bg: #f5f7fa;
+            --card-bg: #ffffff;
+            --stage-bg: #f0f2f5;
+            --text: #1f2937;
+            --text-secondary: #6b7280;
+            --border: #e5e7eb;
+            --primary: #0066cc;
+            --primary-hover: #0052a3;
+            --danger: #c0392b;
+            --radius: 10px;
+            --shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #111827;
+                --card-bg: #1f2937;
+                --stage-bg: #111827;
+                --text: #f3f4f6;
+                --text-secondary: #9ca3af;
+                --border: #374151;
+            }
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .app {
+            max-width: 520px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .tabs {
+            display: flex;
+            background: var(--stage-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 2px;
+        }
+
+        .tabs button {
+            flex: 1;
+            font: inherit;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .tabs button.active {
+            background: var(--primary);
+            color: #fff;
+        }
+
+        .body {
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .stage {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            background: var(--stage-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .stage canvas,
+        .stage video {
+            max-width: 100%;
+            max-height: 100%;
+            display: none;
+        }
+
+        .stage video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .stage.gen canvas,
+        .stage.read video { display: block; }
+
+        .stage canvas { background: #fff; border-radius: 4px; }
+
+        .hint {
+            position: absolute;
+            padding: 0 24px;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .stage.gen.has-qr .hint,
+        .stage.read.streaming .hint { display: none; }
+
+        .reticle {
+            position: absolute;
+            inset: 15%;
+            border: 2px solid rgba(255, 255, 255, 0.85);
+            border-radius: 12px;
+            box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.28);
+            pointer-events: none;
+            display: none;
+        }
+
+        .stage.read.streaming .reticle { display: block; }
+
+        textarea {
+            width: 100%;
+            min-height: 96px;
+            resize: vertical;
+            font: inherit;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--card-bg);
+            color: var(--text);
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        /* An author display rule outranks the UA's [hidden] rule, so restate it. */
+        .actions[hidden] { display: none; }
+
+        button.btn {
+            font: inherit;
+            font-size: 0.9rem;
+            font-weight: 600;
+            padding: 9px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--card-bg);
+            color: var(--text);
+            cursor: pointer;
+        }
+
+        button.btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+
+        button.btn.primary {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: #fff;
+        }
+
+        button.btn.primary:hover:not(:disabled) { background: var(--primary-hover); color: #fff; }
+
+        button.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .status {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            min-height: 1.2em;
+        }
+
+        .status.error { color: var(--danger); }
+
+        .back {
+            display: block;
+            max-width: 520px;
+            margin: 14px auto 0;
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+        }
+
+        .back:hover { color: var(--primary); }
+
+        @media (max-width: 600px) {
+            body { padding: 10px 8px; }
+            .body { padding: 12px; gap: 12px; }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app">
+        <div class="body">
+            <div class="stage gen" id="stage">
+                <canvas id="canvas"></canvas>
+                <video id="video" playsinline muted></video>
+                <div class="reticle"></div>
+                <p class="hint" id="hint">Type below to generate a QR code.</p>
+            </div>
+
+            <textarea id="text" placeholder="Text or URL…" autocomplete="off" spellcheck="false"></textarea>
+
+            <div class="tabs">
+                <button id="tabGen" class="active" type="button">Gen</button>
+                <button id="tabRead" type="button">Read</button>
+            </div>
+
+            <div class="actions" id="genActions">
+                <button class="btn primary" id="download" type="button" disabled>Download PNG</button>
+                <button class="btn" id="copyText" type="button">Copy text</button>
+                <button class="btn" id="clear" type="button">Clear</button>
+            </div>
+
+            <div class="actions" id="readActions" hidden>
+                <button class="btn primary" id="camera" type="button">Start camera</button>
+                <button class="btn" id="pick" type="button">From image</button>
+                <button class="btn" id="copyResult" type="button">Copy text</button>
+                <input type="file" id="file" accept="image/*" hidden>
+            </div>
+
+            <p class="status" id="status"></p>
+        </div>
+    </div>
+    <a class="back" href="../">← All tools</a>
+
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <script>
+        const $ = id => document.getElementById(id);
+        const stage = $('stage'), canvas = $('canvas'), video = $('video');
+        const textEl = $('text'), statusEl = $('status'), hintEl = $('hint');
+        const genActions = $('genActions'), readActions = $('readActions');
+        const downloadBtn = $('download'), cameraBtn = $('camera'), fileInput = $('file');
+
+        let mode = 'gen';
+        let stream = null;
+        let rafId = null;
+        let detector = null;
+        const scanCanvas = document.createElement('canvas');
+        const scanCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
+
+        function setStatus(msg, isError) {
+            statusEl.textContent = msg || '';
+            statusEl.classList.toggle('error', !!isError);
+        }
+
+        /* ---------- generate ---------- */
+
+        qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
+        const MARGIN = 2;
+
+        function render() {
+            const text = textEl.value;
+            const ctx = canvas.getContext('2d');
+            if (!text) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                stage.classList.remove('has-qr');
+                downloadBtn.disabled = true;
+                setStatus('');
+                return;
+            }
+
+            let qr;
+            try {
+                qr = qrcode(0, 'M');
+                qr.addData(text);
+                qr.make();
+            } catch (err) {
+                stage.classList.remove('has-qr');
+                downloadBtn.disabled = true;
+                const msg = String(err && err.message || err);
+                setStatus(/overflow/i.test(msg) ? 'Text is too long for one QR code.' : msg, true);
+                return;
+            }
+
+            // Integer module size keeps every module crisp — no half-pixel edges.
+            const count = qr.getModuleCount();
+            const scale = Math.max(2, Math.floor(560 / (count + MARGIN * 2)));
+            const size = (count + MARGIN * 2) * scale;
+            canvas.width = canvas.height = size;
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, size, size);
+            ctx.fillStyle = '#000000';
+            for (let row = 0; row < count; row++) {
+                for (let col = 0; col < count; col++) {
+                    if (qr.isDark(row, col)) {
+                        ctx.fillRect((col + MARGIN) * scale, (row + MARGIN) * scale, scale, scale);
+                    }
+                }
+            }
+
+            stage.classList.add('has-qr');
+            downloadBtn.disabled = false;
+            setStatus(text.length + ' characters · ' + count + '×' + count + ' modules');
+        }
+
+        textEl.addEventListener('input', () => { if (mode === 'gen') render(); });
+
+        downloadBtn.addEventListener('click', () => {
+            const a = document.createElement('a');
+            a.href = canvas.toDataURL('image/png');
+            a.download = 'qr.png';
+            a.click();
+        });
+
+        $('clear').addEventListener('click', () => { textEl.value = ''; render(); textEl.focus(); });
+
+        async function copyText() {
+            if (!textEl.value) return;
+            try {
+                await navigator.clipboard.writeText(textEl.value);
+                setStatus('Copied.');
+            } catch {
+                textEl.select();
+                setStatus('Press ⌘/Ctrl+C to copy.');
+            }
+        }
+        $('copyText').addEventListener('click', copyText);
+        $('copyResult').addEventListener('click', copyText);
+
+        /* ---------- read ---------- */
+
+        // Browsers only expose mediaDevices on a secure context: https://, localhost,
+        // or file:// in Safari. Elsewhere it is undefined, not a permission error.
+        function cameraProblem() {
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) return null;
+            if (!window.isSecureContext) {
+                return location.protocol === 'file:'
+                    ? 'Camera needs a served page — open this over http://localhost or https://, not as a local file. “From image” still works.'
+                    : 'Camera needs a secure page — use https:// or http://localhost (plain http on an IP is blocked). “From image” still works.';
+            }
+            return 'This browser exposes no camera API. “From image” still works.';
+        }
+
+        async function getDetector() {
+            if (detector !== null) return detector;
+            try {
+                if ('BarcodeDetector' in window) {
+                    const formats = await window.BarcodeDetector.getSupportedFormats();
+                    if (formats.includes('qr_code')) {
+                        detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+                        return detector;
+                    }
+                }
+            } catch { /* fall through to jsQR */ }
+            detector = false;
+            return detector;
+        }
+
+        async function decodeFrom(source, width, height) {
+            const det = await getDetector();
+            if (det) {
+                const codes = await det.detect(source);
+                if (codes.length) return codes[0].rawValue;
+                return null;
+            }
+            scanCanvas.width = width;
+            scanCanvas.height = height;
+            scanCtx.drawImage(source, 0, 0, width, height);
+            const data = scanCtx.getImageData(0, 0, width, height);
+            const code = jsQR(data.data, data.width, data.height, { inversionAttempts: 'attemptBoth' });
+            return code ? code.data : null;
+        }
+
+        async function startCamera() {
+            if (stream) return stopCamera();
+            if (mode !== 'read') setMode('read');
+            const problem = cameraProblem();
+            if (problem) {
+                cameraBtn.disabled = true;
+                setStatus(problem, true);
+                return;
+            }
+            setStatus('Requesting camera…');
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: { ideal: 'environment' } },
+                    audio: false
+                });
+            } catch (err) {
+                setStatus(err.name === 'NotAllowedError'
+                    ? 'Camera permission denied.'
+                    : 'Camera unavailable: ' + err.message, true);
+                stream = null;
+                return;
+            }
+            video.srcObject = stream;
+            await video.play().catch(() => { });
+            stage.classList.add('streaming');
+            cameraBtn.textContent = 'Stop camera';
+            setStatus('Point at a QR code…');
+            scan();
+        }
+
+        function stopCamera() {
+            if (rafId) cancelAnimationFrame(rafId), rafId = null;
+            if (stream) stream.getTracks().forEach(t => t.stop()), stream = null;
+            video.srcObject = null;
+            stage.classList.remove('streaming');
+            cameraBtn.textContent = 'Start camera';
+        }
+
+        let busy = false;
+        function scan() {
+            rafId = requestAnimationFrame(scan);
+            if (busy || video.readyState !== video.HAVE_ENOUGH_DATA) return;
+            busy = true;
+            decodeFrom(video, video.videoWidth, video.videoHeight)
+                .then(result => {
+                    if (result) {
+                        textEl.value = result;
+                        stopCamera();
+                        setStatus('Scanned ' + result.length + ' characters.');
+                    }
+                })
+                .catch(() => { })
+                .finally(() => { busy = false; });
+        }
+
+        cameraBtn.addEventListener('click', startCamera);
+        $('pick').addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', async () => {
+            const file = fileInput.files[0];
+            fileInput.value = '';
+            if (!file) return;
+            stopCamera();
+            setStatus('Decoding image…');
+            const img = new Image();
+            img.src = URL.createObjectURL(file);
+            try {
+                await img.decode();
+                const result = await decodeFrom(img, img.naturalWidth, img.naturalHeight);
+                if (result) {
+                    textEl.value = result;
+                    setStatus('Found ' + result.length + ' characters.');
+                } else {
+                    setStatus('No QR code found in that image.', true);
+                }
+            } catch {
+                setStatus('Could not read that image.', true);
+            } finally {
+                URL.revokeObjectURL(img.src);
+            }
+        });
+
+        /* ---------- mode switch ---------- */
+
+        function setMode(next) {
+            mode = next;
+            const gen = mode === 'gen';
+            $('tabGen').classList.toggle('active', gen);
+            $('tabRead').classList.toggle('active', !gen);
+            stage.classList.toggle('gen', gen);
+            stage.classList.toggle('read', !gen);
+            genActions.hidden = !gen;
+            readActions.hidden = gen;
+            textEl.placeholder = gen ? 'Text or URL…' : 'Scan result appears here…';
+            hintEl.textContent = gen
+                ? 'Type below to generate a QR code.'
+                : 'Start the camera, or pick an image with a QR code.';
+            setStatus('');
+            if (gen) {
+                stopCamera();
+                render();
+            } else {
+                stage.classList.remove('has-qr');
+                const problem = cameraProblem();
+                cameraBtn.disabled = !!problem;
+                if (problem) {
+                    hintEl.textContent = 'Pick an image containing a QR code.';
+                    setStatus(problem, true);
+                }
+            }
+        }
+
+        $('tabGen').addEventListener('click', () => setMode('gen'));
+        $('tabRead').addEventListener('click', () => setMode('read'));
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) stopCamera();
+        });
+
+        render();
+    </script>
+</body>
+
+</html>
