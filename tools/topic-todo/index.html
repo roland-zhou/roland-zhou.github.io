@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f7f5">
+  <title>临时 Todo</title>
+  <style>
+    :root { color-scheme: light dark; --paper:#fffefa; --page:#f5f4ef; --ink:#22231f; --muted:#777871; --line:#e5e3da; --accent:#395a44; --accent-soft:#e6eee7; --danger:#a6453e; --shadow:0 18px 50px rgb(37 40 29 / 9%); }
+    @media (prefers-color-scheme: dark) { :root { --paper:#20211e; --page:#151614; --ink:#f1f1eb; --muted:#aaa9a0; --line:#373832; --accent:#a8d5b0; --accent-soft:#273d2c; --danger:#ef9b91; --shadow:0 18px 50px rgb(0 0 0 / 25%); } }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:var(--page); color:var(--ink); font-family:ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .wrap { width:min(680px, calc(100% - 28px)); margin:clamp(24px, 8vh, 88px) auto 48px; }
+    .card { background:var(--paper); border:1px solid var(--line); border-radius:20px; box-shadow:var(--shadow); overflow:hidden; }
+    header { padding:28px 30px 20px; border-bottom:1px solid var(--line); }
+    .eyebrow { display:flex; align-items:center; justify-content:space-between; gap:12px; color:var(--muted); font-size:12px; letter-spacing:.08em; text-transform:uppercase; }
+    .topic { margin:10px 0 0; width:100%; border:0; outline:0; padding:2px 0; color:var(--ink); background:transparent; font:700 clamp(27px, 6vw, 38px)/1.15 ui-rounded, "SF Pro Rounded", -apple-system, sans-serif; letter-spacing:-.04em; }
+    .topic::placeholder { color:var(--muted); opacity:.55; }
+    .hint { margin:11px 0 0; color:var(--muted); font-size:13px; line-height:1.5; }
+    .content { padding:22px 30px 14px; }
+    .new-task { display:flex; gap:9px; }
+    .new-task input { min-width:0; flex:1; border:1px solid var(--line); border-radius:11px; padding:12px 14px; background:transparent; color:var(--ink); outline:0; font:inherit; }
+    .new-task input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+    button { font:inherit; cursor:pointer; }
+    .add { border:0; border-radius:11px; padding:0 16px; background:var(--accent); color:#fff; font-weight:650; }
+    @media (prefers-color-scheme:dark) { .add { color:#172219; } }
+    .add:hover { filter:brightness(1.08); }
+    .list { list-style:none; margin:18px 0 6px; padding:0; }
+    .item { display:flex; align-items:center; gap:10px; min-height:48px; border-bottom:1px solid var(--line); transition:opacity .15s, background .15s; }
+    .item:last-child { border-bottom:0; }
+    .check { appearance:none; width:19px; height:19px; flex:0 0 auto; border:1.5px solid var(--muted); border-radius:50%; margin:0; background:transparent; cursor:pointer; display:grid; place-content:center; }
+    .check:checked { border-color:var(--accent); background:var(--accent); }
+    .check:checked::after { content:""; width:8px; height:4px; border-left:1.7px solid white; border-bottom:1.7px solid white; transform:rotate(-45deg) translate(1px, -1px); }
+    .task-label { flex:1; padding:11px 0; line-height:1.35; word-break:break-word; cursor:pointer; }
+    .done .task-label { color:var(--muted); text-decoration:line-through; }
+    .drag { width:20px; flex:0 0 20px; padding:10px 3px; border:0; color:var(--muted); background:transparent; cursor:grab; touch-action:none; font-size:16px; letter-spacing:-2px; line-height:1; }
+    .drag:active { cursor:grabbing; }
+    .item.dragging { opacity:.38; background:var(--accent-soft); }
+    .delete { visibility:hidden; width:28px; height:28px; border:0; border-radius:7px; background:transparent; color:var(--muted); font-size:20px; line-height:1; }
+    .item:hover .delete, .delete:focus { visibility:visible; }
+    .delete:hover { color:var(--danger); background:color-mix(in srgb, var(--danger) 10%, transparent); }
+    .empty { padding:30px 4px 34px; color:var(--muted); text-align:center; font-size:14px; }
+    footer { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 30px 22px; color:var(--muted); font-size:13px; }
+    .footer-actions { display:flex; align-items:center; gap:10px; }
+    .export { border:1px solid var(--line); border-radius:7px; padding:5px 8px; color:var(--ink); background:transparent; font-size:13px; }
+    .export:hover { border-color:var(--accent); color:var(--accent); }
+    .clear { border:0; padding:4px; color:var(--muted); background:transparent; font-size:13px; }
+    .clear:hover { color:var(--danger); }
+    .saved { opacity:0; transition:opacity .25s; white-space:nowrap; }
+    .saved.show { opacity:1; }
+    .url-note { margin:18px auto 0; color:var(--muted); text-align:center; font-size:12px; line-height:1.55; }
+    kbd { padding:1px 5px; border:1px solid var(--line); border-radius:4px; font:11px ui-monospace, monospace; }
+    @media (max-width:480px) { .wrap { width:min(100% - 16px, 680px); margin-top:16px; } .card { border-radius:15px; } header { padding:22px 20px 17px; } .content { padding:17px 20px 9px; } footer { padding:14px 20px 18px; } .add { padding:0 13px; } }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="card" aria-label="临时待办清单">
+      <header>
+        <div class="eyebrow"><span>Temporary list</span><span id="topic-badge">本地保存</span></div>
+        <input class="topic" id="topic" aria-label="清单标题" placeholder="未命名清单" autocomplete="off">
+        <p class="hint">改标题会更新链接；每个 topic 的任务只保存在这台浏览器中。</p>
+      </header>
+      <div class="content">
+        <form class="new-task" id="new-task-form">
+          <input id="new-task" aria-label="新增待办" placeholder="写下一件要做的事…" autocomplete="off" maxlength="500">
+          <button class="add" type="submit">添加</button>
+        </form>
+        <ul class="list" id="list" aria-live="polite"></ul>
+        <div class="empty" id="empty">这里还是空的。先写下第一件事吧。</div>
+      </div>
+      <footer>
+        <span id="count">0 项待办</span>
+        <div class="footer-actions">
+          <span class="saved" id="saved" role="status">已保存</span>
+          <button class="export" id="export" type="button">导出 Markdown</button>
+          <button class="clear" id="clear-all" type="button" hidden>全部清空</button>
+        </div>
+      </footer>
+    </section>
+    <p class="url-note">用 <kbd>?topic=旅行计划</kbd> 打开即可创建一个独立清单。</p>
+  </main>
+  <script>
+    (() => {
+      const PREFIX = 'topic-todo:v1:';
+      const topicInput = document.querySelector('#topic');
+      const form = document.querySelector('#new-task-form');
+      const taskInput = document.querySelector('#new-task');
+      const list = document.querySelector('#list');
+      const empty = document.querySelector('#empty');
+      const count = document.querySelector('#count');
+      const clearAll = document.querySelector('#clear-all');
+      const exportButton = document.querySelector('#export');
+      const saved = document.querySelector('#saved');
+      const badge = document.querySelector('#topic-badge');
+      let topic = new URLSearchParams(location.search).get('topic') || '';
+      let tasks = [];
+      let saveTimer;
+      let topicTimer;
+      let draggedId = null;
+
+      function key() { return PREFIX + topic; }
+      function displayTopic() { return topic || '未命名清单'; }
+      function load() {
+        try { tasks = JSON.parse(localStorage.getItem(key())) || []; }
+        catch { tasks = []; }
+        if (!Array.isArray(tasks)) tasks = [];
+      }
+      function flashSaved() {
+        saved.classList.add('show');
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(() => saved.classList.remove('show'), 1100);
+      }
+      function persist() { localStorage.setItem(key(), JSON.stringify(tasks)); flashSaved(); }
+      function setUrl() {
+        const url = new URL(location.href);
+        if (topic) url.searchParams.set('topic', topic); else url.searchParams.delete('topic');
+        history.replaceState(null, '', url);
+        document.title = `${displayTopic()} · 临时 Todo`;
+      }
+      function render() {
+        list.replaceChildren();
+        const remaining = tasks.filter(task => !task.done).length;
+        count.textContent = remaining ? `${remaining} 项未完成，共 ${tasks.length} 项` : tasks.length ? '全部完成，做得好！' : '0 项待办';
+        empty.hidden = tasks.length > 0;
+        clearAll.hidden = !tasks.length;
+        badge.textContent = topic ? `Topic · ${topic}` : '本地保存';
+        tasks.forEach(task => {
+          const item = document.createElement('li'); item.className = `item${task.done ? ' done' : ''}`;
+          const drag = document.createElement('button'); drag.className = 'drag'; drag.type = 'button'; drag.textContent = '⠿'; drag.setAttribute('aria-label', `拖动排序：${task.text}`);
+          drag.draggable = true;
+          drag.addEventListener('dragstart', event => { draggedId = task.id; item.classList.add('dragging'); event.dataTransfer.effectAllowed = 'move'; });
+          drag.addEventListener('dragend', () => { draggedId = null; item.classList.remove('dragging'); });
+          drag.addEventListener('pointerdown', startTouchDrag);
+          const check = document.createElement('input'); check.className = 'check'; check.type = 'checkbox'; check.checked = task.done; check.setAttribute('aria-label', `完成：${task.text}`);
+          check.addEventListener('change', () => { task.done = check.checked; persist(); render(); });
+          const label = document.createElement('label'); label.className = 'task-label'; label.textContent = task.text; label.htmlFor = `task-${task.id}`;
+          check.id = label.htmlFor;
+          const remove = document.createElement('button'); remove.className = 'delete'; remove.type = 'button'; remove.textContent = '×'; remove.setAttribute('aria-label', `删除：${task.text}`);
+          remove.addEventListener('click', () => { tasks = tasks.filter(item => item.id !== task.id); persist(); render(); });
+          item.dataset.id = task.id;
+          item.addEventListener('dragover', event => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; });
+          item.addEventListener('drop', event => { event.preventDefault(); reorderBefore(task.id); });
+          item.append(drag, check, label, remove); list.append(item);
+        });
+      }
+      function switchTopic(next) {
+        topic = next.trim();
+        topicInput.value = topic;
+        load(); setUrl(); render();
+      }
+      function reorderBefore(targetId) {
+        if (!draggedId || draggedId === targetId) return;
+        const from = tasks.findIndex(task => task.id === draggedId);
+        const to = tasks.findIndex(task => task.id === targetId);
+        if (from < 0 || to < 0) return;
+        const [moved] = tasks.splice(from, 1);
+        tasks.splice(to, 0, moved);
+        persist(); render();
+      }
+      function startTouchDrag(event) {
+        const item = event.currentTarget.closest('.item');
+        const id = item.dataset.id;
+        let started = false;
+        let timer = setTimeout(() => { started = true; draggedId = id; item.classList.add('dragging'); navigator.vibrate?.(15); }, 170);
+        const move = moveEvent => {
+          if (!started) return;
+          const at = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY)?.closest('.item');
+          if (at) reorderBefore(at.dataset.id);
+        };
+        const end = () => { clearTimeout(timer); if (started) { draggedId = null; item.classList.remove('dragging'); } window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', end); window.removeEventListener('pointercancel', end); };
+        window.addEventListener('pointermove', move); window.addEventListener('pointerup', end); window.addEventListener('pointercancel', end);
+      }
+      function exportMarkdown() {
+        const title = displayTopic();
+        const body = [`# ${title}`, '', ...tasks.map(task => `- [${task.done ? 'x' : ' '}] ${task.text}`), ''].join('\n');
+        const blob = new Blob([body], { type: 'text/markdown;charset=utf-8' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${title.replace(/[\\/:*?"<>|]/g, '-') || 'todo'}.md`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(link.href), 0);
+      }
+      topicInput.value = topic;
+      load(); setUrl(); render();
+      form.addEventListener('submit', event => {
+        event.preventDefault(); const text = taskInput.value.trim(); if (!text) return;
+        tasks.unshift({ id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, text, done: false });
+        taskInput.value = ''; persist(); render(); taskInput.focus();
+      });
+      topicInput.addEventListener('input', () => {
+        clearTimeout(topicTimer);
+        topicTimer = setTimeout(() => switchTopic(topicInput.value), 450);
+      });
+      topicInput.addEventListener('change', () => { clearTimeout(topicTimer); switchTopic(topicInput.value); });
+      topicInput.addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          clearTimeout(topicTimer);
+          switchTopic(topicInput.value);
+          taskInput.focus();
+        }
+      });
+      exportButton.addEventListener('click', exportMarkdown);
+      clearAll.addEventListener('click', () => {
+        if (!confirm(`清空「${displayTopic()}」中的全部 ${tasks.length} 项待办？此操作不会影响其他 topic。`)) return;
+        tasks = []; persist(); render();
+      });
+      window.addEventListener('popstate', () => switchTopic(new URLSearchParams(location.search).get('topic') || ''));
+    })();
+  </script>
+</body>
+</html>
