@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#171a2b">
+  <title>Time to Buy · 这东西要工作多久</title>
+  <style>
+    :root { --ink:#1c1e2c; --muted:#707387; --paper:#fbfaf8; --panel:#fff; --line:#e8e6e1; --accent:#ff5f57; --accent-soft:#ffe3df; --blue:#4d73ff; --shadow:0 18px 50px rgba(29,31,49,.08); }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--paper); color:var(--ink); font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    button,input { font:inherit; }
+    .app { max-width:1120px; margin:auto; padding:30px 22px 60px; }
+    header { display:flex; justify-content:space-between; align-items:center; margin-bottom:32px; }
+    .brand { display:flex; align-items:center; gap:11px; font-weight:750; letter-spacing:-.03em; font-size:19px; }
+    .brand-mark { display:grid; place-items:center; width:34px; height:34px; border-radius:11px; color:#fff; background:var(--ink); font-size:18px; }
+    .settings-toggle { border:1px solid var(--line); background:#fff; padding:9px 12px; border-radius:10px; color:var(--muted); cursor:pointer; }
+    .settings-toggle:hover { color:var(--ink); border-color:#c9c6be; }
+    .settings { display:none; margin:-12px 0 26px; background:#f1eff0; border-radius:16px; padding:19px; }
+    .settings.show { display:block; }
+    .settings h2 { font-size:14px; margin:0 0 13px; }
+    .profiles { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; }
+    .profile { background:rgba(255,255,255,.6); border:1px solid rgba(219,216,211,.8); border-radius:12px; padding:13px; }
+    .profile h3 { margin:0 0 10px; font-size:13px; }
+    .setting-fields { display:grid; grid-template-columns:repeat(3,1fr); gap:9px; }
+    label { display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--muted); }
+    input { min-width:0; border:1px solid #dbd8d3; padding:10px 11px; background:#fff; border-radius:9px; color:var(--ink); outline:none; }
+    input:focus { border-color:var(--blue); box-shadow:0 0 0 3px #dfe5ff; }
+    .intro { text-align:center; max-width:650px; margin:0 auto 30px; }
+    h1 { font-size:clamp(30px,6vw,52px); line-height:1.06; letter-spacing:-.065em; margin:0 0 12px; }
+    .intro p { color:var(--muted); margin:0; }
+    .amounts { max-width:720px; display:grid; grid-template-columns:1fr 1fr; gap:15px; margin:0 auto 18px; }
+    .amount { display:flex; align-items:center; border-bottom:2px solid #bdbbb7; transition:border-color .15s; }
+    .amount:focus-within { border-color:var(--ink); }
+    .amount span { font-size:25px; font-weight:700; padding:0 4px 7px 1px; }
+    .amount input { width:100%; border:0; box-shadow:none; padding:3px 0 7px; border-radius:0; background:transparent; font-size:27px; font-weight:700; letter-spacing:-.04em; }
+    .amount input:focus { box-shadow:none; }
+    .hint { text-align:center; color:var(--muted); font-size:13px; margin:0 0 36px; }
+    .result { display:flex; justify-content:center; gap:8px; align-items:baseline; margin:0 0 31px; }
+    .result strong { font-size:clamp(32px,5vw,48px); letter-spacing:-.06em; }
+    .result span { color:var(--muted); }
+    .stage { display:grid; grid-template-columns:220px minmax(0,1fr) 220px; gap:18px; align-items:start; }
+    .card { background:var(--panel); border:1px solid var(--line); border-radius:20px; box-shadow:var(--shadow); padding:20px; }
+    .clock-card { text-align:center; }
+    .card h2 { margin:0 0 3px; font-size:14px; }
+    .card .sub { color:var(--muted); font-size:12px; margin:0 0 15px; }
+    .dial { --fill:0deg; --hand:0deg; width:154px; height:154px; margin:8px auto 15px; border-radius:50%; position:relative; background:conic-gradient(var(--accent) 0deg var(--fill), #f1f0ed var(--fill) 360deg); }
+    .dial::before { content:""; position:absolute; inset:12px; border-radius:50%; background:#fff; }
+    .dial::after { content:""; position:absolute; left:50%; top:50%; width:8px; height:8px; border-radius:50%; background:var(--ink); transform:translate(-50%,-50%); z-index:2; }
+    .hand { position:absolute; z-index:1; left:calc(50% - 2px); bottom:50%; transform-origin:2px 100%; transform:rotate(var(--hand)); width:4px; height:54px; border-radius:3px; background:var(--ink); }
+    .hour .hand { height:43px; width:6px; left:calc(50% - 3px); transform-origin:3px 100%; }
+    .clock-value { font-weight:720; letter-spacing:-.03em; font-size:18px; }
+    .calendar-card { min-height:341px; }
+    .calendar-top { display:flex; justify-content:space-between; gap:12px; align-items:start; margin-bottom:17px; }
+    .calendar-copy h2 { font-size:17px; }
+    .calendar-copy p { color:var(--muted); font-size:12px; margin:3px 0 0; }
+    .legend { display:flex; align-items:center; gap:6px; white-space:nowrap; color:var(--muted); font-size:12px; }
+    .dot { width:9px; height:9px; background:var(--accent); border-radius:3px; }
+    .months { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:13px 16px; }
+    .month-name { font-size:12px; font-weight:700; margin-bottom:6px; }
+    .week, .days { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+    .week span { font-size:8px; text-align:center; color:#aaa8a4; padding-bottom:3px; }
+    .day { aspect-ratio:1; border-radius:3px; display:grid; place-items:center; font-size:9px; color:#787772; }
+    .day.active { background:var(--accent); color:#fff; font-weight:700; }
+    .day.today { outline:1px solid var(--blue); outline-offset:-1px; }
+    .calendar-foot { margin-top:14px; color:var(--muted); font-size:12px; }
+    .calendar-foot strong { color:var(--ink); }
+    .empty { color:var(--muted); text-align:center; padding:100px 0; }
+    @media (max-width:860px) { .stage { grid-template-columns:1fr 1fr; } .calendar-card { grid-column:1 / -1; } }
+    @media (max-width:560px) { .app { padding:18px 14px 40px; } header { margin-bottom:25px; } .profiles,.setting-fields,.stage,.amounts { grid-template-columns:1fr; } .calendar-card { grid-column:auto; } .months { grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px; } .clock-card { display:grid; grid-template-columns:1fr 1fr; align-items:center; text-align:left; } .clock-card h2,.clock-card .sub,.clock-value { grid-column:1; } .dial { grid-column:2; grid-row:1 / 4; width:126px; height:126px; margin:auto; } .hand { height:43px; } }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header><div class="brand"><span class="brand-mark">◷</span> Time to Buy</div><button class="settings-toggle" id="settingsToggle" aria-expanded="false">⚙ 设置</button></header>
+    <section class="settings" id="settings">
+      <h2>我的工作换算</h2>
+      <div class="profiles">
+        <div class="profile"><h3>人民币档案（CNY）</h3><div class="setting-fields">
+          <label>月工资（元）<input id="cnySalary" type="number" min="0" step="100" value="15000"></label>
+          <label>每月工作天数<input id="cnyWorkdays" type="number" min="1" max="31" step="1" value="22"></label>
+          <label>每天工作小时数<input id="cnyHours" type="number" min="0.5" max="24" step="0.5" value="8"></label>
+        </div></div>
+        <div class="profile"><h3>新币档案（SGD）</h3><div class="setting-fields">
+          <label>月工资（S$）<input id="sgdSalary" type="number" min="0" step="100" value="5000"></label>
+          <label>每月工作天数<input id="sgdWorkdays" type="number" min="1" max="31" step="1" value="22"></label>
+          <label>每天工作小时数<input id="sgdHours" type="number" min="0.5" max="24" step="0.5" value="8"></label>
+        </div></div>
+      </div>
+    </section>
+    <section class="intro">
+      <h1>这东西，要工作多久？</h1>
+      <p>把价格换成你真正付出的时间。</p>
+    </section>
+    <div class="amounts">
+      <div class="amount"><span>¥</span><input id="cnyPrice" type="number" min="0" inputmode="decimal" placeholder="输入人民币价格" autofocus></div>
+      <div class="amount"><span>S$</span><input id="sgdPrice" type="number" min="0" inputmode="decimal" placeholder="输入新币价格"></div>
+    </div>
+    <p class="hint" id="rateHint">输入任意一种货币的价格开始计算</p>
+    <div class="result" id="result"><strong>输入一个价格</strong></div>
+    <section class="stage" id="stage">
+      <article class="card clock-card">
+        <h2>一分钟针</h2><p class="sub">一小时以内</p>
+        <div class="dial" id="minuteDial"><i class="hand"></i></div><div class="clock-value" id="minuteValue">—</div>
+      </article>
+      <article class="card calendar-card">
+        <div class="calendar-top"><div class="calendar-copy"><h2 id="calendarTitle">工作年历</h2><p id="calendarText">输入金额后，工作日会在这里亮起。</p></div><div class="legend"><i class="dot"></i> 工作日</div></div>
+        <div class="months" id="months"></div><div class="calendar-foot" id="calendarFoot"></div>
+      </article>
+      <article class="card clock-card">
+        <h2>一小时时针</h2><p class="sub">一天以内</p>
+        <div class="dial hour" id="hourDial"><i class="hand"></i></div><div class="clock-value" id="hourValue">—</div>
+      </article>
+    </section>
+  </main>
+  <script>
+    const $ = id => document.getElementById(id);
+    const inputs = ['cnySalary','cnyWorkdays','cnyHours','cnyPrice','sgdSalary','sgdWorkdays','sgdHours','sgdPrice'].map($);
+    const today = new Date(), year = today.getFullYear();
+    let activeDays = 0;
+    const money = n => new Intl.NumberFormat('zh-CN',{maximumFractionDigits:0}).format(n);
+    const timeText = hours => {
+      const mins = Math.round(hours * 60);
+      if (mins < 60) return `${mins} 分钟`;
+      const h = Math.floor(mins / 60), m = mins % 60;
+      return m ? `${h} 小时 ${m} 分钟` : `${h} 小时`;
+    };
+    function workSlots(limit) {
+      const slots = [];
+      for (let month=0; month<12 && slots.length<limit; month++) {
+        const days = new Date(year,month+1,0).getDate();
+        for (let day=1; day<=days && slots.length<limit; day++) {
+          const date = new Date(year,month,day), weekday = date.getDay();
+          if (weekday !== 0 && weekday !== 6) slots.push(`${month}-${day}`);
+        }
+      }
+      return new Set(slots);
+    }
+    function renderCalendar() {
+      const selected = workSlots(Math.min(activeDays, 261));
+      const labels = ['日','一','二','三','四','五','六'];
+      $('months').innerHTML = Array.from({length:12}, (_, month) => {
+        const count = new Date(year,month+1,0).getDate(), first = new Date(year,month,1).getDay();
+        const blanks = Array.from({length:first}, () => '<span></span>').join('');
+        const days = Array.from({length:count}, (_, index) => {
+          const day = index+1, key = `${month}-${day}`;
+          const isToday = today.getFullYear()===year && today.getMonth()===month && today.getDate()===day;
+          return `<span class="day${selected.has(key)?' active':''}${isToday?' today':''}">${day}</span>`;
+        }).join('');
+        return `<div class="month"><div class="month-name">${month+1} 月</div><div class="week">${labels.map(x=>`<span>${x}</span>`).join('')}</div><div class="days">${blanks}${days}</div></div>`;
+      }).join('');
+    }
+    let activeCurrency = 'cny';
+    const profiles = {
+      cny: { symbol: '¥', name: '人民币', salary: 'cnySalary', workdays: 'cnyWorkdays', hours: 'cnyHours', price: 'cnyPrice' },
+      sgd: { symbol: 'S$', name: '新币', salary: 'sgdSalary', workdays: 'sgdWorkdays', hours: 'sgdHours', price: 'sgdPrice' }
+    };
+    function update() {
+      const profile = profiles[activeCurrency];
+      const salary = +$(profile.salary).value || 0, workdays = +$(profile.workdays).value || 0, dailyHours = +$(profile.hours).value || 0, price = +$(profile.price).value || 0;
+      const hourly = salary && workdays && dailyHours ? salary / workdays / dailyHours : 0;
+      $('rateHint').textContent = hourly ? `${profile.name}档案 · 按 ${profile.symbol}${money(hourly)} / 小时计算` : '请先在设置中填写你的工资与工时';
+      const hours = hourly && price > 0 ? price / hourly : 0;
+      const mins = Math.min(hours * 60, 60), dayHours = Math.min(hours, dailyHours);
+      $('minuteDial').style.setProperty('--fill', `${mins / 60 * 360}deg`);
+      $('minuteDial').style.setProperty('--hand', `${mins / 60 * 360}deg`);
+      $('hourDial').style.setProperty('--fill', `${dailyHours ? dayHours / dailyHours * 360 : 0}deg`);
+      $('hourDial').style.setProperty('--hand', `${dailyHours ? dayHours / dailyHours * 360 : 0}deg`);
+      $('minuteValue').textContent = hours ? (hours <= 1 ? timeText(hours) : '超过 1 小时') : '—';
+      $('hourValue').textContent = hours ? (hours <= dailyHours ? timeText(hours) : `超过 ${dailyHours} 小时`) : '—';
+      activeDays = hours ? Math.ceil(hours / dailyHours) : 0;
+      if (!hours) { $('result').innerHTML = `<strong>输入${profile.name}价格</strong>`; $('calendarText').textContent = '输入金额后，工作日会在这里亮起。'; $('calendarFoot').textContent = ''; }
+      else if (hours < 1) { $('result').innerHTML = `<strong>${timeText(hours)}</strong><span>不到一小时</span>`; $('calendarText').textContent = '这是一个小时内的投入。'; $('calendarFoot').textContent = ''; }
+      else if (hours < dailyHours) { $('result').innerHTML = `<strong>${timeText(hours)}</strong><span>一段工作日</span>`; $('calendarText').textContent = '这是一天工作时间的一部分。'; $('calendarFoot').textContent = ''; }
+      else { $('result').innerHTML = `<strong>${timeText(hours)}</strong><span>约 ${activeDays} 个工作日</span>`; $('calendarText').textContent = `为买下它，需要点亮 ${activeDays} 个工作日。`; $('calendarFoot').innerHTML = activeDays > 261 ? `<strong>还有 ${activeDays-261} 个工作日</strong> 延续到明年。` : `今年年历中已点亮 <strong>${Math.min(activeDays,261)}</strong> 个工作日。`; }
+      renderCalendar();
+      const settings = {};
+      Object.entries(profiles).forEach(([key, item]) => settings[key] = { salary:+$(item.salary).value || 0, workdays:+$(item.workdays).value || 0, hours:+$(item.hours).value || 0 });
+      localStorage.setItem('time-to-buy-settings', JSON.stringify(settings));
+    }
+    const saved = JSON.parse(localStorage.getItem('time-to-buy-settings') || '{}');
+    Object.entries(profiles).forEach(([key, profile]) => {
+      if (saved[key]?.salary) $(profile.salary).value = saved[key].salary;
+      if (saved[key]?.workdays) $(profile.workdays).value = saved[key].workdays;
+      if (saved[key]?.hours) $(profile.hours).value = saved[key].hours;
+      $(profile.price).addEventListener('focus', () => { activeCurrency = key; update(); });
+      $(profile.price).addEventListener('input', () => { activeCurrency = key; update(); });
+    });
+    inputs.filter(input => !input.id.endsWith('Price')).forEach(input => input.addEventListener('input', update));
+    $('settingsToggle').addEventListener('click', () => { const shown = $('settings').classList.toggle('show'); $('settingsToggle').setAttribute('aria-expanded', shown); });
+    update();
+  </script>
+</body>
+</html>
