@@ -305,7 +305,8 @@
         }
 
         .field-group input,
-        .field-group select {
+        .field-group select,
+        .field-group textarea {
             padding: 10px 12px;
             border: 1px solid var(--border);
             border-radius: 8px;
@@ -317,8 +318,35 @@
         }
 
         .field-group input:focus,
-        .field-group select:focus {
+        .field-group select:focus,
+        .field-group textarea:focus {
             border-color: var(--primary);
+        }
+
+        .field-group textarea { min-height: 64px; resize: vertical; }
+
+        .list-settings { display: flex; flex-direction: column; gap: 10px; }
+
+        .list-setting {
+            display: grid;
+            grid-template-columns: minmax(100px, 0.75fr) minmax(0, 1.5fr) auto;
+            gap: 8px;
+            align-items: start;
+        }
+
+        .list-setting input { min-width: 0; }
+
+        .remove-list {
+            width: 38px;
+            height: 38px;
+            padding: 0;
+            color: var(--danger);
+            font-size: 1.2rem;
+        }
+
+        @media (max-width: 420px) {
+            .list-setting { grid-template-columns: 1fr auto; }
+            .list-setting input:nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
         }
 
         .help {
@@ -439,7 +467,7 @@
             <div class="status" id="status"></div>
 
             <div class="preview" id="preview" style="display: none;">
-                <h3>Preview — please confirm</h3>
+                <h3 id="preview-heading">Preview — please confirm</h3>
                 <div id="preview-fields"></div>
                 <div class="actions" style="margin-top: 16px;">
                     <button class="secondary" id="cancel-btn">Cancel</button>
@@ -496,8 +524,15 @@
                     <input type="text" id="shortcut-name" placeholder="AddReminder" autocomplete="off">
                     <div class="help">
                         Name of the Apple Shortcut to run. It should read a dictionary input with
-                        <strong>title</strong>, <strong>time</strong>, and <strong>note</strong> keys.
+                        <strong>title</strong>, <strong>time</strong>, <strong>note</strong>, and <strong>list</strong> keys.
                     </div>
+                </div>
+
+                <div class="field-group">
+                    <label>Reminder Lists</label>
+                    <div class="help">Add the names of your Apple Reminders lists and what each list is for. AI will select the best matching list when it creates a reminder.</div>
+                    <div class="list-settings" id="list-settings"></div>
+                    <div><button class="secondary small" id="add-list" type="button">Add a list</button></div>
                 </div>
 
                 <div class="help">All keys are stored locally in your browser.</div>
@@ -527,7 +562,7 @@
         </div>
     </div>
 
-    <div class="version">v0.1.8</div>
+    <div class="version">v0.1.9</div>
 
     <script>
         const STORAGE_KEY = 'add-reminder:settings';
@@ -570,7 +605,8 @@
             provider: 'openai',
             model: PROVIDERS.openai.models[0],
             llmKey: '',
-            shortcutName: 'AddReminder'
+            shortcutName: 'AddReminder',
+            reminderLists: []
         };
 
         const els = {
@@ -578,6 +614,7 @@
             parseBtn: document.getElementById('parse-btn'),
             parseActions: document.getElementById('parse-actions'),
             preview: document.getElementById('preview'),
+            previewHeading: document.getElementById('preview-heading'),
             previewFields: document.getElementById('preview-fields'),
             confirmBtn: document.getElementById('confirm-btn'),
             cancelBtn: document.getElementById('cancel-btn'),
@@ -591,6 +628,8 @@
             model: document.getElementById('model'),
             llmKey: document.getElementById('llm-key'),
             shortcutName: document.getElementById('shortcut-name'),
+            listSettings: document.getElementById('list-settings'),
+            addList: document.getElementById('add-list'),
             attachBtn: document.getElementById('attach-btn'),
             imageInput: document.getElementById('image-input'),
             imagePreview: document.getElementById('image-preview'),
@@ -618,6 +657,7 @@
                     loaded.provider = DEFAULTS.provider;
                     loaded.model = DEFAULTS.model;
                 }
+                loaded.reminderLists = normalizeReminderLists(loaded.reminderLists);
                 return loaded;
             } catch {
                 return { ...DEFAULTS };
@@ -646,6 +686,7 @@
             refreshModelOptions(settings.provider, settings.model);
             els.llmKey.value = settings.llmKey;
             els.shortcutName.value = settings.shortcutName || DEFAULTS.shortcutName;
+            renderListSettings(settings.reminderLists);
             hideShare();
             els.settingsModal.classList.add('show');
         }
@@ -673,6 +714,55 @@
             return true;
         }
 
+        function normalizeReminderLists(lists) {
+            if (!Array.isArray(lists)) return [];
+            const usedNames = new Set();
+            return lists.reduce((valid, list) => {
+                const name = typeof list?.name === 'string' ? list.name.trim() : '';
+                const meaning = typeof list?.meaning === 'string' ? list.meaning.trim() : '';
+                if (!name || usedNames.has(name.toLocaleLowerCase())) return valid;
+                usedNames.add(name.toLocaleLowerCase());
+                valid.push({ name, meaning });
+                return valid;
+            }, []);
+        }
+
+        function addListSetting(list = {}) {
+            const row = document.createElement('div');
+            row.className = 'list-setting';
+            const name = document.createElement('input');
+            name.type = 'text';
+            name.placeholder = 'List name';
+            name.value = list.name || '';
+            name.setAttribute('aria-label', 'Reminder list name');
+            const meaning = document.createElement('input');
+            meaning.type = 'text';
+            meaning.placeholder = 'What belongs here?';
+            meaning.value = list.meaning || '';
+            meaning.setAttribute('aria-label', 'Reminder list meaning');
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'secondary small remove-list';
+            remove.title = 'Remove list';
+            remove.setAttribute('aria-label', 'Remove list');
+            remove.textContent = '×';
+            remove.addEventListener('click', () => row.remove());
+            row.append(name, meaning, remove);
+            els.listSettings.appendChild(row);
+        }
+
+        function renderListSettings(lists = []) {
+            els.listSettings.innerHTML = '';
+            normalizeReminderLists(lists).forEach(addListSetting);
+        }
+
+        function readListSettings() {
+            return normalizeReminderLists([...els.listSettings.querySelectorAll('.list-setting')].map(row => ({
+                name: row.children[0].value,
+                meaning: row.children[1].value
+            })));
+        }
+
         // ---------- Reminder tool schema ----------
         const REMINDER_TOOL = {
             type: 'function',
@@ -687,6 +777,10 @@
                         time: {
                             type: 'string',
                             description: 'When to alert. ISO 8601 with timezone offset, e.g. 2025-05-06T09:00:00+0800. When the user only mentioned a date with no time-of-day, default the time-of-day to 23:00 local. Omit entirely if the user did not mention a date or time.'
+                        },
+                        list: {
+                            type: 'string',
+                            description: 'Exact name of the best matching configured Apple Reminders list. Omit if no configured list is clearly suitable.'
                         }
                     },
                     required: ['title']
@@ -697,9 +791,15 @@
         function buildSystemPrompt() {
             const now = new Date();
             const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            const listInstructions = settings.reminderLists.length
+                ? settings.reminderLists.map(list => `- "${list.name}": ${list.meaning || 'No description provided.'}`).join('\n')
+                : '- No lists have been configured.';
             return `You convert natural-language descriptions into Apple Reminder parameters.
 Current local time: ${now.toString()}
 User timezone: ${tz}
+
+Configured Apple Reminders lists:
+${listInstructions}
 
 Rules:
 - Always call the create_reminder tool.
@@ -711,6 +811,7 @@ Rules:
 - Date-only inputs: if the user gave ONLY a date with no time-of-day (e.g. "today", "tomorrow", "明天", "下周一", "May 6"), default the time-of-day to 23:00 local. Examples: "remind me today" → time "2026-06-01T23:00:00+0800"; "明天交报告" → time "2026-06-02T23:00:00+0800".
 - Bare time-of-day words without an explicit date refer to TODAY and DO count as a time-of-day. Map them to a concrete local time: "morning"/"上午" → 09:00, "noon"/"中午" → 12:00, "afternoon"/"下午" → 15:00, "evening"/"tonight"/"晚上" → 20:00, "late night"/"深夜" → 23:00. If the user gives an explicit time alongside the word (e.g. "下午3点", "tonight at 9"), use that exact time on today's date instead of the default.
 - The user may attach an image (often a screenshot of a message, document, or list). Read the image content and extract the reminder from it. Apply all the rules above to whatever the image shows — still do not invent a time that is not visible in the image or accompanying text.
+- List: choose the most appropriate configured Apple Reminders list and return its exact name in the list field. Only select a configured list. If no lists are configured, or none is a clear match, omit the list field.
 - Omit any field the user did not specify rather than guessing.`;
         }
 
@@ -781,6 +882,7 @@ Rules:
             const dict = { title: reminder.title };
             if (reminder.time) dict.time = reminder.time;
             if (reminder.note) dict.note = reminder.note;
+            if (reminder.list) dict.list = reminder.list;
             const name = settings.shortcutName || DEFAULTS.shortcutName;
             return `shortcuts://run-shortcut?name=${encodeURIComponent(name)}&input=${encodeURIComponent(JSON.stringify(dict))}`;
         }
@@ -809,11 +911,15 @@ Rules:
         }
 
         function renderPreview(reminder) {
+            const destination = reminder.list ? `Ready to add this reminder to “${reminder.list}”` : 'Preview — please confirm';
+            els.previewHeading.textContent = destination;
+            els.confirmBtn.textContent = reminder.list ? `Add to “${reminder.list}”` : 'Add to Reminders';
             els.previewFields.innerHTML = '';
             const fields = [
                 ['Title', reminder.title],
                 ['Note', reminder.note],
                 ['Time', reminder.time ? formatDateTime(reminder.time) : null],
+                ['List', reminder.list],
             ];
             for (const [k, v] of fields) {
                 if (v == null || v === '') continue;
@@ -838,6 +944,19 @@ Rules:
                 val.className = 'val';
                 val.style.color = 'var(--text-secondary)';
                 val.textContent = 'No alert (no time given)';
+                row.append(key, val);
+                els.previewFields.appendChild(row);
+            }
+            if (!reminder.list) {
+                const row = document.createElement('div');
+                row.className = 'field';
+                const key = document.createElement('div');
+                key.className = 'key';
+                key.textContent = 'List';
+                const val = document.createElement('div');
+                val.className = 'val';
+                val.style.color = 'var(--text-secondary)';
+                val.textContent = 'No list selected';
                 row.append(key, val);
                 els.previewFields.appendChild(row);
             }
@@ -978,7 +1097,8 @@ Rules:
                     provider: els.provider.value,
                     model: els.model.value,
                     llmKey: els.llmKey.value.trim(),
-                    shortcutName: els.shortcutName.value.trim()
+                    shortcutName: els.shortcutName.value.trim(),
+                    reminderLists: readListSettings()
                 });
                 els.shareBlob.value = blob;
                 els.shareBlob.select();
@@ -1016,6 +1136,7 @@ Rules:
                 }
                 if (typeof obj.llmKey === 'string') els.llmKey.value = obj.llmKey;
                 if (typeof obj.shortcutName === 'string' && obj.shortcutName) els.shortcutName.value = obj.shortcutName;
+                if (Array.isArray(obj.reminderLists)) renderListSettings(obj.reminderLists);
                 setShareStatus('Imported into the form. Click Save to apply.', 'success');
                 els.shareBlob.value = '';
             } catch (e) {
@@ -1035,12 +1156,15 @@ Rules:
             refreshModelOptions(els.provider.value, els.model.value);
         });
 
+        els.addList.addEventListener('click', () => addListSetting());
+
         els.saveSettings.addEventListener('click', () => {
             saveSettings({
                 provider: els.provider.value,
                 model: els.model.value,
                 llmKey: els.llmKey.value.trim(),
-                shortcutName: els.shortcutName.value.trim() || DEFAULTS.shortcutName
+                shortcutName: els.shortcutName.value.trim() || DEFAULTS.shortcutName,
+                reminderLists: readListSettings()
             });
             updateAttachVisibility();
             closeSettings();
@@ -1125,7 +1249,8 @@ Rules:
             setStatus('<span class="spinner"></span>Opening Shortcuts…', 'info');
             try {
                 runShortcut(pendingReminder);
-                setStatus(`Sent to “${settings.shortcutName || DEFAULTS.shortcutName}”: ${pendingReminder.title}`, 'success');
+                const destination = pendingReminder.list ? ` to list “${pendingReminder.list}”` : '';
+                setStatus(`Sent${destination} via “${settings.shortcutName || DEFAULTS.shortcutName}”: ${pendingReminder.title}`, 'success');
                 els.input.value = '';
                 autoResizeInput();
                 clearImage();
