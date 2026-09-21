@@ -524,7 +524,7 @@
                     <input type="text" id="shortcut-name" placeholder="AddReminder" autocomplete="off">
                     <div class="help">
                         Name of the Apple Shortcut to run. It should read a dictionary input with
-                        <strong>title</strong>, <strong>time</strong>, <strong>note</strong>, and <strong>list</strong> keys.
+                        <strong>title</strong>, <strong>time</strong>, <strong>note</strong>, and <strong>l</strong> keys.
                     </div>
                 </div>
 
@@ -788,6 +788,31 @@
             }
         };
 
+        function buildReminderTool() {
+            const hasLists = settings.reminderLists.length > 0;
+            const properties = { ...REMINDER_TOOL.function.parameters.properties };
+            if (hasLists) {
+                properties.list = {
+                    type: 'string',
+                    enum: settings.reminderLists.map(list => list.name),
+                    description: 'Exact name of the best matching configured Apple Reminders list. Always choose one when lists are configured.'
+                };
+            } else {
+                delete properties.list;
+            }
+            return {
+                ...REMINDER_TOOL,
+                function: {
+                    ...REMINDER_TOOL.function,
+                    parameters: {
+                        ...REMINDER_TOOL.function.parameters,
+                        properties,
+                        required: hasLists ? ['title', 'list'] : ['title']
+                    }
+                }
+            };
+        }
+
         function buildSystemPrompt() {
             const now = new Date();
             const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -811,8 +836,8 @@ Rules:
 - Date-only inputs: if the user gave ONLY a date with no time-of-day (e.g. "today", "tomorrow", "明天", "下周一", "May 6"), default the time-of-day to 23:00 local. Examples: "remind me today" → time "2026-06-01T23:00:00+0800"; "明天交报告" → time "2026-06-02T23:00:00+0800".
 - Bare time-of-day words without an explicit date refer to TODAY and DO count as a time-of-day. Map them to a concrete local time: "morning"/"上午" → 09:00, "noon"/"中午" → 12:00, "afternoon"/"下午" → 15:00, "evening"/"tonight"/"晚上" → 20:00, "late night"/"深夜" → 23:00. If the user gives an explicit time alongside the word (e.g. "下午3点", "tonight at 9"), use that exact time on today's date instead of the default.
 - The user may attach an image (often a screenshot of a message, document, or list). Read the image content and extract the reminder from it. Apply all the rules above to whatever the image shows — still do not invent a time that is not visible in the image or accompanying text.
-- List: choose the most appropriate configured Apple Reminders list and return its exact name in the list field. Only select a configured list. If no lists are configured, or none is a clear match, omit the list field.
-- Omit any field the user did not specify rather than guessing.`;
+- List: when one or more lists are configured, you MUST always return the exact name of the best matching configured Apple Reminders list in the list field. Choose based on the reminder's action and subject, independently of whether it has a date or time. Never omit list merely because no time was provided; select the closest appropriate list even if the match is not perfect. Only omit list if no lists are configured.
+- Omit any field the user did not specify rather than guessing, except list when lists are configured.`;
         }
 
         async function callLLM(text, imageDataUrl) {
@@ -834,7 +859,7 @@ Rules:
                     { role: 'system', content: buildSystemPrompt() },
                     { role: 'user', content: userContent }
                 ],
-                tools: [REMINDER_TOOL],
+                tools: [buildReminderTool()],
                 tool_choice: { type: 'function', function: { name: 'create_reminder' } }
             };
 
@@ -882,7 +907,7 @@ Rules:
             const dict = { title: reminder.title };
             if (reminder.time) dict.time = reminder.time;
             if (reminder.note) dict.note = reminder.note;
-            if (reminder.list) dict.list = reminder.list;
+            if (reminder.list) dict.l = reminder.list;
             const name = settings.shortcutName || DEFAULTS.shortcutName;
             return `shortcuts://run-shortcut?name=${encodeURIComponent(name)}&input=${encodeURIComponent(JSON.stringify(dict))}`;
         }
