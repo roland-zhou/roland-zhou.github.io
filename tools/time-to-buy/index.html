@@ -41,6 +41,15 @@
     .result { display:flex; justify-content:center; gap:8px; align-items:baseline; margin:0 0 31px; }
     .result strong { font-size:clamp(32px,5vw,48px); letter-spacing:-.06em; }
     .result span { color:var(--muted); }
+    .earnings { max-width:720px; margin:0 auto 34px; padding:18px; border:1px solid var(--line); border-radius:17px; background:#f3f1ee; }
+    .earnings-head { display:flex; align-items:baseline; justify-content:space-between; gap:14px; margin-bottom:13px; }
+    .earnings h2 { margin:0; font-size:15px; }
+    .earnings p { margin:0; color:var(--muted); font-size:12px; }
+    .minutes-input { width:100%; max-width:250px; }
+    .earnings-results { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .earning { padding:13px; border-radius:11px; background:#fff; border:1px solid #e5e1dc; }
+    .earning-label { color:var(--muted); font-size:12px; }
+    .earning-value { display:block; margin-top:3px; font-size:22px; font-weight:750; letter-spacing:-.04em; }
     .stage { display:grid; grid-template-columns:220px minmax(0,1fr) 220px; gap:18px; align-items:start; }
     .card { background:var(--panel); border:1px solid var(--line); border-radius:20px; box-shadow:var(--shadow); padding:20px; }
     .clock-card { text-align:center; }
@@ -69,7 +78,7 @@
     .calendar-foot strong { color:var(--ink); }
     .empty { color:var(--muted); text-align:center; padding:100px 0; }
     @media (max-width:860px) { .stage { grid-template-columns:1fr 1fr; } .calendar-card { grid-column:1 / -1; } }
-    @media (max-width:560px) { .app { padding:18px 14px 40px; } header { margin-bottom:25px; } .profiles,.setting-fields,.stage,.amounts { grid-template-columns:1fr; } .calendar-card { grid-column:auto; } .months { grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px; } .clock-card { display:grid; grid-template-columns:1fr 1fr; align-items:center; text-align:left; } .clock-card h2,.clock-card .sub,.clock-value { grid-column:1; } .dial { grid-column:2; grid-row:1 / 4; width:126px; height:126px; margin:auto; } .hand { height:43px; } }
+    @media (max-width:560px) { .app { padding:18px 14px 40px; } header { margin-bottom:25px; } .profiles,.setting-fields,.stage,.amounts,.earnings-results { grid-template-columns:1fr; } .earnings-head { align-items:stretch; flex-direction:column; } .minutes-input { max-width:none; } .calendar-card { grid-column:auto; } .months { grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px; } .clock-card { display:grid; grid-template-columns:1fr 1fr; align-items:center; text-align:left; } .clock-card h2,.clock-card .sub,.clock-value { grid-column:1; } .dial { grid-column:2; grid-row:1 / 4; width:126px; height:126px; margin:auto; } .hand { height:43px; } }
   </style>
 </head>
 <body>
@@ -100,6 +109,13 @@
     </div>
     <p class="hint" id="rateHint">输入任意一种货币的价格开始计算</p>
     <div class="result" id="result"><strong>输入一个价格</strong></div>
+    <section class="earnings" aria-labelledby="earningsTitle">
+      <div class="earnings-head"><div><h2 id="earningsTitle">这段时间，值多少钱？</h2><p>使用上方两套工作档案同时换算。</p></div><input class="minutes-input" id="workMinutes" type="number" min="0" inputmode="decimal" placeholder="输入工作分钟数"></div>
+      <div class="earnings-results">
+        <div class="earning"><span class="earning-label">人民币工资</span><strong class="earning-value" id="cnyEarnings">—</strong></div>
+        <div class="earning"><span class="earning-label">新币工资</span><strong class="earning-value" id="sgdEarnings">—</strong></div>
+      </div>
+    </section>
     <section class="stage" id="stage">
       <article class="card clock-card">
         <h2>一分钟针</h2><p class="sub">一小时以内</p>
@@ -117,10 +133,11 @@
   </main>
   <script>
     const $ = id => document.getElementById(id);
-    const inputs = ['cnySalary','cnyWorkdays','cnyHours','cnyPrice','sgdSalary','sgdWorkdays','sgdHours','sgdPrice'].map($);
+    const inputs = ['cnySalary','cnyWorkdays','cnyHours','cnyPrice','sgdSalary','sgdWorkdays','sgdHours','sgdPrice','workMinutes'].map($);
     const today = new Date(), year = today.getFullYear();
     let activeDays = 0;
     const money = n => new Intl.NumberFormat('zh-CN',{maximumFractionDigits:0}).format(n);
+    const moneyExact = n => new Intl.NumberFormat('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
     const timeText = hours => {
       const mins = Math.round(hours * 60);
       if (mins < 60) return `${mins} 分钟`;
@@ -157,6 +174,14 @@
       cny: { symbol: '¥', name: '人民币', salary: 'cnySalary', workdays: 'cnyWorkdays', hours: 'cnyHours', price: 'cnyPrice' },
       sgd: { symbol: 'S$', name: '新币', salary: 'sgdSalary', workdays: 'sgdWorkdays', hours: 'sgdHours', price: 'sgdPrice' }
     };
+    function updateEarnings() {
+      const minutes = +$('workMinutes').value || 0;
+      Object.entries(profiles).forEach(([key, profile]) => {
+        const salary = +$(profile.salary).value || 0, workdays = +$(profile.workdays).value || 0, hours = +$(profile.hours).value || 0;
+        const hourly = salary && workdays && hours ? salary / workdays / hours : 0;
+        $(key + 'Earnings').textContent = minutes && hourly ? `${profile.symbol}${moneyExact(minutes / 60 * hourly)}` : '—';
+      });
+    }
     function update() {
       const profile = profiles[activeCurrency];
       const salary = +$(profile.salary).value || 0, workdays = +$(profile.workdays).value || 0, dailyHours = +$(profile.hours).value || 0, price = +$(profile.price).value || 0;
@@ -176,6 +201,7 @@
       else if (hours < dailyHours) { $('result').innerHTML = `<strong>${timeText(hours)}</strong><span>一段工作日</span>`; $('calendarText').textContent = '这是一天工作时间的一部分。'; $('calendarFoot').textContent = ''; }
       else { $('result').innerHTML = `<strong>${timeText(hours)}</strong><span>约 ${activeDays} 个工作日</span>`; $('calendarText').textContent = `为买下它，需要点亮 ${activeDays} 个工作日。`; $('calendarFoot').innerHTML = activeDays > 261 ? `<strong>还有 ${activeDays-261} 个工作日</strong> 延续到明年。` : `今年年历中已点亮 <strong>${Math.min(activeDays,261)}</strong> 个工作日。`; }
       renderCalendar();
+      updateEarnings();
       const settings = {};
       Object.entries(profiles).forEach(([key, item]) => settings[key] = { salary:+$(item.salary).value || 0, workdays:+$(item.workdays).value || 0, hours:+$(item.hours).value || 0 });
       localStorage.setItem('time-to-buy-settings', JSON.stringify(settings));
