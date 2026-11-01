@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="terrain" x1="0" y1="1" x2=".3" y2="0">
+      <stop stop-color="#7850f0"/>
+      <stop offset=".25" stop-color="#3783ff"/>
+      <stop offset=".45" stop-color="#10cfdf"/>
+      <stop offset=".6" stop-color="#29d885"/>
+      <stop offset=".78" stop-color="#ffe34b"/>
+      <stop offset="1" stop-color="#ff5363"/>
+    </linearGradient>
+    <clipPath id="surface">
+      <path d="M6 40C12 37 14 16 21 15S28 42 35 39 44 17 49 20 55 32 58 34L36 54Z"/>
+    </clipPath>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#111827"/>
+  <path d="M6 40C12 37 14 16 21 15S28 42 35 39 44 17 49 20 55 32 58 34L36 54Z" fill="url(#terrain)"/>
+  <g clip-path="url(#surface)" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="1">
+    <path d="M2 35Q19 20 31 36T63 29M2 42Q19 27 31 43T63 36M8 49Q25 34 37 50T69 43"/>
+    <path d="M16 10 10 48M24 10 23 52M34 12 36 58M44 12 49 51M51 15 60 43"/>
+  </g>
+</svg>

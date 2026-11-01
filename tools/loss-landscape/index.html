@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
+    <meta name="description" content="随机生成彩色三维损失曲面，观察梯度下降，并生成只展示当前曲面的预览链接。">
+    <title>Loss Landscape · 随机 3D 梯度下降</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" href="style.css">
+    <script src="vendor/three.min.js" defer></script>
+    <script src="app.js" defer></script>
+</head>
+<body>
+<main>
+    <a class="back" href="../">← All tools</a>
+<div id="loss-landscape">
+  <h1>梯度下降 · 10 × 10 × 10</h1>
+  <div class="viz-controls">
+    <label class="form-label" for="loss-seed">随机种子<input id="loss-seed" class="form-control" type="number" min="0" max="4294967295" step="1" value="20261101"></label>
+    <button id="loss-random" class="btn" type="button">随机生成</button>
+    <button id="loss-preview" class="btn" type="button">生成预览链接</button>
+    <span id="loss-features" class="text-small" aria-live="polite"></span>
+  </div>
+  <div id="loss-preview-output" class="viz-controls preview-output" hidden>
+    <label class="form-label" for="loss-preview-link">预览链接<input id="loss-preview-link" class="form-control" type="url" readonly></label>
+    <button id="loss-preview-copy" class="btn" type="button">复制链接</button>
+    <a id="loss-preview-open" href="#" target="_blank" rel="noopener">打开预览 ↗</a>
+    <span id="loss-copy-status" class="text-small" role="status"></span>
+  </div>
+  <div class="scene" role="img" aria-label="可旋转的三维损失曲面，位于10乘10乘10立方体内；低谷到山峰按紫、蓝、青、绿、黄、橙、红连续渐变。曲面上的路线展示梯度下降。">
+    <canvas aria-label="拖动旋转，滚轮缩放">三维损失曲面</canvas>
+    <span class="axis text-small" data-point="-5,0,5">0</span>
+    <span class="axis text-small" data-point="5,0,5">θ₁ · 10</span>
+    <span class="axis text-small" data-point="-5,0,-5">θ₂ · 10</span>
+    <span class="axis text-small" data-point="-5,10,5">Loss · 10</span>
+  </div>
+  <div class="altitude text-small"><span>低谷 · 0</span><div class="ramp" aria-hidden="true"></div><span>高峰 · 10</span></div>
+  <div class="viz-controls">
+    <button class="btn btn-primary" type="button" id="loss-play">播放下降</button>
+    <label class="form-label" for="loss-step">训练步数 <output id="loss-step-value" class="tabular-nums">0</output><input id="loss-step" class="form-range" type="range" min="0" max="160" value="0"></label>
+    <span id="loss-value" class="tabular-nums text-small"></span>
+    <span id="loss-announcement" class="sr-only" aria-live="polite"></span>
+  </div>
+  <p id="loss-error" class="text-destructive" role="alert" hidden></p>
+</div>
+    <p class="hint">拖动旋转 · 滚轮缩放。生成的链接只展示当前曲面，保留生成时的视角，可直接分享。</p>
+</main>
+</body>
+</html>
