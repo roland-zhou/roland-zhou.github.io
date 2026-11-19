@@ -3,8 +3,18 @@ import {
     exportOPML, importOPML, isValidMap, nextColor, sampleMap, subtreeIds, visibleChildren,
 } from './model.js';
 
-const STORE = 'mymindc.v1';
-const FOCUS_STORE = 'mymindc.focus';
+const STORE = 'mymind.v1';
+const FOCUS_STORE = 'mymind.focus';
+
+// One-time migration from the old MyMindC keys so existing maps survive the rename.
+try {
+    for (const [from, to] of [['mymindc.v1', STORE], ['mymindc.focus', FOCUS_STORE]]) {
+        const legacy = localStorage.getItem(from);
+        if (legacy !== null && localStorage.getItem(to) === null) localStorage.setItem(to, legacy);
+        if (legacy !== null) localStorage.removeItem(from);
+    }
+} catch { /* storage unavailable */ }
+
 const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 3;
 const MARGIN = 14;
@@ -323,7 +333,7 @@ function renderChrome() {
     const map = activeMap();
     const title = map.root.text.trim() || '未命名导图';
     $('map-title').textContent = title;
-    document.title = `${title} · MyMindC`;
+    document.title = `${title} · MyMind`;
     updateHistoryButtons();
     updateNodeBar();
     syncNote();

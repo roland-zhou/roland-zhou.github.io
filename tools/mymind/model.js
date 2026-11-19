@@ -1,7 +1,7 @@
-// Pure data helpers for MyMindC: tree model, layout and OPML.
+// Pure data helpers for MyMind: tree model, layout and OPML.
 
 export const PALETTE_SIZE = 6;
-const NS = 'https://rolandzhou.xyz/tools/mymindc/';
+const NS = 'https://rolandzhou.xyz/tools/mymind/';
 
 export function uid() {
     if (globalThis.crypto?.randomUUID) return crypto.randomUUID();
@@ -97,7 +97,7 @@ export function computeLayout(root, sizes) {
 }
 
 export function sampleMap() {
-    const map = createMap('MyMindC');
+    const map = createMap('MyMind');
     const n = (text, extra = {}, children = []) => createNode(text, { ...extra, children });
     map.root.children = [
         n('快速开始', { side: 'right', color: 0 }, [n('Tab 新建子节点'), n('Enter 新建同级节点'), n('双击或按空格编辑')]),
@@ -125,10 +125,10 @@ export function exportOPML(map) {
         let attrs = ` text="${esc(node.text)}"`;
         if (node.note) attrs += ` _note="${esc(node.note)}"`;
         if (node.task) attrs += ` _status="${node.task === 'done' ? 'checked' : 'unchecked'}"`;
-        if (node.folded && node.children.length) attrs += ' mmc:folded="true"';
+        if (node.folded && node.children.length) attrs += ' mm:folded="true"';
         if (depth === 1) {
-            attrs += ` mmc:side="${node.side === 'left' ? 'left' : 'right'}"`;
-            if (Number.isInteger(node.color)) attrs += ` mmc:color="${node.color}"`;
+            attrs += ` mm:side="${node.side === 'left' ? 'left' : 'right'}"`;
+            if (Number.isInteger(node.color)) attrs += ` mm:color="${node.color}"`;
         }
         if (!node.children.length) return `${indent}<outline${attrs}/>`;
         return [
@@ -139,7 +139,7 @@ export function exportOPML(map) {
     };
     return [
         '<?xml version="1.0" encoding="UTF-8"?>',
-        `<opml version="2.0" xmlns:mmc="${NS}">`,
+        `<opml version="2.0" xmlns:mm="${NS}">`,
         '  <head>',
         `    <title>${esc(map.root.text || '未命名导图')}</title>`,
         `    <dateModified>${new Date(map.updated || Date.now()).toUTCString()}</dateModified>`,
