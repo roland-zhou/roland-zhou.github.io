@@ -149,24 +149,37 @@ svg use { pointer-events: none; }
 }
 .node.done .wait { background: var(--due-neutral-bg); color: var(--due-neutral-ink); }
 /* The label, not the icon, sets the baseline so the pill lines up with the title text. */
-.hourglass { display: inline-block; width: 1.15em; height: 1.15em; margin-right: .2em; vertical-align: -.22em; overflow: visible; animation: hourglass-flip 6s infinite; }
-.hourglass .glass { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.hourglass { display: inline-block; width: 1.2em; height: 1.2em; margin-right: .2em; vertical-align: -.24em; overflow: visible; }
+.hourglass .glass { fill: color-mix(in srgb, currentColor 14%, transparent); stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .hourglass .sand { fill: currentColor; stroke: none; transform-box: fill-box; }
-/* Top sand sinks into the neck, bottom sand piles up, then the glass turns over.
-   Turned over, it looks exactly like the start, so the loop is seamless. */
-.hourglass .top { transform-origin: 50% 100%; animation: sand-drain 6s linear infinite; }
-.hourglass .bottom { transform-origin: 50% 100%; animation: sand-fill 6s linear infinite; }
-.hourglass .stream { animation: sand-stream 6s linear infinite; }
-@keyframes hourglass-flip {
-    0%, 84% { transform: rotate(0); }
-    96%, 100% { transform: rotate(180deg); }
+/* At rest the hourglass is still, with the sand at the bottom. */
+.hourglass .top { transform-origin: 50% 100%; transform: scale(0); }
+.hourglass .bottom { transform-origin: 50% 100%; }
+.hourglass .stream { opacity: 0; }
+/* When the time moves on, the glass turns over (the full bottom becomes a full top),
+   then the sand runs back down and it settles where it started. */
+.hourglass.flip { animation: hourglass-turn 2.4s; }
+.hourglass.flip .top { animation: sand-drain 2.4s; }
+.hourglass.flip .bottom { animation: sand-fill 2.4s; }
+.hourglass.flip .stream { animation: sand-stream 2.4s; }
+@keyframes hourglass-turn {
+    0% { transform: rotate(0); animation-timing-function: cubic-bezier(.5, 0, .3, 1.25); }
+    25% { transform: rotate(180deg); animation-timing-function: step-end; }
+    25.1%, 100% { transform: rotate(0); }
 }
-@keyframes sand-drain { 0% { transform: scale(1); } 80%, 100% { transform: scale(0); } }
-@keyframes sand-fill { 0% { transform: scale(.15); } 80%, 100% { transform: scale(1); } }
-@keyframes sand-stream { 0%, 78% { opacity: .9; } 81%, 100% { opacity: 0; } }
-.node.done .hourglass, .node.done .hourglass .sand { animation: none; }
+@keyframes sand-drain {
+    0%, 25% { transform: scale(0); animation-timing-function: step-end; }
+    25.1% { transform: scale(1); animation-timing-function: ease-in; }
+    100% { transform: scale(0); }
+}
+@keyframes sand-fill {
+    0%, 25% { transform: scale(1); animation-timing-function: step-end; }
+    25.1% { transform: scale(0); animation-timing-function: ease-out; }
+    100% { transform: scale(1); }
+}
+@keyframes sand-stream { 0%, 27% { opacity: 0; } 30%, 94% { opacity: .9; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
-    .hourglass, .hourglass .sand { animation: none; }
+    .hourglass.flip, .hourglass.flip .sand { animation: none; }
 }
 .node .check, .node .note-mark {
     display: grid; place-items: center; flex: none;

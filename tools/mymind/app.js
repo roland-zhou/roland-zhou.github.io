@@ -260,13 +260,22 @@ function fillText(el, node) {
     el.replaceChildren(...parts);
 }
 
-// An hourglass whose sand runs down and then flips over, drawn inline so the sand can move.
+// A plump hourglass, drawn inline so the sand can move. At rest all the sand is at the bottom.
+// The top and bottom sand are mirror images, so the glass turned over looks like a full top.
 const HOURGLASS = `<svg class="hourglass" viewBox="0 0 24 24" aria-hidden="true">
-    <path class="glass" d="M6.5 3.5h11M6.5 20.5h11M8 3.5c0 4.6 3 5.8 3 8.5s-3 3.9-3 8.5M16 3.5c0 4.6-3 5.8-3 8.5s3 3.9 3 8.5"/>
-    <path class="sand top" d="M9 7h6c-.4 1.9-1.9 3.1-3 4.4C10.9 10.1 9.4 8.9 9 7z"/>
-    <path class="sand bottom" d="M8.7 19.3c.5-2 1.9-3.3 3.3-3.6 1.4.3 2.8 1.6 3.3 3.6z"/>
-    <path class="sand stream" d="M11.6 11.6h.8v6.5h-.8z"/>
+    <path class="glass" d="M5 3h14M5 21h14M6.4 3c0 5.2 4.6 6.6 4.6 9s-4.6 3.8-4.6 9h11.2c0-5.2-4.6-6.6-4.6-9s4.6-3.8 4.6-9z"/>
+    <path class="sand top" d="M16.4 5.2H7.6c.5 2.6 2.6 4.4 4.4 5.6 1.8-1.2 3.9-3 4.4-5.6z"/>
+    <path class="sand bottom" d="M7.6 18.8h8.8c-.5-2.6-2.6-4.4-4.4-5.6-1.8 1.2-3.9 3-4.4 5.6z"/>
+    <path class="sand stream" d="M11.55 11h.9v7h-.9z"/>
 </svg>`;
+
+// Turn the hourglass over once, e.g. when the waiting time moves on to the next step.
+function flipHourglass(badge) {
+    const glass = badge.querySelector('.hourglass');
+    glass.classList.remove('flip');
+    void glass.getBoundingClientRect();   // restart the animation if it is still running
+    glass.classList.add('flip');
+}
 
 function waitBadge(since, done) {
     const badge = document.createElement('span');
@@ -296,7 +305,9 @@ function paintWait(badge, now = Date.now()) {
         const days = (now - badge.since) / 864e5;
         badge.style.setProperty('--wait-mix', `${Math.round(clamp01((days - 1) / 6) * 100)}%`);
     }
-    return label.textContent !== before;
+    const changed = label.textContent !== before;
+    if (changed && before && !badge.done) flipHourglass(badge);
+    return changed;
 }
 
 const clamp01 = x => Math.min(1, Math.max(0, x));
