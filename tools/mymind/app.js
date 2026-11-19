@@ -54,7 +54,11 @@ const checked = new Set();
 const histories = new Map();
 let noteSession = null;
 let noteFor = null;
-let focusMode = localStorage.getItem(FOCUS_STORE) === '1';
+// 'off', 'focus' (dim everything off the selection's path) or 'fade' (older selection
+// paths fade out gradually). Stored as '0' / '1' / 'fade' so old '1' values still mean focus.
+let viewMode = { 1: 'focus', fade: 'fade' }[localStorage.getItem(FOCUS_STORE)] ?? 'off';
+const FADE_STEPS = 10;          // current selection + 9 previous ones
+let fadeTrail = [];             // recent selections (current one first), each an array of ids
 
 const activeMap = () => state.maps.find(m => m.id === state.activeId);
 const nodeEl = id => nodesEl.querySelector(`.node[data-id="${CSS.escape(id)}"]`);
@@ -201,7 +205,7 @@ function controls(node, side, isRoot) {
 
 // Nodes are created already dimmed when needed, so a re-render never flashes them
 // bright and then fades them back out.
-function buildNode({ node, depth, side, color }, keep = focusKeep()) {
+function buildNode({ node, depth, side, color }, levels = shadeLevels()) {
     const el = document.createElement('div');
     el.className = `node d${Math.min(depth, 2)}`;
     el.dataset.id = node.id;
@@ -226,7 +230,7 @@ function buildNode({ node, depth, side, color }, keep = focusKeep()) {
     if (depth === 0) el.append(controls(node, 'left', true), controls(node, 'right', true));
     else el.append(controls(node, side, false));
     if (selection.has(node.id)) el.classList.add('selected');
-    if (keep && !keep.has(node.id)) el.classList.add('dimmed');
+    shade(el, levels);
     return el;
 }
 
@@ -236,8 +240,8 @@ function render() {
     const kept = [...selection].filter(id => index.has(id));
     setSelection(kept, index.has(selectedId) ? selectedId : kept.at(-1) ?? null, false);
     const fragment = document.createDocumentFragment();
-    const keep = focusKeep();
-    for (const info of index.values()) fragment.append(buildNode(info, keep));
+    const levels = shadeLevels();
+    for (const info of index.values()) fragment.append(buildNode(info, levels));
     nodesEl.replaceChildren(fragment);
     relayout();
     renderChrome();
@@ -256,42 +260,77 @@ function relayout() {
     positionNote();
 }
 
-// In focus mode only the selected nodes, their ancestors and all their descendants stay
-// at full strength. With nothing selected every node is shown normally.
-// Ids that stay at full strength, or null when nothing should be dimmed.
-function focusKeep() {
-    if (!focusMode || !selection.size || drag?.kind === 'marquee') return null;
-    const keep = new Set();
-    for (const id of selection) {
+// A selection's path is the selected nodes, their ancestors and all their descendants.
+function addPath(ids, into, level) {
+    for (const id of ids) {
         const info = index.get(id);
         if (!info) continue;
-        for (let p = info.parent; p; p = index.get(p.id).parent) keep.add(p.id);
-        for (const sub of subtreeIds(info.node)) keep.add(sub);
+        for (let p = info.parent; p; p = index.get(p.id).parent) if (!into.has(p.id)) into.set(p.id, level);
+        for (const sub of subtreeIds(info.node)) if (!into.has(sub)) into.set(sub, level);
     }
-    return keep.size ? keep : null;
 }
 
-function applyFocus(keep = focusKeep()) {
-    for (const el of nodesEl.children) el.classList.toggle('dimmed', Boolean(keep && !keep.has(el.dataset.id)));
-    for (const el of links.children) el.classList.toggle('dimmed', Boolean(keep && !keep.has(el.dataset.id)));
+// Map of id -> level (0 = current selection's path, 1 = previous selection's path, ...),
+// or null when nothing should be shaded. Ids missing from the map are fully dimmed.
+// With nothing selected, focus mode dims every node and fade mode keeps showing the
+// trail as it was, with the last selection's path still at full strength.
+function shadeLevels() {
+    if (viewMode === 'off' || drag?.kind === 'marquee') return null;
+    const levels = new Map();
+    addPath(selection, levels, 0);
+    if (viewMode === 'fade') fadeTrail.forEach((ids, i) => addPath(ids, levels, i));
+    return levels;
 }
 
-function setFocusMode(on) {
-    focusMode = on;
-    try { localStorage.setItem(FOCUS_STORE, on ? '1' : '0'); } catch { /* not critical */ }
-    document.querySelector('[data-cmd="focus"]').setAttribute('aria-pressed', String(on));
+// Level 0 is full strength; levels 1..8 step from 90% colour / no dimming down to
+// 0% colour / full dimming, the same look as a dimmed node in focus mode.
+function shade(el, levels) {
+    const level = levels ? levels.get(el.dataset.id) ?? FADE_STEPS : 0;
+    const t = (level - 1) / (FADE_STEPS - 2);
+    const faded = level > 0 && t < 1;
+    el.classList.toggle('dimmed', t >= 1);
+    el.classList.toggle('faded', faded);
+    if (faded) {
+        el.style.setProperty('--fade-gray', (0.1 + 0.9 * t).toFixed(3));
+        el.style.setProperty('--fade-opacity', (1 - 0.78 * t).toFixed(3));
+    }
+}
+
+function applyFocus(levels = shadeLevels()) {
+    for (const el of nodesEl.children) shade(el, levels);
+    for (const el of links.children) shade(el, levels);
+}
+
+// Move the current selection to the front of the trail. Deselecting leaves the trail
+// alone, so every remembered path keeps its level until a new selection is made.
+function recordTrail() {
+    if (!selection.size) return;
+    const key = ids => [...ids].sort().join('\n');
+    const now = key(selection);
+    fadeTrail = [[...selection], ...fadeTrail.filter(ids => key(ids) !== now)].slice(0, FADE_STEPS);
+}
+
+function setViewMode(mode) {
+    viewMode = viewMode === mode ? 'off' : mode;
+    try { localStorage.setItem(FOCUS_STORE, { off: '0', focus: '1', fade: 'fade' }[viewMode]); } catch { /* not critical */ }
+    syncViewButtons();
     applyFocus();
-    toast(on ? '专注模式已开启' : '专注模式已关闭', 1200);
+    toast({ off: '已关闭专注模式', focus: '专注模式已开启', fade: '渐隐模式已开启' }[viewMode], 1200);
+}
+
+function syncViewButtons() {
+    document.querySelector('[data-cmd="focus"]').setAttribute('aria-pressed', String(viewMode === 'focus'));
+    document.querySelector('[data-cmd="fade"]').setAttribute('aria-pressed', String(viewMode === 'fade'));
 }
 
 function drawLinks() {
     const ns = 'http://www.w3.org/2000/svg';
     const fragment = document.createDocumentFragment();
-    const keep = focusKeep();
+    const levels = shadeLevels();
     const stroke = (el, color, width) => {
         el.style.stroke = `var(--b${color % PALETTE_SIZE})`;
         el.style.strokeWidth = width;
-        if (keep && !keep.has(el.dataset.id)) el.classList.add('dimmed');
+        shade(el, levels);
         return el;
     };
     for (const [id, info] of index) {
@@ -364,6 +403,7 @@ function setSelection(ids, primary = ids.at(-1) ?? null, paint = true) {
     if (primary) selection.add(primary);
     selectedId = primary;
     if (!paint) return;
+    if (drag?.kind !== 'marquee') recordTrail();
     for (const el of nodesEl.children) el.classList.toggle('selected', selection.has(el.dataset.id));
     applyFocus();
     updateNodeBar();
@@ -923,6 +963,7 @@ function endDrag(event, cancelled) {
     if (current.kind === 'pan') return;
     if (current.kind === 'marquee') {
         marquee.hidden = true;
+        if (current.moved) recordTrail();
         applyFocus();
         if (!current.moved && !cancelled) {
             select(null);
@@ -1057,6 +1098,7 @@ function openMap(id) {
     if (editing) finishEdit(true);
     state.activeId = id;
     select(null);
+    fadeTrail = [];
     notePanel.hidden = true;
     scheduleSave();
     render();
@@ -1228,7 +1270,8 @@ const commands = {
     },
     undo, redo,
     export: () => exportMaps([activeMap()]),
-    focus: () => setFocusMode(!focusMode),
+    focus: () => setViewMode('focus'),
+    fade: () => setViewMode('fade'),
     help: () => {
         helpPanel.hidden = !helpPanel.hidden;
         if (!helpPanel.hidden) closeNote();
@@ -1294,9 +1337,9 @@ document.addEventListener('keydown', event => {
     if (event.metaKey || event.ctrlKey) return;
 
     if (event.altKey) {
-        if (event.code === 'KeyF') {
+        if (event.code === 'KeyF' || event.code === 'KeyG') {
             event.preventDefault();
-            setFocusMode(!focusMode);
+            setViewMode(event.code === 'KeyF' ? 'focus' : 'fade');
             return;
         }
         const actions = { KeyT: toggleTask, KeyC: () => toggleDone(), KeyN: () => openNote(), Period: () => toggleFold() };
@@ -1353,6 +1396,7 @@ function renderHelp() {
         ['完成待办', '⌥ C'],
         ['备注', '⌥ N'],
         ['专注模式', '⌥ F'],
+        ['渐隐模式', '⌥ G'],
         ['撤销 / 重做', `${MOD}Z / ⇧${MOD}Z`],
         ['上下 / 左右移动画布', '滚轮 / ⇧ 滚轮'],
         ['以鼠标为中心缩放', `${MOD} 滚轮`],
@@ -1383,7 +1427,7 @@ function renderHelp() {
 
 load();
 renderHelp();
-document.querySelector('[data-cmd="focus"]').setAttribute('aria-pressed', String(focusMode));
+syncViewButtons();
 render();
 fit();
 addEventListener('resize', () => applyView());

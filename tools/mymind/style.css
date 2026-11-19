@@ -115,6 +115,8 @@ svg use { pointer-events: none; }
 /* Focus mode: everything outside the selected node's ancestors and descendants is greyed out. */
 .node, .links > * { transition: opacity .18s, filter .18s; }
 .node.dimmed, .links > .dimmed { opacity: .22; filter: grayscale(1); }
+/* Fade mode: older selection paths step towards the dimmed look. */
+.node.faded, .links > .faded { opacity: var(--fade-opacity); filter: grayscale(var(--fade-gray)); }
 .node.drop-inside { box-shadow: inset 0 0 0 2px var(--accent); background: var(--accent-soft); }
 .node.d0.drop-inside { border-color: var(--accent); box-shadow: var(--shadow); }
 
