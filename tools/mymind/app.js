@@ -256,7 +256,7 @@ const clamp01 = x => Math.min(1, Math.max(0, x));
 // longer they are overdue (from a week to a month) or the further away they are (3 to 14 days).
 // Completed tasks always get the grey badge.
 function paintDue(badge, now = new Date()) {
-    const { state, days } = dueStatus(badge.due, now);
+    const { state, days, hours } = dueStatus(badge.due, now);
     let strength = 1;
     if (state === 'overdue') strength = 1 - 0.85 * clamp01((days - 7) / 23);
     else if (state === 'upcoming') strength = 1 - clamp01((days - 3) / 11);
@@ -264,7 +264,7 @@ function paintDue(badge, now = new Date()) {
     badge.dataset.state = state;
     badge.classList.toggle('pale', strength < 0.7);
     badge.style.setProperty('--due-mix', `${Math.round(strength * 100)}%`);
-    badge.title = badge.done ? '已完成' : state === 'today' ? '今天到期' : state === 'overdue' ? `已过期 ${days} 天` : `还有 ${days} 天`;
+    badge.title = badge.done ? '已完成' : state === 'today' ? '今天到期' : state === 'overdue' ? (days ? `已过期 ${days} 天` : hours ? `已过期 ${hours} 小时` : '刚刚过期') : `还有 ${days} 天`;
 }
 
 // Re-colour every minute so deadlines move on through the day without a re-render.

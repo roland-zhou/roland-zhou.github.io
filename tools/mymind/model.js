@@ -229,15 +229,14 @@ export function dueDate(due, now = new Date()) {
 }
 
 // How urgent a deadline is: { state: 'overdue' | 'today' | 'upcoming', days }.
-// days counts whole days late (overdue) or calendar days ahead (upcoming).
-// A date without time is due all day. A timed one is "today" from its calendar day until
-// 24 hours after the exact time, and overdue after that.
+// days counts whole days late (overdue) or calendar days ahead (upcoming); hours is how
+// long a timed deadline has been overdue.
+// A date without time is due all day. A timed one is overdue the moment its time passes.
 export function dueStatus(due, now = new Date()) {
     const date = dueDate(due, now);
     const ahead = Math.round((startOfDay(date) - startOfDay(now)) / DAY);
     if (due.timed && date <= now) {
-        const late = Math.floor((now - date) / DAY);
-        return late < 1 ? { state: 'today', days: 0 } : { state: 'overdue', days: late };
+        return { state: 'overdue', days: Math.floor((now - date) / DAY), hours: Math.floor((now - date) / 36e5) };
     }
     if (ahead < 0) return { state: 'overdue', days: -ahead };
     return ahead === 0 ? { state: 'today', days: 0 } : { state: 'upcoming', days: ahead };
