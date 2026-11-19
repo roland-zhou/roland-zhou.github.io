@@ -1,7 +1,7 @@
 import {
     PALETTE_SIZE, buildIndex, computeLayout, countNodes, createMap, createNode,
     dueStatus, exportOPML, importOPML, isValidMap, nextColor, nextWaitSince, parseDue, sampleMap, subtreeIds,
-    visibleChildren, waitDuration, waitPrefix,
+    visibleChildren, waitDuration, waitPrefix, waitShort,
 } from './model.js';
 
 const STORE = 'mymind.v1';
@@ -291,7 +291,7 @@ function paintWait(badge, now = Date.now()) {
         const start = new Date(badge.since);
         const pad = n => String(n).padStart(2, '0');
         const when = `${start.getMonth() + 1}月${start.getDate()}日 ${pad(start.getHours())}:${pad(start.getMinutes())}`;
-        label.textContent = `已等 ${span}`;
+        label.textContent = waitShort(now - badge.since);
         badge.title = `${badge.done ? '已完成，' : ''}已等待 ${span}\n从 ${when} 开始`;
         const days = (now - badge.since) / 864e5;
         badge.style.setProperty('--wait-mix', `${Math.round(clamp01((days - 1) / 6) * 100)}%`);

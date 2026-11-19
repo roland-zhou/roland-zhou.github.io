@@ -141,14 +141,15 @@ svg use { pointer-events: none; }
 .node .due[data-state="today"] { --due-bg: var(--due-today-bg); --due-ink: var(--due-today-ink); }
 /* Waiting badge for a leading "===": a running hourglass and how long we have waited. */
 .node .wait {
-    display: inline-flex; align-items: center; gap: .3em; margin-right: .45em; padding: 0 .55em 0 .4em;
+    display: inline-block; margin-right: .45em; padding: 0 .55em 0 .4em;
     border-radius: 999px; font-size: .78em; font-weight: 550; line-height: 1.55; vertical-align: .08em;
     white-space: nowrap; font-variant-numeric: tabular-nums;
     background: color-mix(in srgb, var(--wait-warm-bg) var(--wait-mix, 0%), var(--wait-calm-bg));
     color: color-mix(in srgb, var(--wait-warm-ink) var(--wait-mix, 0%), var(--wait-calm-ink));
 }
 .node.done .wait { background: var(--due-neutral-bg); color: var(--due-neutral-ink); }
-.hourglass { width: 1.15em; height: 1.15em; flex: none; overflow: visible; animation: hourglass-flip 6s infinite; }
+/* The label, not the icon, sets the baseline so the pill lines up with the title text. */
+.hourglass { display: inline-block; width: 1.15em; height: 1.15em; margin-right: .2em; vertical-align: -.22em; overflow: visible; animation: hourglass-flip 6s infinite; }
 .hourglass .glass { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 .hourglass .sand { fill: currentColor; stroke: none; transform-box: fill-box; }
 /* Top sand sinks into the neck, bottom sand piles up, then the glass turns over.

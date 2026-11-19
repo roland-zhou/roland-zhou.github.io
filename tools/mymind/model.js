@@ -245,10 +245,10 @@ export function dueStatus(due, now = new Date()) {
     return ahead === 0 ? { state: 'today', days: 0 } : { state: 'upcoming', days: ahead };
 }
 
-// A title starting with "===" means we are waiting on something, e.g. "=== QA testing".
+// A title starting with "===" (or more "=") means we are waiting on something, e.g. "=== QA testing".
 // Returns the length of the marker (including the spaces after it), or 0.
 export function waitPrefix(text) {
-    return /^===\s*/.exec(text)?.[0].length ?? 0;
+    return /^={3,}\s*/.exec(text)?.[0].length ?? 0;
 }
 
 // When a title is saved: a new "===" starts the clock, an existing one keeps its start time,
@@ -256,6 +256,18 @@ export function waitPrefix(text) {
 export function nextWaitSince(text, previous, now = Date.now()) {
     if (!waitPrefix(text)) return undefined;
     return Number.isFinite(previous) ? previous : now;
+}
+
+// Compact wait for the badge: "<1m", "<10m", then 10-minute steps ("10m+", "1h", "1h10m+"),
+// with days in front once past a day ("1d1h10m+"). "+" marks a rounded-down 10 minutes.
+export function waitShort(ms) {
+    const minutes = Math.max(0, Math.floor(ms / 6e4));
+    if (minutes < 1) return '<1m';
+    if (minutes < 10) return '<10m';
+    const days = Math.floor(minutes / 1440);
+    const hours = Math.floor(minutes / 60) % 24;
+    const tens = Math.floor((minutes % 60) / 10) * 10;
+    return (days ? `${days}d` : '') + (hours ? `${hours}h` : '') + (tens ? `${tens}m+` : '');
 }
 
 // How long we have been waiting, in words: "不到 1 分钟", "25 分钟", "3 小时 20 分钟",
