@@ -263,9 +263,9 @@ function fillText(el, node) {
 // A plump hourglass, drawn inline so the sand can move. At rest all the sand is at the bottom.
 // The top and bottom sand are mirror images, so the glass turned over looks like a full top.
 const HOURGLASS = `<svg class="hourglass" viewBox="0 0 24 24" aria-hidden="true">
-    <path class="glass" d="M5 3h14M5 21h14M6.4 3c0 5.2 4.6 6.6 4.6 9s-4.6 3.8-4.6 9h11.2c0-5.2-4.6-6.6-4.6-9s4.6-3.8 4.6-9z"/>
-    <path class="sand top" d="M16.4 5.2H7.6c.5 2.6 2.6 4.4 4.4 5.6 1.8-1.2 3.9-3 4.4-5.6z"/>
-    <path class="sand bottom" d="M7.6 18.8h8.8c-.5-2.6-2.6-4.4-4.4-5.6-1.8 1.2-3.9 3-4.4 5.6z"/>
+    <path class="glass" d="M4 3h16M4 21h16M5.4 3c0 5.4 5.4 6.6 5.4 9s-5.4 3.6-5.4 9h13.2c0-5.4-5.4-6.6-5.4-9s5.4-3.6 5.4-9z"/>
+    <path class="sand top" d="M17.1 5.2H6.9c.6 2.7 3 4.5 5.1 5.7 2.1-1.2 4.5-3 5.1-5.7z"/>
+    <path class="sand bottom" d="M6.9 18.8h10.2c-.6-2.7-3-4.5-5.1-5.7-2.1 1.2-4.5 3-5.1 5.7z"/>
     <path class="sand stream" d="M11.55 11h.9v7h-.9z"/>
 </svg>`;
 
