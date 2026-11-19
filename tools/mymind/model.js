@@ -126,6 +126,7 @@ export function exportOPML(map) {
         if (node.note) attrs += ` _note="${esc(node.note)}"`;
         if (node.task) attrs += ` _status="${node.task === 'done' ? 'checked' : 'unchecked'}"`;
         if (node.folded && node.children.length) attrs += ' mm:folded="true"';
+        if (Number.isFinite(node.waitSince)) attrs += ` mm:waitSince="${new Date(node.waitSince).toISOString()}"`;
         if (depth === 1) {
             attrs += ` mm:side="${node.side === 'left' ? 'left' : 'right'}"`;
             if (Number.isInteger(node.color)) attrs += ` mm:color="${node.color}"`;
@@ -172,6 +173,8 @@ export function importOPML(text, filename = '') {
         if (status === 'checked' || task === 'done') node.task = 'done';
         else if (status === 'unchecked' || task === 'open') node.task = 'open';
         if (['true', '1'].includes(extra(el, 'folded', 'collapsed'))) node.folded = true;
+        const waitSince = Date.parse(extra(el, 'waitSince'));
+        if (waitPrefix(node.text) && Number.isFinite(waitSince)) node.waitSince = waitSince;
         if (depth === 1) {
             node.side = extra(el, 'side', 'direction') === 'left' ? 'left' : 'right';
             const color = Number.parseInt(extra(el, 'color'), 10);
@@ -240,4 +243,32 @@ export function dueStatus(due, now = new Date()) {
     }
     if (ahead < 0) return { state: 'overdue', days: -ahead };
     return ahead === 0 ? { state: 'today', days: 0 } : { state: 'upcoming', days: ahead };
+}
+
+// A title starting with "===" means we are waiting on something, e.g. "=== QA testing".
+// Returns the length of the marker (including the spaces after it), or 0.
+export function waitPrefix(text) {
+    return /^===\s*/.exec(text)?.[0].length ?? 0;
+}
+
+// When a title is saved: a new "===" starts the clock, an existing one keeps its start time,
+// and removing it clears the clock. Returns the waitSince to store, or undefined.
+export function nextWaitSince(text, previous, now = Date.now()) {
+    if (!waitPrefix(text)) return undefined;
+    return Number.isFinite(previous) ? previous : now;
+}
+
+// How long we have been waiting, in words: "不到 1 分钟", "25 分钟", "3 小时 20 分钟",
+// "2 天 5 小时", "12 天", "3 个月".
+export function waitDuration(ms) {
+    const minutes = Math.max(0, Math.floor(ms / 6e4));
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    const both = (a, ua, b, ub) => (b ? `${a} ${ua} ${b} ${ub}` : `${a} ${ua}`);
+    if (minutes < 1) return '不到 1 分钟';
+    if (hours < 1) return `${minutes} 分钟`;
+    if (days < 1) return both(hours, '小时', minutes % 60, '分钟');
+    if (days < 7) return both(days, '天', hours % 24, '小时');
+    if (days < 60) return `${days} 天`;
+    return `${Math.floor(days / 30)} 个月`;
 }

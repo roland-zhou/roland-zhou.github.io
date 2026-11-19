@@ -1,6 +1,7 @@
 import {
     PALETTE_SIZE, buildIndex, computeLayout, countNodes, createMap, createNode,
-    dueStatus, exportOPML, importOPML, isValidMap, nextColor, parseDue, sampleMap, subtreeIds, visibleChildren,
+    dueStatus, exportOPML, importOPML, isValidMap, nextColor, nextWaitSince, parseDue, sampleMap, subtreeIds,
+    visibleChildren, waitDuration, waitPrefix,
 } from './model.js';
 
 const STORE = 'mymind.v1';
@@ -219,7 +220,7 @@ function buildNode({ node, depth, side, color }, levels = shadeLevels()) {
     }
     const text = document.createElement('span');
     text.className = 'text';
-    fillText(text, node.text, node.task === 'done');
+    fillText(text, node);
     el.append(text);
     if (node.note) {
         const mark = controlButton('note-mark', '查看备注', icon('note'));
@@ -234,20 +235,68 @@ function buildNode({ node, depth, side, color }, levels = shadeLevels()) {
     return el;
 }
 
-// A trailing "MM-DD" or "MM-DD HH:MM" in a title is shown as a deadline badge.
-function fillText(el, value, done = false) {
-    const due = parseDue(value);
-    if (!due) {
-        el.textContent = value;
-        return;
+// A leading "===" becomes a waiting badge, and a trailing "MM-DD" or "MM-DD HH:MM" a deadline badge.
+function fillText(el, node) {
+    const done = node.task === 'done';
+    const parts = [];
+    let value = node.text;
+    const wait = waitPrefix(value);
+    if (wait) {
+        parts.push(waitBadge(node.waitSince, done));
+        value = value.slice(wait);
     }
+    const due = parseDue(value);
+    if (due) {
+        const badge = document.createElement('span');
+        badge.className = 'due';
+        badge.textContent = value.slice(due.index);
+        badge.due = due;
+        badge.done = done;
+        paintDue(badge);
+        parts.push(value.slice(0, due.index).trimEnd(), badge);
+    } else {
+        parts.push(value);
+    }
+    el.replaceChildren(...parts);
+}
+
+// An hourglass whose sand runs down and then flips over, drawn inline so the sand can move.
+const HOURGLASS = `<svg class="hourglass" viewBox="0 0 24 24" aria-hidden="true">
+    <path class="glass" d="M6.5 3.5h11M6.5 20.5h11M8 3.5c0 4.6 3 5.8 3 8.5s-3 3.9-3 8.5M16 3.5c0 4.6-3 5.8-3 8.5s3 3.9 3 8.5"/>
+    <path class="sand top" d="M9 7h6c-.4 1.9-1.9 3.1-3 4.4C10.9 10.1 9.4 8.9 9 7z"/>
+    <path class="sand bottom" d="M8.7 19.3c.5-2 1.9-3.3 3.3-3.6 1.4.3 2.8 1.6 3.3 3.6z"/>
+    <path class="sand stream" d="M11.6 11.6h.8v6.5h-.8z"/>
+</svg>`;
+
+function waitBadge(since, done) {
     const badge = document.createElement('span');
-    badge.className = 'due';
-    badge.textContent = value.slice(due.index);
-    badge.due = due;
+    badge.className = 'wait';
+    badge.innerHTML = `${HOURGLASS}<span class="wait-label"></span>`;
+    badge.since = since;
     badge.done = done;
-    paintDue(badge);
-    el.replaceChildren(value.slice(0, due.index).trimEnd(), badge);
+    paintWait(badge);
+    return badge;
+}
+
+// The badge warms from calm blue to amber between one and seven days of waiting, as a nudge
+// to chase it up. Returns true when the label changed (so the layout may need updating).
+function paintWait(badge, now = Date.now()) {
+    const label = badge.lastChild;
+    const before = label.textContent;
+    if (!Number.isFinite(badge.since)) {
+        label.textContent = '等待中';
+        badge.title = '等待中';
+    } else {
+        const span = waitDuration(now - badge.since);
+        const start = new Date(badge.since);
+        const pad = n => String(n).padStart(2, '0');
+        const when = `${start.getMonth() + 1}月${start.getDate()}日 ${pad(start.getHours())}:${pad(start.getMinutes())}`;
+        label.textContent = `已等 ${span}`;
+        badge.title = `${badge.done ? '已完成，' : ''}已等待 ${span}\n从 ${when} 开始`;
+        const days = (now - badge.since) / 864e5;
+        badge.style.setProperty('--wait-mix', `${Math.round(clamp01((days - 1) / 6) * 100)}%`);
+    }
+    return label.textContent !== before;
 }
 
 const clamp01 = x => Math.min(1, Math.max(0, x));
@@ -267,10 +316,13 @@ function paintDue(badge, now = new Date()) {
     badge.title = badge.done ? '已完成' : state === 'today' ? '今天到期' : state === 'overdue' ? (days ? `已过期 ${days} 天` : hours ? `已过期 ${hours} 小时` : '刚刚过期') : `还有 ${days} 天`;
 }
 
-// Re-colour every minute so deadlines move on through the day without a re-render.
+// Re-paint every minute so deadlines and waiting times move on without a re-render.
 setInterval(() => {
     const now = new Date();
     for (const badge of nodesEl.querySelectorAll('.due')) paintDue(badge, now);
+    let grew = false;
+    for (const badge of nodesEl.querySelectorAll('.wait')) grew = paintWait(badge, now.getTime()) || grew;
+    if (grew) relayout();
 }, 60e3);
 
 function render() {
@@ -588,9 +640,13 @@ function finishEdit(save) {
         return;
     }
     const value = readText(text);
-    if (value !== node.text) {
+    // "===" starts a waiting clock; editing the rest of the title keeps it running.
+    const waitSince = nextWaitSince(value, node.waitSince);
+    if (value !== node.text || waitSince !== node.waitSince) {
         if (!created) pushUndo(snap);
         node.text = value;
+        if (waitSince === undefined) delete node.waitSince;
+        else node.waitSince = waitSince;
         touched();
     }
     render();
@@ -1438,6 +1494,7 @@ function renderHelp() {
         ['专注模式', '⌥ F'],
         ['渐隐模式', '⌥ G'],
         ['截止日期（标题末尾）', '11-20 / 11-20 23:00'],
+        ['等待中（标题开头）', '=== QA testing'],
         ['撤销 / 重做', `${MOD}Z / ⇧${MOD}Z`],
         ['上下 / 左右移动画布', '滚轮 / ⇧ 滚轮'],
         ['以鼠标为中心缩放', `${MOD} 滚轮`],

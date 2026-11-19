@@ -30,6 +30,11 @@
     --due-today-ink: #8a5a00;
     --due-upcoming-bg: #fdf1c4;
     --due-upcoming-ink: #8f6a08;
+    /* Waiting badges ("=== ..."): calm blue at first, warming to amber after a week. */
+    --wait-calm-bg: #e3ecfb;
+    --wait-calm-ink: #3d5f99;
+    --wait-warm-bg: #fde3c2;
+    --wait-warm-ink: #a4520a;
     font: 15px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Segoe UI", "Microsoft YaHei", sans-serif;
     color: var(--ink);
     -webkit-font-smoothing: antialiased;
@@ -66,6 +71,10 @@
         --due-today-ink: #ffd166;
         --due-upcoming-bg: rgba(250, 210, 90, .16);
         --due-upcoming-ink: #e8c66a;
+        --wait-calm-bg: rgba(110, 160, 255, .18);
+        --wait-calm-ink: #9dbcf5;
+        --wait-warm-bg: rgba(255, 150, 60, .24);
+        --wait-warm-ink: #ffb46b;
     }
 }
 
@@ -130,6 +139,34 @@ svg use { pointer-events: none; }
 /* White text stops reading once the red has faded, so faded overdue badges use dark red text. */
 .node .due[data-state="overdue"].pale { --due-ink: var(--due-overdue-pale-ink); }
 .node .due[data-state="today"] { --due-bg: var(--due-today-bg); --due-ink: var(--due-today-ink); }
+/* Waiting badge for a leading "===": a running hourglass and how long we have waited. */
+.node .wait {
+    display: inline-flex; align-items: center; gap: .3em; margin-right: .45em; padding: 0 .55em 0 .4em;
+    border-radius: 999px; font-size: .78em; font-weight: 550; line-height: 1.55; vertical-align: .08em;
+    white-space: nowrap; font-variant-numeric: tabular-nums;
+    background: color-mix(in srgb, var(--wait-warm-bg) var(--wait-mix, 0%), var(--wait-calm-bg));
+    color: color-mix(in srgb, var(--wait-warm-ink) var(--wait-mix, 0%), var(--wait-calm-ink));
+}
+.node.done .wait { background: var(--due-neutral-bg); color: var(--due-neutral-ink); }
+.hourglass { width: 1.15em; height: 1.15em; flex: none; overflow: visible; animation: hourglass-flip 6s infinite; }
+.hourglass .glass { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.hourglass .sand { fill: currentColor; stroke: none; transform-box: fill-box; }
+/* Top sand sinks into the neck, bottom sand piles up, then the glass turns over.
+   Turned over, it looks exactly like the start, so the loop is seamless. */
+.hourglass .top { transform-origin: 50% 100%; animation: sand-drain 6s linear infinite; }
+.hourglass .bottom { transform-origin: 50% 100%; animation: sand-fill 6s linear infinite; }
+.hourglass .stream { animation: sand-stream 6s linear infinite; }
+@keyframes hourglass-flip {
+    0%, 84% { transform: rotate(0); }
+    96%, 100% { transform: rotate(180deg); }
+}
+@keyframes sand-drain { 0% { transform: scale(1); } 80%, 100% { transform: scale(0); } }
+@keyframes sand-fill { 0% { transform: scale(.15); } 80%, 100% { transform: scale(1); } }
+@keyframes sand-stream { 0%, 78% { opacity: .9; } 81%, 100% { opacity: 0; } }
+.node.done .hourglass, .node.done .hourglass .sand { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+    .hourglass, .hourglass .sand { animation: none; }
+}
 .node .check, .node .note-mark {
     display: grid; place-items: center; flex: none;
     width: 20px; height: 1.4em; color: var(--c, var(--ink-2));
