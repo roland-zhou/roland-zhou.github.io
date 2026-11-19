@@ -258,8 +258,8 @@ export function nextWaitSince(text, previous, now = Date.now()) {
     return Number.isFinite(previous) ? previous : now;
 }
 
-// Compact wait for the badge: "<1m", "<10m", then 10-minute steps ("10m+", "1h", "1h10m+"),
-// with days in front once past a day ("1d1h10m+"). "+" marks a rounded-down 10 minutes.
+// Compact wait for the badge: "<1m", "<10m", then rounded down to 10 minutes ("10m", "1h",
+// "1h10m"), with days in front once past a day ("1d1h10m").
 export function waitShort(ms) {
     const minutes = Math.max(0, Math.floor(ms / 6e4));
     if (minutes < 1) return '<1m';
@@ -267,7 +267,7 @@ export function waitShort(ms) {
     const days = Math.floor(minutes / 1440);
     const hours = Math.floor(minutes / 60) % 24;
     const tens = Math.floor((minutes % 60) / 10) * 10;
-    return (days ? `${days}d` : '') + (hours ? `${hours}h` : '') + (tens ? `${tens}m+` : '');
+    return (days ? `${days}d` : '') + (hours ? `${hours}h` : '') + (tens ? `${tens}m` : '');
 }
 
 // How long we have been waiting, in words: "不到 1 分钟", "25 分钟", "3 小时 20 分钟",
