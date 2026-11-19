@@ -20,6 +20,15 @@
     --b3: #a066d6;
     --b4: #dba11f;
     --b5: #2ea5b3;
+    /* Deadline badges: background / text per state, mixed towards the neutral pair as they fade. */
+    --due-neutral-bg: rgba(20, 24, 32, .06);
+    --due-neutral-ink: #8a8e96;
+    --due-overdue-bg: #fcd9d5;
+    --due-overdue-ink: #c0332b;
+    --due-today-bg: #fde58a;
+    --due-today-ink: #8a5a00;
+    --due-upcoming-bg: #fdf1c4;
+    --due-upcoming-ink: #8f6a08;
     font: 15px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Segoe UI", "Microsoft YaHei", sans-serif;
     color: var(--ink);
     -webkit-font-smoothing: antialiased;
@@ -47,6 +56,14 @@
         --b3: #c08cf0;
         --b4: #f0c04e;
         --b5: #4cc6d4;
+        --due-neutral-bg: rgba(255, 255, 255, .08);
+        --due-neutral-ink: #8a8e96;
+        --due-overdue-bg: rgba(255, 92, 82, .26);
+        --due-overdue-ink: #ff8f86;
+        --due-today-bg: rgba(250, 196, 50, .32);
+        --due-today-ink: #ffd166;
+        --due-upcoming-bg: rgba(250, 210, 90, .16);
+        --due-upcoming-ink: #e8c66a;
     }
 }
 
@@ -98,6 +115,17 @@ svg use { pointer-events: none; }
 .node.editing { cursor: text; user-select: text; -webkit-user-select: text; }
 .node.editing .text { cursor: text; }
 .node.done .text { color: var(--muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 70%, transparent); }
+/* Deadline badge for a trailing "MM-DD" / "MM-DD HH:MM". */
+.node .due {
+    --due-bg: var(--due-upcoming-bg); --due-ink: var(--due-upcoming-ink);
+    display: inline-block; margin-left: .4em; padding: 0 .5em; border-radius: 999px;
+    font-size: .78em; font-weight: 550; line-height: 1.55; vertical-align: .08em;
+    white-space: nowrap; font-variant-numeric: tabular-nums;
+    background: color-mix(in srgb, var(--due-bg) var(--due-mix, 100%), var(--due-neutral-bg));
+    color: color-mix(in srgb, var(--due-ink) var(--due-mix, 100%), var(--due-neutral-ink));
+}
+.node .due[data-state="overdue"] { --due-bg: var(--due-overdue-bg); --due-ink: var(--due-overdue-ink); }
+.node .due[data-state="today"] { --due-bg: var(--due-today-bg); --due-ink: var(--due-today-ink); }
 .node .check, .node .note-mark {
     display: grid; place-items: center; flex: none;
     width: 20px; height: 1.4em; color: var(--c, var(--ink-2));

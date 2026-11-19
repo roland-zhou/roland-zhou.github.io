@@ -1,6 +1,6 @@
 import {
     PALETTE_SIZE, buildIndex, computeLayout, countNodes, createMap, createNode,
-    exportOPML, importOPML, isValidMap, nextColor, sampleMap, subtreeIds, visibleChildren,
+    dueStatus, exportOPML, importOPML, isValidMap, nextColor, parseDue, sampleMap, subtreeIds, visibleChildren,
 } from './model.js';
 
 const STORE = 'mymind.v1';
@@ -219,7 +219,7 @@ function buildNode({ node, depth, side, color }, levels = shadeLevels()) {
     }
     const text = document.createElement('span');
     text.className = 'text';
-    text.textContent = node.text;
+    fillText(text, node.text, node.task === 'done');
     el.append(text);
     if (node.note) {
         const mark = controlButton('note-mark', '查看备注', icon('note'));
@@ -233,6 +233,44 @@ function buildNode({ node, depth, side, color }, levels = shadeLevels()) {
     shade(el, levels);
     return el;
 }
+
+// A trailing "MM-DD" or "MM-DD HH:MM" in a title is shown as a deadline badge.
+function fillText(el, value, done = false) {
+    const due = parseDue(value);
+    if (!due) {
+        el.textContent = value;
+        return;
+    }
+    const badge = document.createElement('span');
+    badge.className = 'due';
+    badge.textContent = value.slice(due.index);
+    badge.due = due;
+    badge.done = done;
+    paintDue(badge);
+    el.replaceChildren(value.slice(0, due.index).trimEnd(), badge);
+}
+
+const clamp01 = x => Math.min(1, Math.max(0, x));
+
+// Overdue is red, today amber, the next 3 days yellow. Deadlines fade towards grey the
+// longer they are overdue (from a week to a month) or the further away they are (3 to 14 days).
+// Completed tasks always get the grey badge.
+function paintDue(badge, now = new Date()) {
+    const { state, days } = dueStatus(badge.due, now);
+    let strength = 1;
+    if (state === 'overdue') strength = 1 - 0.85 * clamp01((days - 7) / 23);
+    else if (state === 'upcoming') strength = 1 - clamp01((days - 3) / 11);
+    if (badge.done) strength = 0;
+    badge.dataset.state = state;
+    badge.style.setProperty('--due-mix', `${Math.round(strength * 100)}%`);
+    badge.title = badge.done ? '已完成' : state === 'today' ? '今天到期' : state === 'overdue' ? `已过期 ${days} 天` : `还有 ${days} 天`;
+}
+
+// Re-colour every minute so deadlines move on through the day without a re-render.
+setInterval(() => {
+    const now = new Date();
+    for (const badge of nodesEl.querySelectorAll('.due')) paintDue(badge, now);
+}, 60e3);
 
 function render() {
     const map = activeMap();
@@ -511,7 +549,8 @@ function startEdit(id, { created = false, replace = null } = {}) {
     el.classList.add('editing');
     text.contentEditable = supportsPlaintext ? 'plaintext-only' : 'true';
     text.spellcheck = false;
-    if (replace !== null) text.textContent = replace;
+    // Edit the raw title, not the deadline badge.
+    text.textContent = replace ?? editing.original;
     // Re-measure now that the node is editable, so the box and its branch line stay aligned.
     relayout();
     text.focus({ preventScroll: true });
@@ -1397,6 +1436,7 @@ function renderHelp() {
         ['备注', '⌥ N'],
         ['专注模式', '⌥ F'],
         ['渐隐模式', '⌥ G'],
+        ['截止日期（标题末尾）', '11-20 / 11-20 23:00'],
         ['撤销 / 重做', `${MOD}Z / ⇧${MOD}Z`],
         ['上下 / 左右移动画布', '滚轮 / ⇧ 滚轮'],
         ['以鼠标为中心缩放', `${MOD} 滚轮`],

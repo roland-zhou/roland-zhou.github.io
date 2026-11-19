@@ -197,3 +197,48 @@ export function importOPML(text, filename = '') {
     map.root = root;
     return map;
 }
+
+// A deadline is "MM-DD" or "MM-DD HH:MM" at the very end of a node's title, e.g. "Ship it 11-20 23:00".
+// Returns { index, month, day, hour, minute, timed } or null; index is where the date starts in text.
+const DUE_RE = /(^|\s)(\d{2})-(\d{2})(?: (\d{2}):(\d{2}))?$/;
+
+export function parseDue(text) {
+    const m = DUE_RE.exec(text);
+    if (!m) return null;
+    const [month, day] = [+m[2], +m[3]];
+    const timed = m[4] !== undefined;
+    const [hour, minute] = timed ? [+m[4], +m[5]] : [0, 0];
+    // 02-29 is allowed since some year has it; the year is picked later.
+    if (month < 1 || month > 12 || day < 1 || day > new Date(2024, month, 0).getDate()) return null;
+    if (hour > 23 || minute > 59) return null;
+    return { index: m.index + m[1].length, month, day, hour, minute, timed };
+}
+
+const DAY = 864e5;
+const startOfDay = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+// Dates carry no year, so the closest occurrence to now wins (within about half a year either way).
+export function dueDate(due, now = new Date()) {
+    let best = null;
+    for (const y of [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1]) {
+        const d = new Date(y, due.month - 1, due.day, due.hour, due.minute);
+        if (d.getMonth() !== due.month - 1) continue;   // 02-29 in a non-leap year
+        if (!best || Math.abs(d - now) < Math.abs(best - now)) best = d;
+    }
+    return best;
+}
+
+// How urgent a deadline is: { state: 'overdue' | 'today' | 'upcoming', days }.
+// days counts whole days late (overdue) or calendar days ahead (upcoming).
+// A date without time is due all day. A timed one is "today" from its calendar day until
+// 24 hours after the exact time, and overdue after that.
+export function dueStatus(due, now = new Date()) {
+    const date = dueDate(due, now);
+    const ahead = Math.round((startOfDay(date) - startOfDay(now)) / DAY);
+    if (due.timed && date <= now) {
+        const late = Math.floor((now - date) / DAY);
+        return late < 1 ? { state: 'today', days: 0 } : { state: 'overdue', days: late };
+    }
+    if (ahead < 0) return { state: 'overdue', days: -ahead };
+    return ahead === 0 ? { state: 'today', days: 0 } : { state: 'upcoming', days: ahead };
+}
