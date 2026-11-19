@@ -23,8 +23,9 @@
     /* Deadline badges: background / text per state, mixed towards the neutral pair as they fade. */
     --due-neutral-bg: rgba(20, 24, 32, .06);
     --due-neutral-ink: #8a8e96;
-    --due-overdue-bg: #f7a39b;
-    --due-overdue-ink: #9c1c15;
+    --due-overdue-bg: #e5484d;
+    --due-overdue-ink: #fff;
+    --due-overdue-pale-ink: #a3221b;
     --due-today-bg: #fde58a;
     --due-today-ink: #8a5a00;
     --due-upcoming-bg: #fdf1c4;
@@ -58,8 +59,9 @@
         --b5: #4cc6d4;
         --due-neutral-bg: rgba(255, 255, 255, .08);
         --due-neutral-ink: #8a8e96;
-        --due-overdue-bg: rgba(255, 82, 72, .48);
-        --due-overdue-ink: #ffc2bd;
+        --due-overdue-bg: #e5484d;
+        --due-overdue-ink: #fff;
+        --due-overdue-pale-ink: #fff;
         --due-today-bg: rgba(250, 196, 50, .32);
         --due-today-ink: #ffd166;
         --due-upcoming-bg: rgba(250, 210, 90, .16);
@@ -125,6 +127,8 @@ svg use { pointer-events: none; }
     color: color-mix(in srgb, var(--due-ink) var(--due-mix, 100%), var(--due-neutral-ink));
 }
 .node .due[data-state="overdue"] { --due-bg: var(--due-overdue-bg); --due-ink: var(--due-overdue-ink); }
+/* White text stops reading once the red has faded, so faded overdue badges use dark red text. */
+.node .due[data-state="overdue"].pale { --due-ink: var(--due-overdue-pale-ink); }
 .node .due[data-state="today"] { --due-bg: var(--due-today-bg); --due-ink: var(--due-today-ink); }
 .node .check, .node .note-mark {
     display: grid; place-items: center; flex: none;

@@ -262,6 +262,7 @@ function paintDue(badge, now = new Date()) {
     else if (state === 'upcoming') strength = 1 - clamp01((days - 3) / 11);
     if (badge.done) strength = 0;
     badge.dataset.state = state;
+    badge.classList.toggle('pale', strength < 0.7);
     badge.style.setProperty('--due-mix', `${Math.round(strength * 100)}%`);
     badge.title = badge.done ? '已完成' : state === 'today' ? '今天到期' : state === 'overdue' ? `已过期 ${days} 天` : `还有 ${days} 天`;
 }
