@@ -23,8 +23,8 @@
     /* Deadline badges: background / text per state, mixed towards the neutral pair as they fade. */
     --due-neutral-bg: rgba(20, 24, 32, .06);
     --due-neutral-ink: #8a8e96;
-    --due-overdue-bg: #fcd9d5;
-    --due-overdue-ink: #c0332b;
+    --due-overdue-bg: #f7a39b;
+    --due-overdue-ink: #9c1c15;
     --due-today-bg: #fde58a;
     --due-today-ink: #8a5a00;
     --due-upcoming-bg: #fdf1c4;
@@ -58,8 +58,8 @@
         --b5: #4cc6d4;
         --due-neutral-bg: rgba(255, 255, 255, .08);
         --due-neutral-ink: #8a8e96;
-        --due-overdue-bg: rgba(255, 92, 82, .26);
-        --due-overdue-ink: #ff8f86;
+        --due-overdue-bg: rgba(255, 82, 72, .48);
+        --due-overdue-ink: #ffc2bd;
         --due-today-bg: rgba(250, 196, 50, .32);
         --due-today-ink: #ffd166;
         --due-upcoming-bg: rgba(250, 210, 90, .16);
