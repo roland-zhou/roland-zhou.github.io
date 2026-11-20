@@ -1,7 +1,5 @@
 :root {
     color-scheme: light dark;
-    --vv-h: 100dvh;
-    --vv-top: 0px;
     --half-h: 320px;
     --quarter-h: 148px;
 
@@ -119,11 +117,6 @@ html, body {
     -webkit-text-size-adjust: 100%;
 }
 
-body {
-    position: fixed;
-    inset: 0;
-}
-
 button, input, textarea {
     font: inherit;
     color: inherit;
@@ -156,14 +149,10 @@ button:disabled {
 
 svg use { pointer-events: none; }
 
-/* App Shell: pinned to visualViewport rect on mobile so iOS keyboard never pushes it off-screen */
+/* App Shell: pure full-viewport layout so the browser natively handles keyboard positioning */
 .app-shell {
     position: fixed;
-    left: 0;
-    right: 0;
-    top: var(--vv-top);
-    height: var(--vv-h);
-    width: 100%;
+    inset: 0;
     display: flex;
     flex-direction: column;
     background: var(--bg);
@@ -182,11 +171,9 @@ svg use { pointer-events: none; }
     }
     .app-shell {
         position: relative;
-        left: auto;
-        right: auto;
-        top: auto;
+        inset: auto;
         width: min(560px, calc(100vw - 32px));
-        height: min(calc(var(--vv-h) - 28px), 920px);
+        height: min(calc(100dvh - 28px), 920px);
         border-radius: 20px;
         box-shadow: var(--shell-shadow);
         border: 1px solid var(--line);
@@ -940,10 +927,6 @@ svg use { pointer-events: none; }
     z-index: 10;
 }
 
-.kb-open .composer {
-    padding-bottom: 8px;
-}
-
 .composer-bar {
     display: flex;
     align-items: center;
@@ -1084,13 +1067,10 @@ svg use { pointer-events: none; }
     background: var(--line);
 }
 
-/* Sheets & Modals (pinned to visualViewport on mobile so keyboard doesn't push them off-screen) */
+/* Sheets & Modals (Bottom sheet on Mobile, Centered dialog on Pad/Desktop) */
 .sheet-backdrop {
     position: fixed;
-    left: 0;
-    right: 0;
-    top: var(--vv-top);
-    height: var(--vv-h);
+    inset: 0;
     background: rgba(12, 14, 18, .38);
     backdrop-filter: blur(3px);
     -webkit-backdrop-filter: blur(3px);
@@ -1109,7 +1089,7 @@ svg use { pointer-events: none; }
 .sheet {
     width: 100%;
     max-width: 540px;
-    max-height: calc(var(--vv-h) - 24px);
+    max-height: 90dvh;
     background: var(--panel-solid);
     border-radius: 20px 20px 0 0;
     box-shadow: var(--popover-shadow);
@@ -1120,16 +1100,8 @@ svg use { pointer-events: none; }
     animation: slide-up .22s cubic-bezier(.22, 1, .36, 1);
 }
 
-.kb-open .sheet {
-    padding-bottom: 0;
-}
-
 .sheet-editor {
     min-height: min(56dvh, 460px);
-}
-
-.kb-open .sheet-editor {
-    min-height: min(100%, 260px);
 }
 
 .sheet-tall {
@@ -1486,11 +1458,11 @@ kbd {
     font: 11.5px ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-/* Toast (anchored near topbar inside visualViewport so bottom-most Now items are never obscured) */
+/* Toast (anchored near topbar so bottom-most Now items are never obscured) */
 .toast {
     position: fixed;
     left: 50%;
-    top: calc(var(--vv-top) + 52px + env(safe-area-inset-top, 0px));
+    top: calc(52px + env(safe-area-inset-top, 0px));
     transform: translateX(-50%);
     display: inline-flex;
     align-items: center;

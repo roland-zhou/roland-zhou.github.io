@@ -79,70 +79,8 @@ let isInitialRender = true;
 let suppressedClickUntil = 0;
 
 // =========================================================================
-// Viewport, Virtual Keyboard Pinning & Pinch-Zoom Prevention
+// Pinch-Zoom Prevention & Fixed 1/4 + 1/4 + 1/2 Min-Height Sizing
 // =========================================================================
-
-let lastStageWidth = 0;
-let isKeyboardOpen = false;
-let baseViewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-
-function syncViewport() {
-    const vv = window.visualViewport;
-    const h = vv ? vv.height : window.innerHeight;
-    const top = vv ? vv.offsetTop : 0;
-
-    // Track full-height baseline when keyboard is not open (or orientation changed)
-    if (h > baseViewportHeight || Math.abs(window.innerWidth - lastStageWidth) > 80) {
-        baseViewportHeight = h;
-    }
-
-    const kbNow = window.innerWidth < 640 && (baseViewportHeight - h > 110 || (window.innerHeight - h > 110));
-    isKeyboardOpen = kbNow;
-
-    document.documentElement.style.setProperty('--vv-h', `${Math.round(h)}px`);
-    document.documentElement.style.setProperty('--vv-top', `${Math.max(0, Math.round(top))}px`);
-    document.documentElement.classList.toggle('kb-open', kbNow);
-
-    // Keep bottom composer and newest Now items anchored cleanly above the keyboard
-    if (kbNow && document.activeElement === composerInput) {
-        stage.scrollTop = stage.scrollHeight;
-    }
-}
-
-if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', syncViewport);
-    window.visualViewport.addEventListener('scroll', syncViewport);
-}
-window.addEventListener('resize', () => {
-    baseViewportHeight = Math.max(baseViewportHeight, window.innerHeight);
-    syncViewport();
-});
-window.addEventListener('orientationchange', () => {
-    setTimeout(() => {
-        baseViewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-        syncViewport();
-        updateZoneSizes(true);
-    }, 150);
-});
-
-// Re-sync around iOS keyboard open/close animation frames
-for (const field of [composerInput, editText, editNote]) {
-    field.addEventListener('focus', () => {
-        syncViewport();
-        setTimeout(syncViewport, 80);
-        setTimeout(syncViewport, 280);
-    });
-    field.addEventListener('blur', () => {
-        setTimeout(() => {
-            window.scrollTo(0, 0);
-            syncViewport();
-        }, 60);
-        setTimeout(() => {
-            window.scrollTo(0, 0);
-            syncViewport();
-        }, 280);
-    });
-}
 
 // Prevent two-finger pinch zoom on mobile (including iOS Safari gesture events)
 for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) {
@@ -155,14 +93,24 @@ document.addEventListener('touchmove', (e) => {
     if (e.touches.length > 1) e.preventDefault();
 }, { passive: false });
 
-syncViewport();
+// Let the browser natively handle keyboard positioning; only reset stray scroll on blur
+for (const field of [composerInput, editText, editNote]) {
+    field.addEventListener('blur', () => {
+        setTimeout(() => window.scrollTo(0, 0), 80);
+    });
+}
+
+let lastStageWidth = 0;
 
 function updateZoneSizes(force = false) {
     const h = stage.clientHeight;
     const w = stage.clientWidth;
     if (h <= 0) return;
-    // Do not squash 1/4 + 1/4 + 1/2 min-heights while the mobile virtual keyboard is open
-    if (!force && isKeyboardOpen && w === lastStageWidth) return;
+    // Skip re-squashing min-heights if only height shrank temporarily on mobile (e.g. Android keyboard)
+    const activeTag = document.activeElement?.tagName;
+    if (!force && window.innerWidth < 640 && w === lastStageWidth && (activeTag === 'INPUT' || activeTag === 'TEXTAREA')) {
+        return;
+    }
     lastStageWidth = w;
     const MID_H = 28;
     const WEAK_H = 24;
