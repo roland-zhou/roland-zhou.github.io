@@ -33,6 +33,9 @@
         <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4.5 9V4.5H9M15 4.5h4.5V9M19.5 15v4.5H15M9 19.5H4.5V15"/></symbol>
         <symbol id="i-close" viewBox="0 0 24 24"><path d="m6.5 6.5 11 11M17.5 6.5l-11 11"/></symbol>
         <symbol id="i-select" viewBox="0 0 24 24"><rect x="4" y="5" width="5" height="5" rx="1.2"/><path d="m5.3 7.6 1.1 1.1 1.8-2"/><rect x="4" y="14" width="5" height="5" rx="1.2"/><path d="M12 7.5h8M12 16.5h8"/></symbol>
+        <symbol id="i-edit" viewBox="0 0 24 24"><path d="M14.5 5.5l4 4M4.5 19.5l1-4.5L16 4.5a1.4 1.4 0 0 1 2 0l1.5 1.5a1.4 1.4 0 0 1 0 2L9 18.5z"/></symbol>
+        <symbol id="i-run" viewBox="0 0 24 24"><path d="m5 7 5 5-5 5M12 7l5 5-5 5"/></symbol>
+        <symbol id="i-hourglass" viewBox="0 0 24 24"><path d="M5.5 3.5h13M5.5 20.5h13M7 3.5c0 5 4.5 6 4.5 8.5S7 15.5 7 20.5h10c0-5-4.5-6-4.5-8.5S17 8.5 17 3.5"/></symbol>
         <symbol id="i-map" viewBox="0 0 24 24"><rect x="3.5" y="9.5" width="6" height="5" rx="1.5"/><path d="M9.5 12c3 0 2-6 5-6h6M9.5 12c3 0 2 6 5 6h6"/></symbol>
     </svg>
 
@@ -98,6 +101,8 @@
             <button class="icon-btn danger" data-cmd="batch-delete" title="删除所选" aria-label="删除所选"><svg><use href="#i-trash"/></svg></button>
         </footer>
     </aside>
+
+    <div id="context-menu" class="panel menu" role="menu" tabindex="-1" hidden></div>
 
     <section id="note-panel" class="panel note-panel" hidden>
         <header>

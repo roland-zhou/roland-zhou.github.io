@@ -670,16 +670,20 @@ function finishEdit(save) {
         return;
     }
     const value = readText(text);
-    // "===" starts a waiting clock; editing the rest of the title keeps it running.
-    const waitSince = nextWaitSince(value, node.waitSince);
-    if (value !== node.text || waitSince !== node.waitSince) {
+    if (value !== node.text || nextWaitSince(value, node.waitSince) !== node.waitSince) {
         if (!created) pushUndo(snap);
-        node.text = value;
-        if (waitSince === undefined) delete node.waitSince;
-        else node.waitSince = waitSince;
+        setTitle(node, value);
         touched();
     }
     render();
+}
+
+// "===" starts a waiting clock; changing the rest of the title keeps it running.
+function setTitle(node, value) {
+    const waitSince = nextWaitSince(value, node.waitSince);
+    node.text = value;
+    if (waitSince === undefined) delete node.waitSince;
+    else node.waitSince = waitSince;
 }
 
 nodesEl.addEventListener('input', event => {
@@ -806,6 +810,28 @@ function toggleTask() {
                 if (on) n.task ??= 'open';
                 else n.task = null;
             });
+        }
+    });
+}
+
+// Add or remove the ">>>" (running) or "===" (waiting) marker on every selected node,
+// following the primary node: if it has the marker, all lose it, otherwise all gain it.
+function toggleMarker(kind) {
+    const infos = [...selection].map(id => index.get(id)).filter(Boolean);
+    const primary = index.get(selectedId)?.node;
+    if (!infos.length || !primary) return;
+    const has = text => (kind === 'run' ? runPrefix(text) : waitPrefix(text)) > 0;
+    const on = !has(primary.text);
+    commit(() => {
+        for (const { node } of infos) {
+            const text = node.text;
+            if (has(text) === on) continue;
+            const run = runPrefix(text);
+            let next;
+            if (kind === 'run') next = on ? `>>> ${text}` : text.slice(run);
+            else if (on) next = run ? `${text.slice(0, run).trimEnd()} === ${text.slice(run)}` : `=== ${text}`;
+            else next = text.slice(0, run) + text.slice(waitPrefix(text));
+            setTitle(node, next);
         }
     });
 }
@@ -1011,6 +1037,8 @@ canvas.addEventListener('pointerdown', event => {
         return;
     }
     if (event.button !== 0) return;
+    // On a Mac, Control-click is a right click: leave it to the context menu.
+    if (isMac && event.ctrlKey) return;
     if (el) {
         const id = el.dataset.id;
         if (event.shiftKey || event.metaKey || event.ctrlKey) {
@@ -1385,6 +1413,158 @@ function toast(message, ms = 2400) {
     toastTimer = setTimeout(() => { el.hidden = true; }, ms);
 }
 
+/* ---------- Context menu ---------- */
+
+const menu = $('context-menu');
+let menuItems = [];
+
+// Right-click on a node shows its actions; right-click anywhere else does nothing. Text fields
+// (title being edited, note, inputs) keep the browser menu for copy and paste.
+document.addEventListener('contextmenu', event => {
+    if (event.target.closest('textarea, input, [contenteditable]')) return;
+    event.preventDefault();
+    const el = event.target.closest('.node');
+    if (el && nodesEl.contains(el) && !drag) openMenu(el.dataset.id, event.clientX, event.clientY);
+    else closeMenu();
+});
+
+function openMenu(id, x, y) {
+    if (editing) finishEdit(true);
+    // Right-clicking inside a multi-selection acts on all of it; anywhere else selects just that node.
+    if (!selection.has(id)) select(id);
+    else if (selectedId !== id) setSelection([...selection], id);
+    const info = index.get(id);
+    if (!info) return;
+    const { node } = info;
+    const multi = selection.size > 1;
+    const isRoot = !info.parent;
+    const deletable = [...selection].some(s => index.get(s)?.parent);
+    const groups = multi ? [
+        [
+            { icon: 'task', label: node.task ? '移除待办' : '设为待办', keys: '⌥T', run: toggleTask },
+        ],
+        [
+            { icon: 'run', label: runPrefix(node.text) ? '取消执行中' : '标记为执行中', keys: '>>>', run: () => toggleMarker('run') },
+            { icon: 'hourglass', label: waitPrefix(node.text) ? '结束等待' : '开始等待', keys: '===', run: () => toggleMarker('wait') },
+        ],
+        [
+            deletable && { icon: 'trash', label: `删除 ${selection.size} 个节点`, keys: '⌫', run: deleteSelected, danger: true },
+        ],
+    ] : [
+        [
+            { icon: 'edit', label: '编辑标题', keys: '空格', run: () => startEdit(id) },
+            { icon: 'child', label: '新建子节点', keys: 'Tab', run: () => addChild() },
+            !isRoot && { icon: 'sibling', label: '新建同级节点', keys: '↵', run: () => addSibling('after') },
+        ],
+        [
+            { icon: 'task', label: node.task ? '移除待办' : '设为待办', keys: '⌥T', run: toggleTask },
+            node.task && { icon: node.task === 'done' ? 'circle' : 'circle-check', label: node.task === 'done' ? '标记为未完成' : '标记为完成', keys: '⌥C', run: () => toggleDone(id) },
+            { icon: 'note', label: node.note ? '编辑备注' : '添加备注', keys: '⌥N', run: () => openNote(id) },
+            !isRoot && node.children.length > 0 && { icon: 'chevron', label: node.folded ? '展开' : '折叠', keys: '⌥.', run: () => toggleFold(id) },
+        ],
+        [
+            { icon: 'run', label: runPrefix(node.text) ? '取消执行中' : '标记为执行中', keys: '>>>', run: () => toggleMarker('run') },
+            { icon: 'hourglass', label: waitPrefix(node.text) ? '结束等待' : '开始等待', keys: '===', run: () => toggleMarker('wait') },
+        ],
+        [
+            !isRoot && { icon: 'trash', label: '删除', keys: '⌫', run: deleteSelected, danger: true },
+        ],
+    ];
+    const parts = [];
+    if (multi) {
+        const head = document.createElement('div');
+        head.className = 'menu-head';
+        head.textContent = `已选 ${selection.size} 个节点`;
+        parts.push(head);
+    }
+    menuItems = [];
+    for (const group of groups.map(g => g.filter(Boolean)).filter(g => g.length)) {
+        if (menuItems.length) {
+            const sep = document.createElement('div');
+            sep.className = 'menu-sep';
+            parts.push(sep);
+        }
+        for (const item of group) {
+            const b = document.createElement('button');
+            b.className = `menu-item${item.danger ? ' danger' : ''}`;
+            b.setAttribute('role', 'menuitem');
+            b.tabIndex = -1;
+            b.innerHTML = `${icon(item.icon)}<span class="label"></span><span class="keys"></span>`;
+            b.querySelector('.label').textContent = item.label;
+            b.querySelector('.keys').textContent = item.keys;
+            b.action = item.run;
+            parts.push(b);
+            menuItems.push(b);
+        }
+    }
+    menu.replaceChildren(...parts);
+    menu.hidden = false;
+    // Open at the pointer, flipped back inside the window near the edges.
+    const { width, height } = menu.getBoundingClientRect();
+    menu.style.left = `${clamp(x + width > innerWidth - 8 ? x - width : x, 8, innerWidth - width - 8)}px`;
+    menu.style.top = `${clamp(y + height > innerHeight - 8 ? y - height : y, 8, innerHeight - height - 8)}px`;
+    setActive(-1);
+    menu.focus({ preventScroll: true });
+}
+
+function closeMenu() {
+    if (menu.hidden) return;
+    menu.hidden = true;
+    menuItems = [];
+    if (document.activeElement === menu) menu.blur();
+}
+
+function setActive(i) {
+    menuItems.forEach((b, j) => b.classList.toggle('active', j === i));
+}
+
+function runMenuItem(b) {
+    closeMenu();
+    b.action();
+}
+
+menu.addEventListener('pointermove', event => {
+    const b = event.target.closest('.menu-item');
+    if (b) setActive(menuItems.indexOf(b));
+});
+menu.addEventListener('pointerleave', () => setActive(-1));
+menu.addEventListener('click', event => {
+    const b = event.target.closest('.menu-item');
+    if (b) runMenuItem(b);
+});
+menu.addEventListener('contextmenu', event => event.preventDefault());
+menu.addEventListener('keydown', event => {
+    event.stopPropagation();
+    const i = menuItems.findIndex(b => b.classList.contains('active'));
+    const n = menuItems.length;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        setActive(event.key === 'ArrowDown' ? (i + 1) % n : (i <= 0 ? n : i) - 1);
+    } else if ((event.key === 'Enter' || event.key === ' ') && i >= 0) {
+        event.preventDefault();
+        runMenuItem(menuItems[i]);
+    } else if (event.key === 'Escape' || event.key === 'Tab') {
+        event.preventDefault();
+        closeMenu();
+    }
+});
+// Any press outside, scrolling, resizing or leaving the window closes the menu.
+document.addEventListener('pointerdown', event => {
+    if (!menu.contains(event.target)) closeMenu();
+}, true);
+window.addEventListener('wheel', closeMenu, { passive: true });
+window.addEventListener('resize', closeMenu);
+window.addEventListener('blur', closeMenu);
+
+// ⌘S / Ctrl+S is muscle memory. Everything already saves on its own, so just flush any
+// pending save and keep the browser from opening its "Save page" dialog.
+window.addEventListener('keydown', event => {
+    if ((isMac ? event.metaKey : event.ctrlKey) && !event.altKey && event.code === 'KeyS') {
+        event.preventDefault();
+        if (saveTimer) saveNow();
+    }
+}, true);
+
 const commands = {
     sidebar: () => toggleSidebar(),
     new: newMap,
@@ -1517,6 +1697,7 @@ function renderHelp() {
         ['全选', `${MOD}A`],
         ['调整顺序', `${MOD}↑ / ${MOD}↓`],
         ['删除所选节点', 'Delete'],
+        ['节点快捷菜单', '右键'],
         ['折叠 / 展开', '⌥ .'],
         ['添加 / 移除待办', '⌥ T'],
         ['完成待办', '⌥ C'],
