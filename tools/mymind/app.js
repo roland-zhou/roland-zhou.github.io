@@ -235,7 +235,7 @@ function buildNode({ node, depth, side, color }, levels = shadeLevels()) {
     return el;
 }
 
-// A leading "===" becomes a waiting badge, and a trailing "MM-DD" or "MM-DD HH:MM" a deadline badge.
+// A leading "===" becomes a waiting badge, and a trailing "MM-DD" / "MM.DD" (optionally + " HH:MM") a deadline badge.
 function fillText(el, node) {
     const done = node.task === 'done';
     const parts = [];
@@ -1504,7 +1504,7 @@ function renderHelp() {
         ['备注', '⌥ N'],
         ['专注模式', '⌥ F'],
         ['渐隐模式', '⌥ G'],
-        ['截止日期（标题末尾）', '11-20 / 11-20 23:00'],
+        ['截止日期（标题末尾）', '11-20 / 11.20 / 11-20 23:00'],
         ['等待中（标题开头）', '=== QA testing'],
         ['撤销 / 重做', `${MOD}Z / ⇧${MOD}Z`],
         ['上下 / 左右移动画布', '滚轮 / ⇧ 滚轮'],

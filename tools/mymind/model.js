@@ -202,8 +202,9 @@ export function importOPML(text, filename = '') {
 }
 
 // A deadline is "MM-DD" or "MM-DD HH:MM" at the very end of a node's title, e.g. "Ship it 11-20 23:00".
+// The date may also be written "MM.DD", e.g. "Ship it 11.20 23:00".
 // Returns { index, month, day, hour, minute, timed } or null; index is where the date starts in text.
-const DUE_RE = /(^|\s)(\d{2})-(\d{2})(?: (\d{2}):(\d{2}))?$/;
+const DUE_RE = /(^|\s)(\d{2})[-.](\d{2})(?: (\d{2}):(\d{2}))?$/;
 
 export function parseDue(text) {
     const m = DUE_RE.exec(text);
