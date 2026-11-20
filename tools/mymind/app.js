@@ -1135,6 +1135,61 @@ function endDrag(event, cancelled) {
 }
 window.addEventListener('pointerup', event => endDrag(event, false));
 window.addEventListener('pointercancel', event => endDrag(event, true));
+
+/* Two-finger pinch on touch screens zooms around the fingers; moving both fingers also pans. */
+const touches = new Map();      // pointerId -> { x, y } for fingers on the canvas
+let pinch = null;
+
+function pinchSpan() {
+    const [a, b] = touches.values();
+    return { dist: Math.hypot(a.x - b.x, a.y - b.y) || 1, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 };
+}
+
+// Runs before the normal pointerdown handler, so a second finger never starts a drag of its own.
+canvas.addEventListener('pointerdown', event => {
+    if (event.pointerType !== 'touch') return;
+    // The first finger of a new gesture starts afresh, in case a lift was ever missed.
+    if (event.isPrimary) {
+        touches.clear();
+        pinch = null;
+    }
+    touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (touches.size < 2) return;
+    event.stopImmediatePropagation();
+    if (touches.size > 2) return;
+    // Whatever the first finger started (pan, node drag, selection box) becomes a pinch.
+    cancelDrag();
+    closeMenu();
+    startPinch();
+}, true);
+
+function startPinch() {
+    const span = pinchSpan();
+    pinch = { ...span, z: view.z, wx: (span.mx - view.x) / view.z, wy: (span.my - view.y) / view.z };
+}
+
+window.addEventListener('pointermove', event => {
+    if (!touches.has(event.pointerId)) return;
+    touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (!pinch) return;
+    // Keep the map point that started under the fingers' midpoint under it, at the new scale.
+    const span = pinchSpan();
+    const z = clamp(pinch.z * span.dist / pinch.dist, MIN_ZOOM, MAX_ZOOM);
+    view = { z, x: span.mx - pinch.wx * z, y: span.my - pinch.wy * z };
+    applyView();
+});
+
+function liftTouch(event) {
+    if (!touches.delete(event.pointerId) || !pinch) return;
+    // With three fingers down, lifting one pinches on with the other two from where it is now.
+    if (touches.size >= 2) return startPinch();
+    pinch = null;
+    // The finger still down carries on panning.
+    const [rest] = touches;
+    if (rest) drag = { pointerId: rest[0], x0: rest[1].x, y0: rest[1].y, kind: 'pan', vx: view.x, vy: view.y };
+}
+window.addEventListener('pointerup', liftTouch);
+window.addEventListener('pointercancel', liftTouch);
 canvas.addEventListener('auxclick', event => event.preventDefault());
 
 canvas.addEventListener('dblclick', event => {
