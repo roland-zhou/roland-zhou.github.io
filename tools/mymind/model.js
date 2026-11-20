@@ -237,7 +237,7 @@ const weekday = d => (d.getDay() + 6) % 7;
 const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const pad2 = n => String(n).padStart(2, '0');
 
-// Quick dates typed at the end of a title, turned into a real "MM-DD" when the title is saved:
+// Quick dates typed at the end of a title, turned into a real "MM.DD" when the title is saved:
 // "today", "tmr" (or "tomorrow"), a weekday "mon" … "sun", or "next mon" … "next sun",
 // optionally followed by a time ("tmr 9:30"). A plain weekday is this week's, or next week's
 // if it has already gone by; "next" always means next week (Monday to Sunday).
@@ -263,12 +263,12 @@ export function expandQuickDue(text, now = new Date()) {
         time = ` ${pad2(hour)}:${pad2(minute)}`;
     }
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
-    return `${text.slice(0, m.index + m[1].length)}${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}${time}`;
+    return `${text.slice(0, m.index + m[1].length)}${pad2(d.getMonth() + 1)}.${pad2(d.getDate())}${time}`;
 }
 
 // A friendlier name for a date near now: 昨天 / 今天 / 明天, or a weekday last week ("上周五"),
 // this week ("周三"), next week ("下周一") or the week after ("下下周二").
-// Other dates return null and keep their "MM-DD".
+// Other dates return null and show as "MM.DD".
 export function dueDayLabel(date, now = new Date()) {
     const diff = Math.round((startOfDay(date) - startOfDay(now)) / DAY);
     const names = { '-1': '昨天', 0: '今天', 1: '明天' };

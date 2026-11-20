@@ -257,7 +257,6 @@ function fillText(el, node) {
     if (due) {
         const badge = document.createElement('span');
         badge.className = 'due';
-        badge.raw = value.slice(due.index);
         badge.due = due;
         badge.done = done;
         paintDue(badge);
@@ -332,7 +331,7 @@ const clamp01 = x => Math.min(1, Math.max(0, x));
 // longer they are overdue (from a week to a month) or the further away they are (3 to 14 days).
 // Completed tasks always get the grey badge.
 // Dates in this week or next read as 今天 / 明天 / 周三 / 下周一 (plus any time); others keep
-// their "MM-DD". Returns true when the text changed (so the layout may need updating).
+// "MM.DD", however they were typed. Returns true when the text changed (so the layout may need updating).
 function paintDue(badge, now = new Date()) {
     const { state, days, hours } = dueStatus(badge.due, now);
     const date = dueDate(badge.due, now);
@@ -340,8 +339,9 @@ function paintDue(badge, now = new Date()) {
     const pad = n => String(n).padStart(2, '0');
     const time = badge.due.timed ? ` ${pad(badge.due.hour)}:${pad(badge.due.minute)}` : '';
     const before = badge.textContent;
-    badge.textContent = label ? label + time : badge.raw;
-    const exact = `${pad(date.getMonth() + 1)}-${pad(date.getDate())} 周${'日一二三四五六'[date.getDay()]}${time}`;
+    const md = `${pad(badge.due.month)}.${pad(badge.due.day)}`;
+    badge.textContent = (label ?? md) + time;
+    const exact = `${md} 周${'日一二三四五六'[date.getDay()]}${time}`;
     let strength = 1;
     if (state === 'overdue') strength = 1 - 0.85 * clamp01((days - 7) / 23);
     else if (state === 'upcoming') strength = 1 - clamp01((days - 3) / 11);
@@ -1771,7 +1771,7 @@ function renderHelp() {
         ['备注', '⌥ N'],
         ['专注模式', '⌥ F'],
         ['渐隐模式', '⌥ G'],
-        ['截止日期（标题末尾）', '11-20 / 11.20 / 11-20 23:00'],
+        ['截止日期（标题末尾）', '11.20 / 11-20 / 11.20 23:00'],
         ['快捷日期（保存时转成日期）', 'today / tmr / sun / next mon'],
         ['等待中（标题开头）', '=== QA testing'],
         ['执行中（标题开头，整棵子树高亮）', '>>> 写周报'],
