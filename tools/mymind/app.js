@@ -288,7 +288,7 @@ function flipHourglass(badge) {
 function runBadge(done) {
     const badge = document.createElement('span');
     badge.className = 'run';
-    badge.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10-6.5z"/></svg>执行中';
+    badge.textContent = '>>>';
     badge.title = done ? '已完成' : '执行中：这个节点和它的子节点始终高亮';
     return badge;
 }

@@ -159,11 +159,10 @@ svg use { pointer-events: none; }
 .node.done .wait { background: var(--due-neutral-bg); color: var(--due-neutral-ink); }
 /* Running badge for a leading ">>>". */
 .node .run {
-    display: inline-block; margin-right: .45em; padding: 0 .55em 0 .4em;
-    border-radius: 999px; font-size: .78em; font-weight: 550; line-height: 1.55; vertical-align: .08em;
-    white-space: nowrap; background: var(--run-bg); color: var(--run-ink);
+    display: inline-block; margin-right: .45em; padding: 0 .55em;
+    border-radius: 999px; font-size: .78em; font-weight: 650; line-height: 1.55; vertical-align: .08em;
+    white-space: nowrap; letter-spacing: -.04em; background: var(--run-bg); color: var(--run-ink);
 }
-.node .run svg { display: inline-block; width: 1em; height: 1em; margin-right: .2em; vertical-align: -.14em; fill: currentColor; }
 .node.done .run { background: var(--due-neutral-bg); color: var(--due-neutral-ink); }
 /* The label, not the icon, sets the baseline so the pill lines up with the title text. */
 .hourglass { display: inline-block; width: 1.2em; height: 1.2em; margin-right: .2em; vertical-align: -.24em; overflow: visible; }
