@@ -266,15 +266,17 @@ export function expandQuickDue(text, now = new Date()) {
     return `${text.slice(0, m.index + m[1].length)}${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}${time}`;
 }
 
-// A friendlier name for a date near now: 昨天 / 今天 / 明天, a weekday this week ("周三")
-// or next week ("下周一"). Other dates return null and keep their "MM-DD".
+// A friendlier name for a date near now: 昨天 / 今天 / 明天, or a weekday last week ("上周五"),
+// this week ("周三"), next week ("下周一") or the week after ("下下周二").
+// Other dates return null and keep their "MM-DD".
 export function dueDayLabel(date, now = new Date()) {
     const diff = Math.round((startOfDay(date) - startOfDay(now)) / DAY);
     const names = { '-1': '昨天', 0: '今天', 1: '明天' };
     if (names[diff]) return names[diff];
     const name = '一二三四五六日'[weekday(date)];
     const week = Math.floor((weekday(now) + diff) / 7);
-    return week === 0 ? `周${name}` : week === 1 ? `下周${name}` : null;
+    const prefix = { '-1': '上', 0: '', 1: '下', 2: '下下' }[week];
+    return prefix === undefined ? null : `${prefix}周${name}`;
 }
 
 // How urgent a deadline is: { state: 'overdue' | 'today' | 'upcoming', days }.
