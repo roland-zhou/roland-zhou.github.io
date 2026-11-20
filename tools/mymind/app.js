@@ -1,7 +1,7 @@
 import {
     PALETTE_SIZE, buildIndex, computeLayout, countNodes, createMap, createNode,
     dueStatus, exportOPML, importOPML, isValidMap, nextColor, nextWaitSince, parseDue, sampleMap, subtreeIds,
-    visibleChildren, waitDuration, waitPrefix, waitShort,
+    runPrefix, visibleChildren, waitDuration, waitPrefix, waitShort,
 } from './model.js';
 
 const STORE = 'mymind.v1';
@@ -44,6 +44,7 @@ const fileInput = $('file-input');
 
 let state = { maps: [], activeId: null };
 let index = new Map();
+let running = new Set();        // ids of ">>>" nodes and everything under them
 let positions = new Map();
 let selectedId = null;          // primary (focused) node
 let selection = new Set();      // all selected nodes, always includes selectedId
@@ -213,6 +214,7 @@ function buildNode({ node, depth, side, color }, levels = shadeLevels()) {
     el.dataset.side = side;
     el.style.setProperty('--c', `var(--b${color % PALETTE_SIZE})`);
     el.classList.toggle('folded', Boolean(node.folded && node.children.length));
+    el.classList.toggle('running', running.has(node.id));
     if (node.task) {
         const box = controlButton('check', node.task === 'done' ? '标记为未完成' : '标记为完成', icon(node.task === 'done' ? 'circle-check' : 'circle'));
         el.append(box);
@@ -235,11 +237,17 @@ function buildNode({ node, depth, side, color }, levels = shadeLevels()) {
     return el;
 }
 
-// A leading "===" becomes a waiting badge, and a trailing "MM-DD" / "MM.DD" (optionally + " HH:MM") a deadline badge.
+// A leading ">>>" becomes a running badge, a leading "===" (after it, if both) a waiting badge,
+// and a trailing "MM-DD" / "MM.DD" (optionally + " HH:MM") a deadline badge.
 function fillText(el, node) {
     const done = node.task === 'done';
     const parts = [];
     let value = node.text;
+    const run = runPrefix(value);
+    if (run) {
+        parts.push(runBadge(done));
+        value = value.slice(run);
+    }
     const wait = waitPrefix(value);
     if (wait) {
         parts.push(waitBadge(node.waitSince, done));
@@ -275,6 +283,14 @@ function flipHourglass(badge) {
     glass.classList.remove('flip');
     void glass.getBoundingClientRect();   // restart the animation if it is still running
     glass.classList.add('flip');
+}
+
+function runBadge(done) {
+    const badge = document.createElement('span');
+    badge.className = 'run';
+    badge.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10-6.5z"/></svg>执行中';
+    badge.title = done ? '已完成' : '执行中：这个节点和它的子节点始终高亮';
+    return badge;
 }
 
 function waitBadge(since, done) {
@@ -339,6 +355,8 @@ setInterval(() => {
 function render() {
     const map = activeMap();
     index = buildIndex(map.root);
+    running = new Set();
+    for (const { node } of index.values()) if (runPrefix(node.text)) subtreeIds(node, running);
     const kept = [...selection].filter(id => index.has(id));
     setSelection(kept, index.has(selectedId) ? selectedId : kept.at(-1) ?? null, false);
     const fragment = document.createDocumentFragment();
@@ -386,8 +404,9 @@ function shadeLevels() {
 
 // Level 0 is full strength; levels 1..8 step from 90% colour / no dimming down to
 // 0% colour / full dimming, the same look as a dimmed node in focus mode.
+// Running (">>>") subtrees always stay at full strength.
 function shade(el, levels) {
-    const level = levels ? levels.get(el.dataset.id) ?? FADE_STEPS : 0;
+    const level = levels && !running.has(el.dataset.id) ? levels.get(el.dataset.id) ?? FADE_STEPS : 0;
     const t = (level - 1) / (FADE_STEPS - 2);
     const faded = level > 0 && t < 1;
     el.classList.toggle('dimmed', t >= 1);
@@ -1506,6 +1525,7 @@ function renderHelp() {
         ['渐隐模式', '⌥ G'],
         ['截止日期（标题末尾）', '11-20 / 11.20 / 11-20 23:00'],
         ['等待中（标题开头）', '=== QA testing'],
+        ['执行中（标题开头，整棵子树高亮）', '>>> 写周报'],
         ['撤销 / 重做', `${MOD}Z / ⇧${MOD}Z`],
         ['上下 / 左右移动画布', '滚轮 / ⇧ 滚轮'],
         ['以鼠标为中心缩放', `${MOD} 滚轮`],

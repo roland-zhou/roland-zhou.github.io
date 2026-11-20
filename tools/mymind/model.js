@@ -246,10 +246,18 @@ export function dueStatus(due, now = new Date()) {
     return ahead === 0 ? { state: 'today', days: 0 } : { state: 'upcoming', days: ahead };
 }
 
-// A title starting with "===" (or more "=") means we are waiting on something, e.g. "=== QA testing".
+// A title starting with ">>>" (or more ">") is being worked on right now, e.g. ">>> Write the report".
 // Returns the length of the marker (including the spaces after it), or 0.
+export function runPrefix(text) {
+    return /^>{3,}\s*/.exec(text)?.[0].length ?? 0;
+}
+
+// A title starting with "===" (or more "=") means we are waiting on something, e.g. "=== QA testing".
+// It may follow a ">>>" marker. Returns the length of both markers (including spaces), or 0.
 export function waitPrefix(text) {
-    return /^={3,}\s*/.exec(text)?.[0].length ?? 0;
+    const run = runPrefix(text);
+    const wait = /^={3,}\s*/.exec(text.slice(run))?.[0].length ?? 0;
+    return wait && run + wait;
 }
 
 // When a title is saved: a new "===" starts the clock, an existing one keeps its start time,
