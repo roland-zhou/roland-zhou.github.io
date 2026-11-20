@@ -232,6 +232,51 @@ export function dueDate(due, now = new Date()) {
     return best;
 }
 
+// Weeks start on Monday. Monday = 0 … Sunday = 6.
+const weekday = d => (d.getDay() + 6) % 7;
+const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+const pad2 = n => String(n).padStart(2, '0');
+
+// Quick dates typed at the end of a title, turned into a real "MM-DD" when the title is saved:
+// "today", "tmr" (or "tomorrow"), a weekday "mon" … "sun", or "next mon" … "next sun",
+// optionally followed by a time ("tmr 9:30"). A plain weekday is this week's, or next week's
+// if it has already gone by; "next" always means next week (Monday to Sunday).
+const QUICK_DUE_RE = /(^|\s)(today|tmr|tomorrow|(?:next\s+)?(?:mon|tue|wed|thu|fri|sat|sun))(?:\s+(\d{1,2}):(\d{2}))?$/i;
+
+export function expandQuickDue(text, now = new Date()) {
+    const m = QUICK_DUE_RE.exec(text);
+    if (!m) return text;
+    const word = m[2].toLowerCase();
+    let offset;
+    if (word === 'today') offset = 0;
+    else if (word === 'tmr' || word === 'tomorrow') offset = 1;
+    else {
+        const next = word.startsWith('next');
+        offset = WEEKDAYS.indexOf(word.slice(-3)) - weekday(now);
+        if (next) offset += 7;
+        else if (offset < 0) offset += 7;
+    }
+    let time = '';
+    if (m[3] !== undefined) {
+        const [hour, minute] = [+m[3], +m[4]];
+        if (hour > 23 || minute > 59) return text;
+        time = ` ${pad2(hour)}:${pad2(minute)}`;
+    }
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
+    return `${text.slice(0, m.index + m[1].length)}${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}${time}`;
+}
+
+// A friendlier name for a date near now: 昨天 / 今天 / 明天, a weekday this week ("周三")
+// or next week ("下周一"). Other dates return null and keep their "MM-DD".
+export function dueDayLabel(date, now = new Date()) {
+    const diff = Math.round((startOfDay(date) - startOfDay(now)) / DAY);
+    const names = { '-1': '昨天', 0: '今天', 1: '明天' };
+    if (names[diff]) return names[diff];
+    const name = '一二三四五六日'[weekday(date)];
+    const week = Math.floor((weekday(now) + diff) / 7);
+    return week === 0 ? `周${name}` : week === 1 ? `下周${name}` : null;
+}
+
 // How urgent a deadline is: { state: 'overdue' | 'today' | 'upcoming', days }.
 // days counts whole days late (overdue) or calendar days ahead (upcoming); hours is how
 // long a timed deadline has been overdue.

@@ -1,6 +1,6 @@
 import {
     PALETTE_SIZE, buildIndex, computeLayout, countNodes, createMap, createNode,
-    dueStatus, exportOPML, importOPML, isValidMap, nextColor, nextWaitSince, parseDue, sampleMap, subtreeIds,
+    dueDate, dueDayLabel, dueStatus, expandQuickDue, exportOPML, importOPML, isValidMap, nextColor, nextWaitSince, parseDue, sampleMap, subtreeIds,
     runPrefix, visibleChildren, waitDuration, waitPrefix, waitShort,
 } from './model.js';
 
@@ -257,7 +257,7 @@ function fillText(el, node) {
     if (due) {
         const badge = document.createElement('span');
         badge.className = 'due';
-        badge.textContent = value.slice(due.index);
+        badge.raw = value.slice(due.index);
         badge.due = due;
         badge.done = done;
         paintDue(badge);
@@ -331,8 +331,17 @@ const clamp01 = x => Math.min(1, Math.max(0, x));
 // Overdue is red, today amber, the next 3 days yellow. Deadlines fade towards grey the
 // longer they are overdue (from a week to a month) or the further away they are (3 to 14 days).
 // Completed tasks always get the grey badge.
+// Dates in this week or next read as 今天 / 明天 / 周三 / 下周一 (plus any time); others keep
+// their "MM-DD". Returns true when the text changed (so the layout may need updating).
 function paintDue(badge, now = new Date()) {
     const { state, days, hours } = dueStatus(badge.due, now);
+    const date = dueDate(badge.due, now);
+    const label = dueDayLabel(date, now);
+    const pad = n => String(n).padStart(2, '0');
+    const time = badge.due.timed ? ` ${pad(badge.due.hour)}:${pad(badge.due.minute)}` : '';
+    const before = badge.textContent;
+    badge.textContent = label ? label + time : badge.raw;
+    const exact = `${pad(date.getMonth() + 1)}-${pad(date.getDate())} 周${'日一二三四五六'[date.getDay()]}${time}`;
     let strength = 1;
     if (state === 'overdue') strength = 1 - 0.85 * clamp01((days - 7) / 23);
     else if (state === 'upcoming') strength = 1 - clamp01((days - 3) / 11);
@@ -340,14 +349,16 @@ function paintDue(badge, now = new Date()) {
     badge.dataset.state = state;
     badge.classList.toggle('pale', strength < 0.7);
     badge.style.setProperty('--due-mix', `${Math.round(strength * 100)}%`);
-    badge.title = badge.done ? '已完成' : state === 'today' ? '今天到期' : state === 'overdue' ? (days ? `已过期 ${days} 天` : hours ? `已过期 ${hours} 小时` : '刚刚过期') : `还有 ${days} 天`;
+    const status = badge.done ? '已完成' : state === 'today' ? '今天到期' : state === 'overdue' ? (days ? `已过期 ${days} 天` : hours ? `已过期 ${hours} 小时` : '刚刚过期') : `还有 ${days} 天`;
+    badge.title = `${exact} · ${status}`;
+    return badge.textContent !== before;
 }
 
 // Re-paint every minute so deadlines and waiting times move on without a re-render.
 setInterval(() => {
     const now = new Date();
-    for (const badge of nodesEl.querySelectorAll('.due')) paintDue(badge, now);
     let grew = false;
+    for (const badge of nodesEl.querySelectorAll('.due')) grew = paintDue(badge, now) || grew;
     for (const badge of nodesEl.querySelectorAll('.wait')) grew = paintWait(badge, now.getTime()) || grew;
     if (grew) relayout();
 }, 60e3);
@@ -669,7 +680,8 @@ function finishEdit(save) {
         render();
         return;
     }
-    const value = readText(text);
+    // A quick date typed at the end ("tmr", "next mon") is stored as a real date.
+    const value = expandQuickDue(readText(text));
     if (value !== node.text || nextWaitSince(value, node.waitSince) !== node.waitSince) {
         if (!created) pushUndo(snap);
         setTitle(node, value);
@@ -1760,6 +1772,7 @@ function renderHelp() {
         ['专注模式', '⌥ F'],
         ['渐隐模式', '⌥ G'],
         ['截止日期（标题末尾）', '11-20 / 11.20 / 11-20 23:00'],
+        ['快捷日期（保存时转成日期）', 'today / tmr / sun / next mon'],
         ['等待中（标题开头）', '=== QA testing'],
         ['执行中（标题开头，整棵子树高亮）', '>>> 写周报'],
         ['撤销 / 重做', `${MOD}Z / ⇧${MOD}Z`],
