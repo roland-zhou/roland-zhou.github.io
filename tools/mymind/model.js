@@ -243,9 +243,13 @@ const pad2 = n => String(n).padStart(2, '0');
 // if it has already gone by; "next" always means next week (Monday to Sunday).
 const QUICK_DUE_RE = /(^|\s)(today|tmr|tomorrow|(?:next\s+)?(?:mon|tue|wed|thu|fri|sat|sun))(?:\s+(\d{1,2}):(\d{2}))?$/i;
 
+// A time on its own at the end ("23:32", "9:30") means today at that time. After a written date
+// ("11.22 9:30") the date is kept and only the time is tidied up to "09:30".
+const QUICK_TIME_RE = /(^|\s)(?:(\d{2}[-.]\d{2})\s+)?(\d{1,2}):(\d{2})$/;
+
 export function expandQuickDue(text, now = new Date()) {
     const m = QUICK_DUE_RE.exec(text);
-    if (!m) return text;
+    if (!m) return expandQuickTime(text, now);
     const word = m[2].toLowerCase();
     let offset;
     if (word === 'today') offset = 0;
@@ -264,6 +268,17 @@ export function expandQuickDue(text, now = new Date()) {
     }
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
     return `${text.slice(0, m.index + m[1].length)}${pad2(d.getMonth() + 1)}.${pad2(d.getDate())}${time}`;
+}
+
+function expandQuickTime(text, now) {
+    const m = QUICK_TIME_RE.exec(text);
+    if (!m) return text;
+    const [hour, minute] = [+m[3], +m[4]];
+    if (hour > 23 || minute > 59) return text;
+    const date = m[2] ?? `${pad2(now.getMonth() + 1)}.${pad2(now.getDate())}`;
+    const result = `${text.slice(0, m.index + m[1].length)}${date} ${pad2(hour)}:${pad2(minute)}`;
+    // Leave it alone if the date part is not a real date (e.g. "13.45 10:00").
+    return parseDue(result) ? result : text;
 }
 
 // A friendlier name for a date near now: 昨天 / 今天 / 明天, or a weekday last week ("上周五"),
