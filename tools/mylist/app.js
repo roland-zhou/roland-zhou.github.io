@@ -84,7 +84,7 @@ let isInitialRender = true;
 let suppressedClickUntil = 0;
 
 // =========================================================================
-// Pinch-Zoom Prevention & Fixed 1/4 + 1/4 + 1/2 Min-Height Sizing
+// Mobile VisualViewport Pinning, Pinch-Zoom Prevention & 1/4+1/4+1/2 Sizing
 // =========================================================================
 
 // Prevent two-finger pinch zoom on mobile (including iOS Safari gesture events)
@@ -98,22 +98,144 @@ document.addEventListener('touchmove', (e) => {
     if (e.touches.length > 1) e.preventDefault();
 }, { passive: false });
 
-// Let the browser natively handle keyboard positioning; only reset stray scroll on blur
-for (const field of [composerInput, editText, editNote]) {
-    field.addEventListener('blur', () => {
-        setTimeout(() => window.scrollTo(0, 0), 80);
-    });
+const MOBILE_BP = 640;
+let lastStageWidth = 0;
+let isKeyboardOpen = false;
+let baseViewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+let lastVvHeight = -1;
+let lastVvTop = -1;
+let stageWasAtBottom = true;
+let anchorStageOnKb = false;
+let vvSettleTimers = [];
+
+function isEditableElement(el) {
+    return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
 }
 
-let lastStageWidth = 0;
+function clearVvSettleTimers() {
+    for (const id of vvSettleTimers) clearTimeout(id);
+    vvSettleTimers = [];
+}
+
+function syncViewport() {
+    if (window.innerWidth >= MOBILE_BP) {
+        isKeyboardOpen = false;
+        if (lastVvHeight !== -1) {
+            lastVvHeight = -1;
+            lastVvTop = -1;
+            document.documentElement.style.setProperty('--vv-h', '100dvh');
+            document.documentElement.style.setProperty('--vv-top', '0px');
+            document.documentElement.classList.remove('kb-open');
+        }
+        return;
+    }
+
+    const vv = window.visualViewport;
+    const h = Math.round(vv ? vv.height : window.innerHeight);
+    // vv.pageTop = window.scrollY + vv.offsetTop (document coordinate of the visual viewport's top edge)
+    const rawTop = vv
+        ? (typeof vv.pageTop === 'number' ? vv.pageTop : (window.scrollY + vv.offsetTop))
+        : window.scrollY;
+    let top = Math.max(0, Math.round(rawTop));
+
+    // If the layout viewport already shrank to match visualViewport (e.g. Android or
+    // interactive-widget=resizes-content), clear any stray document scroll pushing the shell up
+    if (window.scrollY > 0 && Math.abs(window.innerHeight - h) <= 12 && (!vv || Math.round(vv.offsetTop) === 0)) {
+        window.scrollTo(0, 0);
+        top = 0;
+    }
+
+    const editing = isEditableElement(document.activeElement);
+    if (!editing) {
+        baseViewportHeight = Math.max(h, window.innerHeight);
+    } else if (h > baseViewportHeight || Math.abs(window.innerWidth - lastStageWidth) > 80) {
+        baseViewportHeight = h;
+    }
+
+    const kbNow = (baseViewportHeight - h > 110) || (window.innerHeight - h > 110);
+    const kbJustOpened = kbNow && !isKeyboardOpen;
+    isKeyboardOpen = kbNow;
+
+    if (h !== lastVvHeight) {
+        lastVvHeight = h;
+        document.documentElement.style.setProperty('--vv-h', `${h}px`);
+    }
+    if (top !== lastVvTop) {
+        lastVvTop = top;
+        document.documentElement.style.setProperty('--vv-top', `${top}px`);
+    }
+    document.documentElement.classList.toggle('kb-open', kbNow);
+
+    if ((kbJustOpened || (kbNow && anchorStageOnKb)) && document.activeElement === composerInput) {
+        stage.scrollTop = stage.scrollHeight;
+        stageWasAtBottom = true;
+    }
+}
+
+function scheduleViewportSettle({ resetScrollIfBlurred = false } = {}) {
+    clearVvSettleTimers();
+    requestAnimationFrame(syncViewport);
+    for (const delay of [60, 160, 320, 520]) {
+        vvSettleTimers.push(setTimeout(() => {
+            if (resetScrollIfBlurred && !isEditableElement(document.activeElement) && window.scrollY !== 0) {
+                window.scrollTo(0, 0);
+            }
+            syncViewport();
+        }, delay));
+    }
+}
+
+if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', () => {
+        syncViewport();
+        // WebKit often finishes focus-scrolling slightly after the last resize event without firing scroll
+        if (isEditableElement(document.activeElement)) {
+            scheduleViewportSettle();
+        }
+    });
+    window.visualViewport.addEventListener('scroll', syncViewport);
+}
+window.addEventListener('scroll', syncViewport, { passive: true });
+window.addEventListener('resize', syncViewport);
+window.addEventListener('orientationchange', () => {
+    setTimeout(() => {
+        baseViewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+        syncViewport();
+        updateZoneSizes(true);
+    }, 180);
+});
+
+document.addEventListener('focusin', (e) => {
+    if (!isEditableElement(e.target)) return;
+    if (e.target === composerInput) {
+        anchorStageOnKb = stageWasAtBottom || (stage.scrollHeight - stage.clientHeight - stage.scrollTop) <= 24;
+    }
+    syncViewport();
+    scheduleViewportSettle();
+});
+
+document.addEventListener('focusout', (e) => {
+    if (!isEditableElement(e.target)) return;
+    anchorStageOnKb = false;
+    scheduleViewportSettle({ resetScrollIfBlurred: true });
+});
+
+stage.addEventListener('scroll', () => {
+    stageWasAtBottom = (stage.scrollHeight - stage.clientHeight - stage.scrollTop) <= 20;
+}, { passive: true });
+
+stage.addEventListener('touchstart', () => {
+    if (isKeyboardOpen) anchorStageOnKb = false;
+}, { passive: true });
+
+syncViewport();
 
 function updateZoneSizes(force = false) {
     const h = stage.clientHeight;
     const w = stage.clientWidth;
     if (h <= 0) return;
-    // Skip re-squashing min-heights if only height shrank temporarily on mobile (e.g. Android keyboard)
-    const activeTag = document.activeElement?.tagName;
-    if (!force && window.innerWidth < 640 && w === lastStageWidth && (activeTag === 'INPUT' || activeTag === 'TEXTAREA')) {
+    // Skip re-squashing min-heights while the mobile virtual keyboard is open
+    if (!force && window.innerWidth < MOBILE_BP && w === lastStageWidth && (isKeyboardOpen || isEditableElement(document.activeElement))) {
         return;
     }
     lastStageWidth = w;
@@ -126,9 +248,12 @@ function updateZoneSizes(force = false) {
 }
 
 const stageRO = new ResizeObserver(() => {
-    const wasAtBottom = (stage.scrollHeight - stage.clientHeight - stage.scrollTop) <= 16;
+    const keepBottom = stageWasAtBottom || (anchorStageOnKb && document.activeElement === composerInput);
     updateZoneSizes();
-    if (wasAtBottom) stage.scrollTop = stage.scrollHeight;
+    if (keepBottom) {
+        stage.scrollTop = stage.scrollHeight;
+        stageWasAtBottom = true;
+    }
 });
 stageRO.observe(stage);
 
