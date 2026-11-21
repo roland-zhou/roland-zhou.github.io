@@ -625,6 +625,10 @@ canvas.addEventListener('wheel', event => {
     applyView();
 }, { passive: false });
 for (const type of ['gesturestart', 'gesturechange']) document.addEventListener(type, e => e.preventDefault());
+// Safari can ignore viewport scale limits. Cancel native pinching while allowing single-finger scrolling.
+document.addEventListener('touchmove', event => {
+    if (event.touches.length > 1 && event.cancelable) event.preventDefault();
+}, { passive: false });
 
 /* ---------- Editing ---------- */
 

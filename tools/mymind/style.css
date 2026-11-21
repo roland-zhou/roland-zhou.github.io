@@ -87,7 +87,7 @@
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); }
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); touch-action: manipulation; }
 button, textarea, input { font: inherit; color: inherit; }
 button { border: 0; background: none; cursor: pointer; padding: 0; }
 button:disabled { opacity: .35; cursor: default; }
