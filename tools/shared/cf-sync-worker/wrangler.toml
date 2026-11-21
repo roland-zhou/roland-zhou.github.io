@@ -1,0 +1,20 @@
+name = "roland-tools-sync"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+# 1. Create the D1 database:
+#      npx wrangler d1 create roland-tools-sync
+#    Then replace database_id below with the ID returned by Wrangler.
+[[d1_databases]]
+binding = "DB"
+database_name = "roland-tools-sync"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+# 2. Set your private bearer token secret:
+#      npx wrangler secret put SYNC_TOKEN
+#    (Generate one with: openssl rand -base64 32)
+
+# 3. Optional: restrict CORS to your site origin(s), comma-separated.
+#    Leave unset to allow any origin (*).
+# [vars]
+# ALLOWED_ORIGIN = "https://rolandzhou.xyz,https://roland-zhou.github.io"

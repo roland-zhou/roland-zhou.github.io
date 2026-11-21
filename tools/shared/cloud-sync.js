@@ -1,25 +1,20 @@
 /**
- * Shared GitHub Private Repository Cloud Sync Engine + Settings Modal.
+ * Shared Cloudflare Worker + D1 Cloud Sync Engine + Settings Modal.
  *
  * - Strictly opt-in: makes ZERO network requests when unconfigured.
- * - Same-origin config sharing across tools (localStorage key: roland.sync.github.v1).
- * - Uses GitHub Contents API with file `sha` optimistic locking (409 conflict auto-merge & retry),
- *   ETag conditional requests, and >1MB Git Blobs fallback.
+ * - Same-origin config sharing across tools (localStorage key: roland.sync.cf.v1).
+ * - Uses Cloudflare Worker + D1 SQLite with integer `version` optimistic locking
+ *   (409 conflict auto-merge & retry) and ETag (`If-None-Match` -> 304) conditional GET.
  */
 
-export const SYNC_CONFIG_KEY = 'roland.sync.github.v1';
-const META_KEY_PREFIX = 'roland.sync.meta.v1:';
-const PAIR_V1 = 'GSYNC1';
-const PAIR_V0 = 'GSYNC0';
-const PAIR_SECRET = 'roland-github-sync:pair:v1:rolandzhou.xyz';
-const API_BASE = 'https://api.github.com';
-const API_HEADERS = {
-    Accept: 'application/vnd.github+json',
-    'X-GitHub-Api-Version': '2022-11-28',
-};
+export const SYNC_CONFIG_KEY = 'roland.sync.cf.v1';
+const META_KEY_PREFIX = 'roland.sync.cf.meta.v1:';
+const PAIR_V1 = 'CSYNC1';
+const PAIR_V0 = 'CSYNC0';
+const PAIR_SECRET = 'roland-cf-sync:pair:v1:rolandzhou.xyz';
 
 class ConflictError extends Error {
-    constructor(message = '远端文件已被其他设备更新') {
+    constructor(message = '远端数据已被其他设备更新') {
         super(message);
         this.name = 'ConflictError';
     }
@@ -36,37 +31,44 @@ class SyncHttpError extends Error {
 
 /* ---------- Utilities ---------- */
 
-export function normalizeRepo(raw) {
+export function normalizeEndpoint(raw) {
     if (typeof raw !== 'string') return '';
     let s = raw.trim();
-    s = s.replace(/^https?:\/\/github\.com\//i, '');
-    s = s.replace(/^github\.com\//i, '');
-    s = s.replace(/^\/+|\/+$/g, '');
-    s = s.replace(/\.git$/i, '');
-    const parts = s.split('/').filter(Boolean);
-    if (parts.length < 2) return '';
-    const owner = parts[0];
-    const repo = parts[1];
-    if (!/^[A-Za-z0-9_.-]+$/.test(owner) || !/^[A-Za-z0-9_.-]+$/.test(repo)) return '';
-    return `${owner}/${repo}`;
-}
-
-function encodeBase64Utf8(str) {
-    const bytes = new TextEncoder().encode(str);
-    let bin = '';
-    const chunk = 0x8000;
-    for (let i = 0; i < bytes.length; i += chunk) {
-        bin += String.fromCharCode(...bytes.subarray(i, i + chunk));
+    if (!s) return '';
+    if (!/^https?:\/\//i.test(s)) {
+        const isLocal = /^(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?(\/|$)/i.test(s);
+        s = `${isLocal ? 'http' : 'https'}://${s}`;
     }
-    return btoa(bin);
+    let parsed;
+    try {
+        parsed = new URL(s);
+    } catch {
+        return '';
+    }
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return '';
+    let pathname = parsed.pathname.replace(/\/+$/, '');
+    // Strip accidental /api/... suffix if user pasted a full endpoint path
+    pathname = pathname.replace(/\/api(?:\/.*)?$/i, '');
+    return `${parsed.origin}${pathname}`;
 }
 
-function decodeBase64Utf8(b64) {
-    const clean = String(b64 || '').replace(/\s+/g, '');
-    const bin = atob(clean);
-    const bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    return new TextDecoder().decode(bytes);
+export function formatEndpointHost(endpoint) {
+    if (!endpoint) return '';
+    try {
+        const u = new URL(endpoint);
+        const path = u.pathname.replace(/\/+$/, '');
+        return path ? `${u.host}${path}` : u.host;
+    } catch {
+        return endpoint;
+    }
+}
+
+function getLocalTimezone() {
+    try {
+        return Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+    } catch {
+        return '';
+    }
 }
 
 function toBase64Url(bytes) {
@@ -98,14 +100,6 @@ export function formatSyncTime(ts) {
     return `${d.getMonth() + 1}/${d.getDate()} ${hhmm}`;
 }
 
-function formatCommitTime(d = new Date()) {
-    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
-}
-
-function encodeFilePath(path) {
-    return String(path).split('/').map(encodeURIComponent).join('/');
-}
-
 /* ---------- Config & Meta Storage ---------- */
 
 export function readSyncConfig() {
@@ -113,11 +107,10 @@ export function readSyncConfig() {
         const raw = localStorage.getItem(SYNC_CONFIG_KEY);
         if (!raw) return null;
         const parsed = JSON.parse(raw);
-        const repo = normalizeRepo(parsed?.repo);
+        const endpoint = normalizeEndpoint(parsed?.endpoint);
         const token = typeof parsed?.token === 'string' ? parsed.token.trim() : '';
-        const branch = typeof parsed?.branch === 'string' && parsed.branch.trim() ? parsed.branch.trim() : 'main';
-        if (!repo || !token) return null;
-        return { repo, branch, token };
+        if (!endpoint || !token) return null;
+        return { endpoint, token };
     } catch {
         return null;
     }
@@ -130,37 +123,37 @@ export function writeSyncConfig(config) {
             return;
         }
         localStorage.setItem(SYNC_CONFIG_KEY, JSON.stringify({
-            repo: config.repo,
-            branch: config.branch || 'main',
+            endpoint: config.endpoint,
             token: config.token,
         }));
     } catch { /* storage unavailable */ }
 }
 
-function readMeta(filePath) {
+function readMeta(appId) {
     try {
-        const raw = localStorage.getItem(META_KEY_PREFIX + filePath);
-        if (!raw) return { sha: null, etag: null, lastSyncAt: 0, dirty: false, extra: null };
+        const raw = localStorage.getItem(META_KEY_PREFIX + appId);
+        if (!raw) return { version: null, etag: null, lastSyncAt: 0, dirty: false, extra: null };
         const p = JSON.parse(raw);
+        const ver = Number(p?.version);
         return {
-            sha: typeof p?.sha === 'string' ? p.sha : null,
+            version: Number.isInteger(ver) && ver > 0 ? ver : null,
             etag: typeof p?.etag === 'string' ? p.etag : null,
             lastSyncAt: Number(p?.lastSyncAt) || 0,
             dirty: Boolean(p?.dirty),
             extra: p?.extra ?? null,
         };
     } catch {
-        return { sha: null, etag: null, lastSyncAt: 0, dirty: false, extra: null };
+        return { version: null, etag: null, lastSyncAt: 0, dirty: false, extra: null };
     }
 }
 
-function writeMeta(filePath, meta) {
+function writeMeta(appId, meta) {
     try {
         if (!meta) {
-            localStorage.removeItem(META_KEY_PREFIX + filePath);
+            localStorage.removeItem(META_KEY_PREFIX + appId);
             return;
         }
-        localStorage.setItem(META_KEY_PREFIX + filePath, JSON.stringify(meta));
+        localStorage.setItem(META_KEY_PREFIX + appId, JSON.stringify(meta));
     } catch { /* ignore */ }
 }
 
@@ -180,8 +173,7 @@ function getPairKey() {
 
 export async function encodePairingCode(config) {
     const payload = JSON.stringify({
-        repo: config.repo,
-        branch: config.branch || 'main',
+        endpoint: config.endpoint,
         token: config.token,
     });
     const data = new TextEncoder().encode(payload);
@@ -228,18 +220,17 @@ export async function decodePairingCode(input) {
         throw new Error(`不支持的配对码版本 (${ver})`);
     }
     const obj = JSON.parse(jsonStr);
-    const repo = normalizeRepo(obj?.repo);
+    const endpoint = normalizeEndpoint(obj?.endpoint);
     const token = typeof obj?.token === 'string' ? obj.token.trim() : '';
-    const branch = typeof obj?.branch === 'string' && obj.branch.trim() ? obj.branch.trim() : 'main';
-    if (!repo || !token) throw new Error('配对码中缺少仓库或 Token 信息');
-    return { repo, branch, token };
+    if (!endpoint || !token) throw new Error('配对码中缺少服务地址或密钥');
+    return { endpoint, token };
 }
 
-/* ---------- GitHub REST API ---------- */
+/* ---------- Cloudflare Worker REST API ---------- */
 
-async function githubFetch(url, token, options = {}) {
+async function workerFetch(url, token, options = {}) {
     const headers = {
-        ...API_HEADERS,
+        Accept: 'application/json',
         Authorization: `Bearer ${token}`,
         ...(options.headers || {}),
     };
@@ -251,7 +242,7 @@ async function githubFetch(url, token, options = {}) {
             cache: 'no-store',
         });
     } catch {
-        throw new SyncHttpError(0, '网络连接失败，请检查网络或代理', false);
+        throw new SyncHttpError(0, '网络连接失败，请检查 Worker 地址、网络或 CORS 设置', false);
     }
     return res;
 }
@@ -264,127 +255,114 @@ async function parseErrorMessage(res) {
     return `HTTP ${res.status}`;
 }
 
-export async function verifyRepoAccess({ repo, token, branch }) {
-    const normalized = normalizeRepo(repo);
-    if (!normalized) throw new Error('仓库格式应为 owner/repo（例如 roland-zhou/my-tools-data）');
+export async function verifyEndpointAccess({ endpoint, token }) {
+    const normalized = normalizeEndpoint(endpoint);
+    if (!normalized) throw new Error('请输入有效的 Worker 地址（例如 https://roland-tools-sync.xxx.workers.dev）');
     const cleanToken = String(token || '').trim();
-    if (!cleanToken) throw new Error('请输入 GitHub Token');
+    if (!cleanToken) throw new Error('请输入访问密钥 (SYNC_TOKEN)');
 
-    const res = await githubFetch(`${API_BASE}/repos/${normalized}`, cleanToken, { method: 'GET' });
-    if (res.status === 401) throw new SyncHttpError(401, 'Token 无效或已过期', true);
-    if (res.status === 403) {
-        const detail = await parseErrorMessage(res);
-        throw new SyncHttpError(403, `访问被拒绝（${detail}）`, true);
+    const res = await workerFetch(`${normalized}/api/health`, cleanToken, { method: 'GET' });
+    if (res.status === 401 || res.status === 403) {
+        throw new SyncHttpError(res.status, await parseErrorMessage(res), true);
     }
     if (res.status === 404) {
-        throw new SyncHttpError(404, '找不到该仓库，或 Token 没有此仓库的访问权限', true);
+        throw new SyncHttpError(404, '该地址未提供 /api/health 接口，请确认已部署正确的 sync worker.js', false);
+    }
+    if (res.status === 503) {
+        throw new SyncHttpError(503, await parseErrorMessage(res), false);
     }
     if (!res.ok) {
         throw new SyncHttpError(res.status, `验证失败：${await parseErrorMessage(res)}`, false);
     }
 
-    const data = await res.json();
-    if (data.permissions && data.permissions.push === false) {
-        throw new SyncHttpError(403, 'Token 缺少 Contents 写权限，请在 GitHub 中开启 Read and write', true);
+    const data = await res.json().catch(() => null);
+    if (!data?.ok) {
+        throw new SyncHttpError(500, '服务端返回格式异常，请确认已部署正确的 sync worker.js', false);
     }
 
-    const resolvedBranch = (branch && branch.trim()) || data.default_branch || 'main';
     return {
-        repo: normalized,
-        branch: resolvedBranch,
+        endpoint: normalized,
         token: cleanToken,
-        isPrivate: Boolean(data.private),
+        apps: Array.isArray(data.apps) ? data.apps : [],
     };
 }
 
-async function fetchRemoteFile(config, filePath, { etag = null, bypassEtag = false } = {}) {
-    const encodedPath = encodeFilePath(filePath);
-    const url = `${API_BASE}/repos/${config.repo}/contents/${encodedPath}?ref=${encodeURIComponent(config.branch)}`;
+async function fetchRemoteDoc(config, appId, { etag = null, bypassEtag = false } = {}) {
+    const url = `${config.endpoint}/api/sync/${encodeURIComponent(appId)}`;
     const headers = {};
     if (etag && !bypassEtag) headers['If-None-Match'] = etag;
 
-    const res = await githubFetch(url, config.token, { method: 'GET', headers });
+    const res = await workerFetch(url, config.token, { method: 'GET', headers });
     if (res.status === 304) return { notModified: true, notFound: false };
     if (res.status === 404) return { notModified: false, notFound: true };
-    if (res.status === 401) throw new SyncHttpError(401, 'Token 无效或已过期', true);
-    if (res.status === 403) throw new SyncHttpError(403, `无权读取仓库（${await parseErrorMessage(res)}）`, true);
-    if (!res.ok) throw new SyncHttpError(res.status, `拉取失败：${await parseErrorMessage(res)}`, false);
-
-    const data = await res.json();
-    let text;
-    if (typeof data.content === 'string' && data.content.length > 0 && data.encoding === 'base64') {
-        text = decodeBase64Utf8(data.content);
-    } else if (data.sha) {
-        // Fallback for files larger than 1MB where Contents API omits inline content.
-        const blobRes = await githubFetch(`${API_BASE}/repos/${config.repo}/git/blobs/${data.sha}`, config.token, { method: 'GET' });
-        if (!blobRes.ok) throw new SyncHttpError(blobRes.status, `读取大文件失败：${await parseErrorMessage(blobRes)}`, false);
-        const blob = await blobRes.json();
-        text = decodeBase64Utf8(blob.content || '');
-    } else {
-        text = '';
+    if (res.status === 401 || res.status === 403) {
+        throw new SyncHttpError(res.status, await parseErrorMessage(res), true);
+    }
+    if (!res.ok) {
+        throw new SyncHttpError(res.status, `拉取失败：${await parseErrorMessage(res)}`, false);
     }
 
+    const body = await res.json();
+    if (!body || typeof body.data !== 'object' || body.data === null) {
+        throw new Error(`远端 ${appId} 数据格式无效，已中止以避免覆盖`);
+    }
+
+    const version = Number(body.version) || 1;
     return {
         notModified: false,
         notFound: false,
-        sha: data.sha || null,
-        etag: res.headers.get('etag') || null,
-        text,
+        version,
+        etag: res.headers.get('etag') || `"v${version}"`,
+        data: body.data,
     };
 }
 
-async function putRemoteFile(config, filePath, text, { sha = null, message }) {
-    const encodedPath = encodeFilePath(filePath);
-    const url = `${API_BASE}/repos/${config.repo}/contents/${encodedPath}`;
+async function putRemoteDoc(config, appId, data, { expectedVersion = null } = {}) {
+    const url = `${config.endpoint}/api/sync/${encodeURIComponent(appId)}`;
     const body = {
-        message,
-        content: encodeBase64Utf8(text),
-        branch: config.branch,
+        data,
+        expectedVersion: expectedVersion ?? null,
+        timezone: getLocalTimezone(),
     };
-    if (sha) body.sha = sha;
 
-    const res = await githubFetch(url, config.token, {
+    const res = await workerFetch(url, config.token, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
     });
 
-    if (res.status === 409) throw new ConflictError('远端文件已变更');
-    if (res.status === 422) {
-        const msg = await parseErrorMessage(res);
-        // Missing or stale sha on concurrent creation/update returns 422 on GitHub API.
-        if (/sha/i.test(msg)) throw new ConflictError(msg);
-        throw new SyncHttpError(422, `写入失败：${msg}`, false);
+    if (res.status === 409) throw new ConflictError('远端数据已被其他设备更新');
+    if (res.status === 401 || res.status === 403) {
+        throw new SyncHttpError(res.status, await parseErrorMessage(res), true);
     }
-    if (res.status === 401) throw new SyncHttpError(401, 'Token 无效或已过期', true);
-    if (res.status === 403) throw new SyncHttpError(403, `没有写入权限（${await parseErrorMessage(res)}）`, true);
-    if (res.status === 404) throw new SyncHttpError(404, '仓库或分支不存在，或 Token 缺少写权限', true);
-    if (!res.ok) throw new SyncHttpError(res.status, `上传失败：${await parseErrorMessage(res)}`, false);
+    if (!res.ok) {
+        throw new SyncHttpError(res.status, `上传失败：${await parseErrorMessage(res)}`, false);
+    }
 
-    const data = await res.json();
+    const payload = await res.json();
+    const version = Number(payload?.version) || ((expectedVersion || 0) + 1);
     return {
-        sha: data?.content?.sha || null,
-        etag: null,
+        version,
+        etag: res.headers.get('etag') || `"v${version}"`,
     };
 }
 
 /* ---------- Sync Engine + Modal ---------- */
 
-export function createGitHubSync({
+export function createCloudSync({
     appId,
     appName,
-    filePath,
     getLocalData,
     applyMergedData,
     mergeData,
     isBusy = () => false,
     onStatusChange = () => {},
     onToast = () => {},
-    debounceMs = 3000,
+    debounceMs = 1500,
     resumeThrottleMs = 15000,
 }) {
     let config = readSyncConfig();
-    let meta = readMeta(filePath);
+    let meta = readMeta(appId);
     let state = config ? (meta.dirty ? 'dirty' : 'synced') : 'unconfigured';
     let lastError = '';
     let lastErrorAuth = false;
@@ -404,9 +382,10 @@ export function createGitHubSync({
         return {
             state,
             configured: Boolean(config),
-            repo: config?.repo || '',
-            branch: config?.branch || 'main',
-            filePath,
+            endpoint: config?.endpoint || '',
+            host: formatEndpointHost(config?.endpoint),
+            appId,
+            version: meta.version || 0,
             dirty: Boolean(meta.dirty),
             lastSyncAt: meta.lastSyncAt || 0,
             lastError,
@@ -429,7 +408,7 @@ export function createGitHubSync({
 
     function saveMeta(patch) {
         meta = { ...meta, ...patch };
-        writeMeta(filePath, meta);
+        writeMeta(appId, meta);
     }
 
     function isConfigured() {
@@ -465,13 +444,13 @@ export function createGitHubSync({
 
         for (let attempt = 0; attempt < 3; attempt++) {
             const bypassEtag = manual || attempt > 0;
-            const remote = await fetchRemoteFile(currentConfig, filePath, {
+            const remote = await fetchRemoteDoc(currentConfig, appId, {
                 etag: meta.etag,
                 bypassEtag,
             });
 
             // Re-check config in case user disconnected mid-flight
-            if (!config || config.repo !== currentConfig.repo) return { ok: false, skipped: true };
+            if (!config || config.endpoint !== currentConfig.endpoint) return { ok: false, skipped: true };
 
             if (remote.notModified) {
                 if (!meta.dirty) {
@@ -479,17 +458,15 @@ export function createGitHubSync({
                     return { ok: true, pulled: false, pushed: false, conflictCopies: 0 };
                 }
                 const localNow = getLocalData();
-                const text = JSON.stringify(localNow, null, 2) + '\n';
                 try {
-                    const putRes = await putRemoteFile(currentConfig, filePath, text, {
-                        sha: meta.sha,
-                        message: `sync(${appId}): ${formatCommitTime()}`,
+                    const putRes = await putRemoteDoc(currentConfig, appId, localNow, {
+                        expectedVersion: meta.version,
                     });
                     pushed = true;
                     const mergedMeta = mergeData(localNow, localNow, { metaExtra: meta.extra });
                     saveMeta({
-                        sha: putRes.sha,
-                        etag: null,
+                        version: putRes.version,
+                        etag: putRes.etag,
                         dirty: false,
                         lastSyncAt: Date.now(),
                         extra: mergedMeta.metaExtra ?? meta.extra,
@@ -506,17 +483,15 @@ export function createGitHubSync({
 
             if (remote.notFound) {
                 const localNow = getLocalData();
-                const text = JSON.stringify(localNow, null, 2) + '\n';
                 try {
-                    const putRes = await putRemoteFile(currentConfig, filePath, text, {
-                        sha: null,
-                        message: `sync(${appId}): init ${formatCommitTime()}`,
+                    const putRes = await putRemoteDoc(currentConfig, appId, localNow, {
+                        expectedVersion: null,
                     });
                     pushed = true;
                     const mergedMeta = mergeData(localNow, localNow, { metaExtra: meta.extra });
                     saveMeta({
-                        sha: putRes.sha,
-                        etag: null,
+                        version: putRes.version,
+                        etag: putRes.etag,
                         dirty: false,
                         lastSyncAt: Date.now(),
                         extra: mergedMeta.metaExtra ?? meta.extra,
@@ -531,15 +506,7 @@ export function createGitHubSync({
                 }
             }
 
-            // Remote file exists (200 OK)
-            let remoteData;
-            try {
-                remoteData = JSON.parse(remote.text);
-            } catch {
-                throw new Error(`远端文件 ${filePath} 不是有效的 JSON，已中止以避免覆盖`);
-            }
-
-            // Don't interrupt active typing/dragging during automatic background pulls
+            // Remote document exists (200 OK)
             if (!manual && isBusy()) {
                 clearTimeout(busyRetryTimer);
                 busyRetryTimer = setTimeout(() => {
@@ -550,7 +517,7 @@ export function createGitHubSync({
             }
 
             const localBefore = getLocalData();
-            const result = mergeData(localBefore, remoteData, { metaExtra: meta.extra });
+            const result = mergeData(localBefore, remote.data, { metaExtra: meta.extra });
             const { merged, localChanged, remoteChanged, metaExtra, conflictCount = 0 } = result;
             conflictCopies += conflictCount;
 
@@ -565,16 +532,14 @@ export function createGitHubSync({
             }
 
             if (remoteChanged) {
-                const text = JSON.stringify(merged, null, 2) + '\n';
                 try {
-                    const putRes = await putRemoteFile(currentConfig, filePath, text, {
-                        sha: remote.sha,
-                        message: `sync(${appId}): ${formatCommitTime()}`,
+                    const putRes = await putRemoteDoc(currentConfig, appId, merged, {
+                        expectedVersion: remote.version,
                     });
                     pushed = true;
                     saveMeta({
-                        sha: putRes.sha,
-                        etag: null,
+                        version: putRes.version,
+                        etag: putRes.etag,
                         dirty: false,
                         lastSyncAt: Date.now(),
                         extra: metaExtra ?? meta.extra,
@@ -589,7 +554,7 @@ export function createGitHubSync({
                 }
             } else {
                 saveMeta({
-                    sha: remote.sha,
+                    version: remote.version,
                     etag: remote.etag,
                     dirty: false,
                     lastSyncAt: Date.now(),
@@ -675,11 +640,11 @@ export function createGitHubSync({
     }
 
     function applyNewConfig(nextConfig) {
-        const changedRepo = !config || config.repo !== nextConfig.repo || config.branch !== nextConfig.branch;
-        config = nextConfig;
+        const changedEndpoint = !config || config.endpoint !== nextConfig.endpoint;
+        config = { endpoint: nextConfig.endpoint, token: nextConfig.token };
         writeSyncConfig(config);
-        if (changedRepo) {
-            saveMeta({ sha: null, etag: null, lastSyncAt: 0, dirty: false, extra: null });
+        if (changedEndpoint) {
+            saveMeta({ version: null, etag: null, lastSyncAt: 0, dirty: false, extra: null });
         }
         setState(meta.dirty ? 'dirty' : 'synced', '', false);
     }
@@ -690,8 +655,8 @@ export function createGitHubSync({
         pendingManual = false;
         config = null;
         writeSyncConfig(null);
-        meta = { sha: null, etag: null, lastSyncAt: 0, dirty: false, extra: null };
-        writeMeta(filePath, null);
+        meta = { version: null, etag: null, lastSyncAt: 0, dirty: false, extra: null };
+        writeMeta(appId, null);
         setState('unconfigured', '', false);
     }
 
@@ -699,39 +664,42 @@ export function createGitHubSync({
 
     function maybeResumeSync() {
         if (!config) return; // Strictly zero requests when unconfigured.
-        if (document.visibilityState === 'hidden') return;
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
         if (meta.dirty || Date.now() - lastAttemptAt >= resumeThrottleMs) {
             syncNow({ manual: false });
         }
     }
 
-    document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') maybeResumeSync();
-    });
-    window.addEventListener('online', () => maybeResumeSync());
-
-    window.addEventListener('storage', (event) => {
-        if (event.key === SYNC_CONFIG_KEY) {
-            const prevRepo = config?.repo || '';
-            config = readSyncConfig();
-            if (!config) {
-                clearTimers();
-                meta = readMeta(filePath);
-                setState('unconfigured', '', false);
-            } else {
-                if (prevRepo !== config.repo) {
-                    meta = readMeta(filePath);
+    if (typeof document !== 'undefined') {
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') maybeResumeSync();
+        });
+    }
+    if (typeof window !== 'undefined') {
+        window.addEventListener('online', () => maybeResumeSync());
+        window.addEventListener('storage', (event) => {
+            if (event.key === SYNC_CONFIG_KEY) {
+                const prevEndpoint = config?.endpoint || '';
+                config = readSyncConfig();
+                if (!config) {
+                    clearTimers();
+                    meta = readMeta(appId);
+                    setState('unconfigured', '', false);
+                } else {
+                    if (prevEndpoint !== config.endpoint) {
+                        meta = readMeta(appId);
+                    }
+                    setState(meta.dirty ? 'dirty' : 'synced', '', false);
+                    if (!prevEndpoint) syncNow({ manual: false });
                 }
-                setState(meta.dirty ? 'dirty' : 'synced', '', false);
-                if (!prevRepo) syncNow({ manual: false });
+            } else if (event.key === META_KEY_PREFIX + appId) {
+                meta = readMeta(appId);
+                if (config && state !== 'syncing') {
+                    setState(meta.dirty ? 'dirty' : 'synced', '', false);
+                }
             }
-        } else if (event.key === META_KEY_PREFIX + filePath) {
-            meta = readMeta(filePath);
-            if (config && state !== 'syncing') {
-                setState(meta.dirty ? 'dirty' : 'synced', '', false);
-            }
-        }
-    });
+        });
+    }
 
     /* ---------- Shared Settings & Pairing Modal ---------- */
 
@@ -739,127 +707,124 @@ export function createGitHubSync({
         if (modal) return modal;
 
         const backdrop = document.createElement('div');
-        backdrop.className = 'gsync-backdrop';
+        backdrop.className = 'csync-backdrop';
         backdrop.hidden = true;
         backdrop.innerHTML = `
-            <div class="gsync-dialog" role="dialog" aria-modal="true" aria-labelledby="gsync-dialog-title">
-                <header class="gsync-header">
-                    <span class="gsync-title" id="gsync-dialog-title">
+            <div class="csync-dialog" role="dialog" aria-modal="true" aria-labelledby="csync-dialog-title">
+                <header class="csync-header">
+                    <span class="csync-title" id="csync-dialog-title">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 18h9.8a3.7 3.7 0 0 0 .5-7.35A5.3 5.3 0 0 0 7.4 9.2 4.2 4.2 0 0 0 7.5 18Z"/></svg>
-                        <span>GitHub 云同步</span>
+                        <span>Cloudflare 云同步</span>
                     </span>
-                    <button type="button" class="gsync-close" data-gsync-close aria-label="关闭">
+                    <button type="button" class="csync-close" data-csync-close aria-label="关闭">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.5 6.5 11 11M17.5 6.5l-11 11"/></svg>
                     </button>
                 </header>
-                <div class="gsync-body">
-                    <div class="gsync-pair-confirm" data-gsync-pair-confirm hidden>
-                        <div class="gsync-summary">
-                            <div class="gsync-summary-row">
-                                <span class="gsync-summary-label">待关联仓库</span>
-                                <span class="gsync-summary-val" data-gsync-pair-repo></span>
-                            </div>
-                            <div class="gsync-summary-row">
-                                <span class="gsync-summary-label">分支</span>
-                                <span class="gsync-summary-val" data-gsync-pair-branch></span>
+                <div class="csync-body">
+                    <div class="csync-pair-confirm" data-csync-pair-confirm hidden>
+                        <div class="csync-summary">
+                            <div class="csync-summary-row">
+                                <span class="csync-summary-label">待关联服务</span>
+                                <span class="csync-summary-val"><code data-csync-pair-endpoint></code></span>
                             </div>
                         </div>
-                        <p class="gsync-note" style="margin-top: 10px;">
+                        <p class="csync-note" style="margin-top: 10px;">
                             检测到来自其他设备的云同步配对链接。确认后将保存到当前浏览器，并与同域名下的 MyMind / MyList 共用。
                         </p>
-                        <div class="gsync-actions" style="margin-top: 12px;">
-                            <button type="button" class="gsync-btn gsync-btn-primary" data-gsync-pair-accept>确认关联并同步</button>
-                            <button type="button" class="gsync-btn" data-gsync-pair-cancel>取消</button>
+                        <div class="csync-actions" style="margin-top: 12px;">
+                            <button type="button" class="csync-btn csync-btn-primary" data-csync-pair-accept>确认关联并同步</button>
+                            <button type="button" class="csync-btn" data-csync-pair-cancel>取消</button>
                         </div>
-                        <div class="gsync-msg" data-gsync-pair-msg></div>
+                        <div class="csync-msg" data-csync-pair-msg></div>
                     </div>
 
-                    <div data-gsync-main>
-                        <div class="gsync-summary" data-gsync-summary hidden>
-                            <div class="gsync-summary-row">
-                                <span class="gsync-summary-label">状态</span>
-                                <span class="gsync-status-badge">
-                                    <span class="gsync-dot" data-gsync-dot></span>
-                                    <span data-gsync-state-text></span>
+                    <div data-csync-main>
+                        <div class="csync-summary" data-csync-summary hidden>
+                            <div class="csync-summary-row">
+                                <span class="csync-summary-label">状态</span>
+                                <span class="csync-status-badge">
+                                    <span class="csync-dot" data-csync-dot></span>
+                                    <span data-csync-state-text></span>
                                 </span>
                             </div>
-                            <div class="gsync-summary-row">
-                                <span class="gsync-summary-label">仓库</span>
-                                <span class="gsync-summary-val"><code data-gsync-repo-display></code></span>
+                            <div class="csync-summary-row">
+                                <span class="csync-summary-label">Worker 服务</span>
+                                <span class="csync-summary-val"><code data-csync-endpoint-display></code></span>
                             </div>
-                            <div class="gsync-summary-row">
-                                <span class="gsync-summary-label">同步文件</span>
-                                <span class="gsync-summary-val"><code data-gsync-file-display></code></span>
+                            <div class="csync-summary-row">
+                                <span class="csync-summary-label">数据空间</span>
+                                <span class="csync-summary-val"><code data-csync-doc-display></code></span>
                             </div>
-                            <div class="gsync-summary-row">
-                                <span class="gsync-summary-label">上次同步</span>
-                                <span class="gsync-summary-val" data-gsync-time-display></span>
+                            <div class="csync-summary-row">
+                                <span class="csync-summary-label">上次同步</span>
+                                <span class="csync-summary-val" data-csync-time-display></span>
                             </div>
                         </div>
 
-                        <div class="gsync-error-box" data-gsync-err-box hidden></div>
+                        <div class="csync-error-box" data-csync-err-box hidden></div>
 
-                        <p class="gsync-note" data-gsync-intro>
-                            可选功能：关联你的 GitHub 私有仓库即可在多设备间自动同步数据。未配置时不会发起任何网络请求；配置后与同域名下的 MyMind / MyList 自动共享。
+                        <p class="csync-note" data-csync-intro>
+                            可选功能：连接到你的 Cloudflare Worker + D1 轻量数据库，即可在多设备间低延迟自动同步。未配置时不发起任何网络请求；配置后与同域名下的 MyMind / MyList 自动共享。
                         </p>
 
-                        <form data-gsync-form style="display:flex;flex-direction:column;gap:12px;">
-                            <div class="gsync-field">
-                                <label for="gsync-repo-input">
-                                    <span>私有仓库</span>
-                                    <span class="gsync-field-hint">格式 owner/repo</span>
+                        <form data-csync-form style="display:flex;flex-direction:column;gap:12px;">
+                            <div class="csync-field">
+                                <label for="csync-endpoint-input">
+                                    <span>Worker 地址</span>
+                                    <span class="csync-field-hint">Cloudflare Workers URL</span>
                                 </label>
-                                <input id="gsync-repo-input" class="gsync-input" type="text" autocomplete="off" spellcheck="false"
-                                    placeholder="例如 roland-zhou/my-tools-data">
+                                <input id="csync-endpoint-input" class="csync-input" type="url" autocomplete="off" spellcheck="false"
+                                    placeholder="https://roland-tools-sync.xxx.workers.dev">
                             </div>
 
-                            <div class="gsync-field">
-                                <label for="gsync-token-input">
-                                    <span>Fine-grained PAT</span>
-                                    <span class="gsync-field-hint">仅存于本机浏览器</span>
+                            <div class="csync-field">
+                                <label for="csync-token-input">
+                                    <span>访问密钥 (SYNC_TOKEN)</span>
+                                    <span class="csync-field-hint">仅存于本机浏览器</span>
                                 </label>
-                                <div class="gsync-input-wrap">
-                                    <input id="gsync-token-input" class="gsync-input" type="password" autocomplete="off" spellcheck="false"
-                                        placeholder="github_pat_...">
-                                    <button type="button" class="gsync-toggle-vis" data-gsync-toggle-vis>显示</button>
+                                <div class="csync-input-wrap">
+                                    <input id="csync-token-input" class="csync-input" type="password" autocomplete="off" spellcheck="false"
+                                        placeholder="填写你在 Worker Secret 中设置的密钥">
+                                    <button type="button" class="csync-toggle-vis" data-csync-toggle-vis>显示</button>
                                 </div>
                             </div>
 
-                            <div class="gsync-actions">
-                                <button type="submit" class="gsync-btn gsync-btn-primary" data-gsync-save>测试并连接</button>
-                                <button type="button" class="gsync-btn" data-gsync-now hidden>立即同步</button>
-                                <button type="button" class="gsync-btn gsync-btn-danger" data-gsync-disconnect hidden>断开同步</button>
+                            <div class="csync-actions">
+                                <button type="submit" class="csync-btn csync-btn-primary" data-csync-save>测试并连接</button>
+                                <button type="button" class="csync-btn" data-csync-now hidden>立即同步</button>
+                                <button type="button" class="csync-btn csync-btn-danger" data-csync-disconnect hidden>断开同步</button>
                             </div>
-                            <div class="gsync-msg" data-gsync-msg></div>
+                            <div class="csync-msg" data-csync-msg></div>
                         </form>
 
-                        <div class="gsync-section" data-gsync-pair-export hidden>
-                            <div class="gsync-section-title">多设备快速配对</div>
-                            <p class="gsync-note">
+                        <div class="csync-section" data-csync-pair-export hidden>
+                            <div class="csync-section-title">多设备快速配对</div>
+                            <p class="csync-note">
                                 在新设备打开配对链接，或复制配对码粘贴导入（链接中的 #hash 不会发送到服务器）。
                             </p>
-                            <div class="gsync-actions">
-                                <button type="button" class="gsync-btn" data-gsync-copy-link>复制配对链接</button>
-                                <button type="button" class="gsync-btn" data-gsync-copy-code>复制配对码</button>
+                            <div class="csync-actions">
+                                <button type="button" class="csync-btn" data-csync-copy-link>复制配对链接</button>
+                                <button type="button" class="csync-btn" data-csync-copy-code>复制配对码</button>
                             </div>
-                            <div class="gsync-msg" data-gsync-export-msg></div>
+                            <div class="csync-msg" data-csync-export-msg></div>
                         </div>
 
-                        <div class="gsync-section" data-gsync-pair-import>
-                            <div class="gsync-section-title">已有其他设备？直接导入配对码</div>
-                            <textarea class="gsync-textarea" data-gsync-import-input placeholder="粘贴 GSYNC1:... 配对码或配对链接"></textarea>
-                            <div class="gsync-actions">
-                                <button type="button" class="gsync-btn" data-gsync-import-apply>导入并连接</button>
+                        <div class="csync-section" data-csync-pair-import>
+                            <div class="csync-section-title">已有其他设备？直接导入配对码</div>
+                            <textarea class="csync-textarea" data-csync-import-input placeholder="粘贴 CSYNC1:... 配对码或配对链接"></textarea>
+                            <div class="csync-actions">
+                                <button type="button" class="csync-btn" data-csync-import-apply>导入并连接</button>
                             </div>
-                            <div class="gsync-msg" data-gsync-import-msg></div>
+                            <div class="csync-msg" data-csync-import-msg></div>
                         </div>
 
-                        <details class="gsync-details">
-                            <summary>如何创建仅限单仓库的 GitHub Token？</summary>
+                        <details class="csync-details">
+                            <summary>如何免费部署 Cloudflare Worker + D1 同步服务？</summary>
                             <ol>
-                                <li>新建一个 <b>Private</b> 私有仓库（如 <code>my-tools-data</code>），建议勾选初始化 README。</li>
-                                <li>打开 <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub Fine-grained tokens</a> 创建新 Token。</li>
-                                <li>Repository access 选 <b>Only select repositories</b> 并只勾该私有库；Repository permissions 中将 <b>Contents</b> 设为 <b>Read and write</b>，生成后粘回上方即可。</li>
+                                <li>登录 <a href="https://dash.cloudflare.com/" target="_blank" rel="noopener">Cloudflare Dashboard</a> → <b>D1 SQL Database</b> → 新建数据库（如 <code>roland-tools-sync</code>）。</li>
+                                <li>进入 <b>Workers &amp; Pages</b> → 创建 Worker → 粘贴仓库中 <code>tools/shared/cf-sync-worker/worker.js</code> 并部署（首次访问自动建表）。</li>
+                                <li>在 Worker 设置中绑定该 D1 数据库，变量名填 <code>DB</code>；再添加一个 Secret 环境变量 <code>SYNC_TOKEN</code>（自定义随机密钥）。</li>
+                                <li>将 Worker 的 <code>*.workers.dev</code> 地址与 <code>SYNC_TOKEN</code> 填回上方即可。</li>
                             </ol>
                         </details>
                     </div>
@@ -872,42 +837,41 @@ export function createGitHubSync({
         const q = (sel) => backdrop.querySelector(sel);
         modal = {
             backdrop,
-            pairConfirmBox: q('[data-gsync-pair-confirm]'),
-            pairRepo: q('[data-gsync-pair-repo]'),
-            pairBranch: q('[data-gsync-pair-branch]'),
-            pairAcceptBtn: q('[data-gsync-pair-accept]'),
-            pairCancelBtn: q('[data-gsync-pair-cancel]'),
-            pairMsg: q('[data-gsync-pair-msg]'),
-            mainBox: q('[data-gsync-main]'),
-            summary: q('[data-gsync-summary]'),
-            dot: q('[data-gsync-dot]'),
-            stateText: q('[data-gsync-state-text]'),
-            repoDisplay: q('[data-gsync-repo-display]'),
-            fileDisplay: q('[data-gsync-file-display]'),
-            timeDisplay: q('[data-gsync-time-display]'),
-            errBox: q('[data-gsync-err-box]'),
-            intro: q('[data-gsync-intro]'),
-            form: q('[data-gsync-form]'),
-            repoInput: q('#gsync-repo-input'),
-            tokenInput: q('#gsync-token-input'),
-            toggleVisBtn: q('[data-gsync-toggle-vis]'),
-            saveBtn: q('[data-gsync-save]'),
-            nowBtn: q('[data-gsync-now]'),
-            disconnectBtn: q('[data-gsync-disconnect]'),
-            msg: q('[data-gsync-msg]'),
-            pairExport: q('[data-gsync-pair-export]'),
-            copyLinkBtn: q('[data-gsync-copy-link]'),
-            copyCodeBtn: q('[data-gsync-copy-code]'),
-            exportMsg: q('[data-gsync-export-msg]'),
-            pairImport: q('[data-gsync-pair-import]'),
-            importInput: q('[data-gsync-import-input]'),
-            importBtn: q('[data-gsync-import-apply]'),
-            importMsg: q('[data-gsync-import-msg]'),
+            pairConfirmBox: q('[data-csync-pair-confirm]'),
+            pairEndpoint: q('[data-csync-pair-endpoint]'),
+            pairAcceptBtn: q('[data-csync-pair-accept]'),
+            pairCancelBtn: q('[data-csync-pair-cancel]'),
+            pairMsg: q('[data-csync-pair-msg]'),
+            mainBox: q('[data-csync-main]'),
+            summary: q('[data-csync-summary]'),
+            dot: q('[data-csync-dot]'),
+            stateText: q('[data-csync-state-text]'),
+            endpointDisplay: q('[data-csync-endpoint-display]'),
+            docDisplay: q('[data-csync-doc-display]'),
+            timeDisplay: q('[data-csync-time-display]'),
+            errBox: q('[data-csync-err-box]'),
+            intro: q('[data-csync-intro]'),
+            form: q('[data-csync-form]'),
+            endpointInput: q('#csync-endpoint-input'),
+            tokenInput: q('#csync-token-input'),
+            toggleVisBtn: q('[data-csync-toggle-vis]'),
+            saveBtn: q('[data-csync-save]'),
+            nowBtn: q('[data-csync-now]'),
+            disconnectBtn: q('[data-csync-disconnect]'),
+            msg: q('[data-csync-msg]'),
+            pairExport: q('[data-csync-pair-export]'),
+            copyLinkBtn: q('[data-csync-copy-link]'),
+            copyCodeBtn: q('[data-csync-copy-code]'),
+            exportMsg: q('[data-csync-export-msg]'),
+            pairImport: q('[data-csync-pair-import]'),
+            importInput: q('[data-csync-import-input]'),
+            importBtn: q('[data-csync-import-apply]'),
+            importMsg: q('[data-csync-import-msg]'),
         };
 
         const setMsg = (el, text, cls = '') => {
             el.textContent = text || '';
-            el.className = 'gsync-msg' + (cls ? ' ' + cls : '');
+            el.className = 'csync-msg' + (cls ? ' ' + cls : '');
         };
 
         const closeModal = () => {
@@ -919,7 +883,7 @@ export function createGitHubSync({
             setMsg(modal.pairMsg, '');
         };
 
-        q('[data-gsync-close]').addEventListener('click', closeModal);
+        q('[data-csync-close]').addEventListener('click', closeModal);
         backdrop.addEventListener('click', (e) => {
             if (e.target === backdrop) closeModal();
         });
@@ -941,14 +905,14 @@ export function createGitHubSync({
             const origText = btn.textContent;
             btn.disabled = true;
             btn.textContent = '验证中…';
-            setMsg(statusEl, '正在验证仓库与 Token 权限…', 'info');
+            setMsg(statusEl, '正在验证 Worker 与 D1 连通性…', 'info');
             try {
-                const verified = await verifyRepoAccess(rawCfg);
+                const verified = await verifyEndpointAccess(rawCfg);
                 applyNewConfig(verified);
                 setMsg(statusEl, '连接成功，正在首次同步…', 'ok');
                 const syncRes = await syncNow({ manual: false });
                 if (syncRes.ok) {
-                    setMsg(statusEl, `已连接并同步（${verified.repo} · ${verified.branch}）`, 'ok');
+                    setMsg(statusEl, `已连接并同步（${formatEndpointHost(verified.endpoint)}）`, 'ok');
                     onToast('云同步已连接');
                     updateModalView();
                     return true;
@@ -969,9 +933,8 @@ export function createGitHubSync({
         modal.form.addEventListener('submit', async (e) => {
             e.preventDefault();
             await connectAndSync({
-                repo: modal.repoInput.value,
+                endpoint: modal.endpointInput.value,
                 token: modal.tokenInput.value,
-                branch: config?.repo === normalizeRepo(modal.repoInput.value) ? config?.branch : '',
             }, modal.msg, modal.saveBtn);
         });
 
@@ -981,9 +944,9 @@ export function createGitHubSync({
         });
 
         modal.disconnectBtn.addEventListener('click', () => {
-            if (!confirm('断开云同步？\n本地数据和 GitHub 仓库里的文件都会保留，仅清除本浏览器的同步配置。')) return;
+            if (!confirm('断开云同步？\n本地数据和 Cloudflare D1 中的数据都会保留，仅清除本浏览器的同步配置。')) return;
             disconnect();
-            modal.repoInput.value = '';
+            modal.endpointInput.value = '';
             modal.tokenInput.value = '';
             setMsg(modal.msg, '已断开云同步', 'info');
             onToast('已断开云同步');
@@ -1039,7 +1002,7 @@ export function createGitHubSync({
                 const ok = await connectAndSync(decoded, modal.importMsg, modal.importBtn);
                 if (ok) {
                     modal.importInput.value = '';
-                    modal.repoInput.value = decoded.repo;
+                    modal.endpointInput.value = decoded.endpoint;
                     modal.tokenInput.value = decoded.token;
                 }
             } catch (err) {
@@ -1074,8 +1037,7 @@ export function createGitHubSync({
         modal.pairConfirmBox.hidden = !isPairMode;
         modal.mainBox.hidden = isPairMode;
         if (isPairMode) {
-            modal.pairRepo.textContent = pendingPairConfig.repo;
-            modal.pairBranch.textContent = pendingPairConfig.branch || 'main';
+            modal.pairEndpoint.textContent = formatEndpointHost(pendingPairConfig.endpoint);
             return;
         }
 
@@ -1092,8 +1054,10 @@ export function createGitHubSync({
         if (connected) {
             modal.dot.dataset.state = state;
             modal.stateText.textContent = STATE_LABELS[state] || state;
-            modal.repoDisplay.textContent = `${config.repo} (${config.branch})`;
-            modal.fileDisplay.textContent = `${filePath} (${appName})`;
+            modal.endpointDisplay.textContent = formatEndpointHost(config.endpoint);
+            modal.docDisplay.textContent = meta.version
+                ? `${appId} · v${meta.version} (${appName})`
+                : `${appId} (${appName})`;
             modal.timeDisplay.textContent = formatSyncTime(meta.lastSyncAt);
         }
 
@@ -1108,7 +1072,7 @@ export function createGitHubSync({
     function openSettings() {
         const m = ensureModal();
         pendingPairConfig = null;
-        m.repoInput.value = config?.repo || '';
+        m.endpointInput.value = config?.endpoint || '';
         m.tokenInput.value = config?.token || '';
         m.tokenInput.type = 'password';
         m.toggleVisBtn.textContent = '显示';
@@ -1118,7 +1082,7 @@ export function createGitHubSync({
         updateModalView();
         m.backdrop.hidden = false;
         requestAnimationFrame(() => {
-            if (!config) m.repoInput.focus();
+            if (!config) m.endpointInput.focus();
         });
     }
 
@@ -1127,6 +1091,7 @@ export function createGitHubSync({
     }
 
     async function checkHashPairing() {
+        if (typeof location === 'undefined') return false;
         const hash = location.hash || '';
         const match = hash.match(/^#sync=([^&]+)/);
         if (!match) return false;

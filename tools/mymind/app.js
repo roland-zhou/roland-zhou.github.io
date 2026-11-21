@@ -3,7 +3,7 @@ import {
     dueDate, dueDayLabel, dueStatus, expandQuickDue, exportOPML, importOPML, isValidMap, mergeMindStates, nextColor, nextWaitSince, parseDue, sampleMap, subtreeIds,
     runPrefix, visibleChildren, waitDuration, waitPrefix, waitShort,
 } from './model.js';
-import { createGitHubSync, formatSyncTime } from '../shared/github-sync.js';
+import { createCloudSync, formatSyncTime } from '../shared/cloud-sync.js';
 
 const STORE = 'mymind.v1';
 const FOCUS_STORE = 'mymind.focus';
@@ -1657,16 +1657,16 @@ function updateSyncUI(info) {
     const cfg = SYNC_UI[info.state] || SYNC_UI.unconfigured;
     syncBar.dataset.state = info.state;
     syncIcon.querySelector('use').setAttribute('href', cfg.icon);
-    syncIcon.classList.toggle('gsync-spinning', cfg.spin);
+    syncIcon.classList.toggle('csync-spinning', cfg.spin);
     syncLabel.textContent = cfg.label;
     syncSep.hidden = !info.configured;
     syncSettingsBtn.hidden = !info.configured;
 
     const saveKey = isMac ? '⌘S' : 'Ctrl+S';
     if (!info.configured) {
-        syncBtn.title = '配置 GitHub 云同步（可选）';
+        syncBtn.title = '配置 Cloudflare 云同步（可选）';
     } else if (info.state === 'syncing') {
-        syncBtn.title = `正在与 ${info.repo} 同步…`;
+        syncBtn.title = `正在与 ${info.host} 同步…`;
     } else if (info.state === 'error') {
         syncBtn.title = `同步失败：${info.lastError || '网络错误'} · 点击重试`;
     } else if (info.state === 'dirty') {
@@ -1676,10 +1676,9 @@ function updateSyncUI(info) {
     }
 }
 
-const sync = createGitHubSync({
+const sync = createCloudSync({
     appId: 'mymind',
     appName: 'MyMind',
-    filePath: 'mymind.json',
     getLocalData: () => ({
         version: 1,
         maps: state.maps,

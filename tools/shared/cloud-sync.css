@@ -1,6 +1,6 @@
-/* Shared GitHub Private Repo Cloud Sync Modal & Status Indicators */
+/* Shared Cloudflare Worker + D1 Cloud Sync Modal & Status Indicators */
 
-.gsync-backdrop {
+.csync-backdrop {
     position: fixed;
     inset: 0;
     z-index: 80;
@@ -11,19 +11,19 @@
     background: rgba(12, 14, 18, .44);
     -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
-    animation: gsync-fade-in .14s ease-out;
+    animation: csync-fade-in .14s ease-out;
 }
 
-.gsync-backdrop[hidden] {
+.csync-backdrop[hidden] {
     display: none !important;
 }
 
-@keyframes gsync-fade-in {
+@keyframes csync-fade-in {
     from { opacity: 0; }
     to { opacity: 1; }
 }
 
-.gsync-dialog {
+.csync-dialog {
     width: min(440px, 100%);
     max-height: min(88vh, 680px);
     display: flex;
@@ -37,7 +37,7 @@
     font: 14px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Segoe UI", "Microsoft YaHei", sans-serif;
 }
 
-.gsync-header {
+.csync-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -46,7 +46,7 @@
     border-bottom: 1px solid var(--line, rgba(20, 24, 32, .1));
 }
 
-.gsync-title {
+.csync-title {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -54,7 +54,7 @@
     font-weight: 650;
 }
 
-.gsync-title svg {
+.csync-title svg {
     width: 18px;
     height: 18px;
     fill: none;
@@ -65,7 +65,7 @@
     flex: none;
 }
 
-.gsync-close {
+.csync-close {
     width: 30px;
     height: 30px;
     border-radius: 8px;
@@ -77,12 +77,12 @@
     cursor: pointer;
 }
 
-.gsync-close:hover {
+.csync-close:hover {
     background: var(--hover, rgba(20, 24, 32, .06));
     color: var(--ink, #222428);
 }
 
-.gsync-close svg {
+.csync-close svg {
     width: 17px;
     height: 17px;
     fill: none;
@@ -92,7 +92,7 @@
     stroke-linejoin: round;
 }
 
-.gsync-body {
+.csync-body {
     padding: 16px 18px 18px;
     overflow-y: auto;
     display: flex;
@@ -100,14 +100,14 @@
     gap: 14px;
 }
 
-.gsync-note {
+.csync-note {
     margin: 0;
     font-size: 12.5px;
     line-height: 1.5;
     color: var(--ink-2, #5d6169);
 }
 
-.gsync-summary {
+.csync-summary {
     padding: 11px 13px;
     border-radius: 11px;
     background: var(--hover, rgba(20, 24, 32, .05));
@@ -117,7 +117,7 @@
     gap: 6px;
 }
 
-.gsync-summary-row {
+.csync-summary-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -125,12 +125,12 @@
     font-size: 13px;
 }
 
-.gsync-summary-label {
+.csync-summary-label {
     color: var(--muted, #8f949e);
     flex: none;
 }
 
-.gsync-summary-val {
+.csync-summary-val {
     color: var(--ink, #222428);
     font-weight: 550;
     overflow: hidden;
@@ -138,13 +138,13 @@
     white-space: nowrap;
 }
 
-.gsync-summary-val code {
+.csync-summary-val code {
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 12px;
     font-weight: 500;
 }
 
-.gsync-status-badge {
+.csync-status-badge {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -152,7 +152,7 @@
     font-weight: 600;
 }
 
-.gsync-dot {
+.csync-dot {
     width: 7px;
     height: 7px;
     border-radius: 50%;
@@ -160,12 +160,12 @@
     background: var(--muted, #8f949e);
 }
 
-.gsync-dot[data-state="synced"] { background: #2ea664; }
-.gsync-dot[data-state="dirty"] { background: #e09624; }
-.gsync-dot[data-state="syncing"] { background: var(--accent, #3b7cf0); }
-.gsync-dot[data-state="error"] { background: var(--danger, #d64545); }
+.csync-dot[data-state="synced"] { background: #2ea664; }
+.csync-dot[data-state="dirty"] { background: #e09624; }
+.csync-dot[data-state="syncing"] { background: var(--accent, #3b7cf0); }
+.csync-dot[data-state="error"] { background: var(--danger, #d64545); }
 
-.gsync-error-box {
+.csync-error-box {
     padding: 9px 11px;
     border-radius: 9px;
     font-size: 12.5px;
@@ -176,13 +176,13 @@
     word-break: break-word;
 }
 
-.gsync-field {
+.csync-field {
     display: flex;
     flex-direction: column;
     gap: 5px;
 }
 
-.gsync-field label {
+.csync-field label {
     font-size: 12.5px;
     font-weight: 600;
     color: var(--ink-2, #5d6169);
@@ -191,20 +191,20 @@
     justify-content: space-between;
 }
 
-.gsync-field-hint {
+.csync-field-hint {
     font-weight: 400;
     font-size: 11.5px;
     color: var(--muted, #8f949e);
 }
 
-.gsync-input-wrap {
+.csync-input-wrap {
     display: flex;
     align-items: center;
     gap: 6px;
 }
 
-.gsync-input,
-.gsync-textarea {
+.csync-input,
+.csync-textarea {
     width: 100%;
     padding: 8px 11px;
     border-radius: 9px;
@@ -216,12 +216,12 @@
     transition: border-color .14s;
 }
 
-.gsync-input:focus,
-.gsync-textarea:focus {
+.csync-input:focus,
+.csync-textarea:focus {
     border-color: var(--accent, #3b7cf0);
 }
 
-.gsync-textarea {
+.csync-textarea {
     min-height: 68px;
     resize: vertical;
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -230,7 +230,7 @@
     word-break: break-all;
 }
 
-.gsync-toggle-vis {
+.csync-toggle-vis {
     flex: none;
     height: 35px;
     padding: 0 10px;
@@ -242,18 +242,18 @@
     cursor: pointer;
 }
 
-.gsync-toggle-vis:hover {
+.csync-toggle-vis:hover {
     color: var(--ink, #222428);
 }
 
-.gsync-actions {
+.csync-actions {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 8px;
 }
 
-.gsync-btn {
+.csync-btn {
     height: 34px;
     padding: 0 13px;
     border-radius: 9px;
@@ -270,52 +270,52 @@
     transition: background .14s, opacity .14s;
 }
 
-.gsync-btn:hover:not(:disabled) {
+.csync-btn:hover:not(:disabled) {
     background: var(--line, rgba(20, 24, 32, .11));
 }
 
-.gsync-btn:disabled {
+.csync-btn:disabled {
     opacity: .45;
     cursor: default;
 }
 
-.gsync-btn-primary {
+.csync-btn-primary {
     background: var(--accent, #3b7cf0);
     border-color: transparent;
     color: #fff;
 }
 
-.gsync-btn-primary:hover:not(:disabled) {
+.csync-btn-primary:hover:not(:disabled) {
     background: var(--accent, #3b7cf0);
     filter: brightness(1.06);
 }
 
-.gsync-btn-danger {
+.csync-btn-danger {
     color: var(--danger, #d64545);
     border-color: rgba(214, 69, 69, .26);
     background: transparent;
     margin-left: auto;
 }
 
-.gsync-btn-danger:hover:not(:disabled) {
+.csync-btn-danger:hover:not(:disabled) {
     background: rgba(214, 69, 69, .1);
 }
 
-.gsync-msg {
+.csync-msg {
     font-size: 12.5px;
     line-height: 1.45;
     min-height: 0;
 }
 
-.gsync-msg.ok { color: #248a52; }
-.gsync-msg.err { color: var(--danger, #d64545); }
-.gsync-msg.info { color: var(--ink-2, #5d6169); }
+.csync-msg.ok { color: #248a52; }
+.csync-msg.err { color: var(--danger, #d64545); }
+.csync-msg.info { color: var(--ink-2, #5d6169); }
 
 @media (prefers-color-scheme: dark) {
-    .gsync-msg.ok { color: #5fd18e; }
+    .csync-msg.ok { color: #5fd18e; }
 }
 
-.gsync-section {
+.csync-section {
     border-top: 1px solid var(--line, rgba(20, 24, 32, .1));
     padding-top: 12px;
     display: flex;
@@ -323,13 +323,13 @@
     gap: 9px;
 }
 
-.gsync-section-title {
+.csync-section-title {
     font-size: 12.5px;
     font-weight: 650;
     color: var(--ink-2, #5d6169);
 }
 
-.gsync-details {
+.csync-details {
     font-size: 12.5px;
     color: var(--ink-2, #5d6169);
     border: 1px solid var(--line, rgba(20, 24, 32, .09));
@@ -338,14 +338,14 @@
     background: var(--bg, #f6f6f4);
 }
 
-.gsync-details summary {
+.csync-details summary {
     cursor: pointer;
     font-weight: 600;
     color: var(--ink, #222428);
     user-select: none;
 }
 
-.gsync-details ol {
+.csync-details ol {
     margin: 8px 0 2px;
     padding-left: 18px;
     display: flex;
@@ -354,25 +354,30 @@
     line-height: 1.5;
 }
 
-.gsync-details a {
+.csync-details code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11.5px;
+}
+
+.csync-details a {
     color: var(--accent, #3b7cf0);
     text-decoration: none;
 }
 
-.gsync-details a:hover {
+.csync-details a:hover {
     text-decoration: underline;
 }
 
 /* Reusable spin animation for app sync buttons */
-@keyframes gsync-spin {
+@keyframes csync-spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
 }
 
-.gsync-spinning {
-    animation: gsync-spin .9s linear infinite;
+.csync-spinning {
+    animation: csync-spin .9s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .gsync-spinning { animation: none; }
+    .csync-spinning { animation: none; }
 }

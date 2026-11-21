@@ -10,7 +10,7 @@ import {
     dueStatus,
     isFutureDue,
 } from './model.js';
-import { createGitHubSync, formatSyncTime } from '../shared/github-sync.js';
+import { createCloudSync, formatSyncTime } from '../shared/cloud-sync.js';
 
 const store = new MyListStore();
 
@@ -1276,15 +1276,15 @@ function updateSyncUI(info) {
     const cfg = SYNC_UI[info.state] || SYNC_UI.unconfigured;
     btnSync.dataset.state = info.state;
     syncIcon.querySelector('use').setAttribute('href', cfg.icon);
-    syncIcon.classList.toggle('gsync-spinning', cfg.spin);
+    syncIcon.classList.toggle('csync-spinning', cfg.spin);
     syncLabel.textContent = cfg.label;
     syncLabel.hidden = !cfg.label;
 
     const saveKey = isMac ? '⌘S' : 'Ctrl+S';
     if (!info.configured) {
-        btnSync.title = '配置 GitHub 云同步（可选）';
+        btnSync.title = '配置 Cloudflare 云同步（可选）';
     } else if (info.state === 'syncing') {
-        btnSync.title = `正在与 ${info.repo} 同步…`;
+        btnSync.title = `正在与 ${info.host} 同步…`;
     } else if (info.state === 'error') {
         btnSync.title = `同步失败：${info.lastError || '网络错误'} · 点击重试`;
     } else if (info.state === 'dirty') {
@@ -1294,10 +1294,9 @@ function updateSyncUI(info) {
     }
 }
 
-const sync = createGitHubSync({
+const sync = createCloudSync({
     appId: 'mylist',
     appName: 'MyList',
-    filePath: 'mylist.json',
     getLocalData: () => store.getSyncSnapshot(),
     mergeData: (local, remote) => mergeListStates(local, remote),
     applyMergedData: (merged) => store.applyRemoteState(merged),
