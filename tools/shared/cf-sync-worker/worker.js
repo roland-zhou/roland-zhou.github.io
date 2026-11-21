@@ -1,8 +1,7 @@
 /**
  * Cloudflare Worker + D1 (SQLite) Cloud Sync Backend for MyList & MyMind.
  *
- * Zero dependencies — deploy directly via Cloudflare Dashboard (paste single file)
- * or with Wrangler (`wrangler deploy`).
+ * Zero dependencies — deploy with Wrangler or paste its bundle into the Cloudflare Dashboard.
  *
  * Required Cloudflare bindings / secrets:
  *   - D1 Database binding named: DB
@@ -17,7 +16,11 @@
  *   PUT  /api/sync/:appId     -> Atomic optimistic-locked write (returns 409 on version mismatch)
  */
 
+import { sendMyListReminders } from './mylist-reminders.js';
+import { loadVapid, syncKey, validPushEndpoint, validSubscriptionKeys } from './web-push.js';
+
 const APP_ID_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/;
+const PUSH_CLIENT_RE = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
 const MAX_PAYLOAD_BYTES = 1800 * 1024; // Stay safely under D1's 2 MB per-row limit
 
 const INIT_STATEMENTS = [
@@ -28,14 +31,15 @@ const INIT_STATEMENTS = [
         timezone   TEXT NOT NULL DEFAULT '',
         updated_at INTEGER NOT NULL
     )`,
-    `CREATE TABLE IF NOT EXISTS push_subscriptions (
-        endpoint   TEXT PRIMARY KEY,
-        p256dh     TEXT NOT NULL,
-        auth       TEXT NOT NULL,
-        label      TEXT NOT NULL DEFAULT '',
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL
+    `CREATE TABLE IF NOT EXISTS mylist_push_clients (
+        client_id  TEXT PRIMARY KEY,
+        endpoint   TEXT UNIQUE,
+        p256dh     TEXT NOT NULL DEFAULT '',
+        auth       TEXT NOT NULL DEFAULT '',
+        sync_key   TEXT NOT NULL DEFAULT '',
+        enabled_at INTEGER NOT NULL DEFAULT 0
     )`,
+    'CREATE INDEX IF NOT EXISTS idx_mylist_push_sync_key ON mylist_push_clients(sync_key)',
     `CREATE TABLE IF NOT EXISTS reminder_logs (
         reminder_key TEXT PRIMARY KEY,
         app_id       TEXT NOT NULL,
@@ -320,6 +324,40 @@ async function handlePutDoc(request, env, appId) {
     );
 }
 
+async function handlePushClient(request, env, clientId) {
+    await ensureSchema(env.DB);
+    if (request.method === 'DELETE') {
+        // Keep a tombstone so a delayed or retried PUT cannot reactivate this client ID.
+        await env.DB.prepare(
+            `INSERT INTO mylist_push_clients (client_id) VALUES (?)
+             ON CONFLICT(client_id) DO UPDATE SET endpoint = NULL, p256dh = '', auth = '', sync_key = '', enabled_at = 0`
+        ).bind(clientId).run();
+        return corsResponse(request, env, null, { status: 204 });
+    }
+
+    if (request.method !== 'PUT') {
+        return jsonResponse(request, env, { ok: false, message: 'Method Not Allowed' }, 405);
+    }
+    const body = await request.json().catch(() => null);
+    if (!validPushEndpoint(body?.endpoint) || !validSubscriptionKeys(body?.keys?.p256dh, body?.keys?.auth)) {
+        return jsonResponse(request, env, { ok: false, message: '无效的 Apple 推送订阅' }, 400);
+    }
+    const vapid = await loadVapid(env);
+    if (!vapid) return jsonResponse(request, env, { ok: false, message: 'Worker 尚未配置 Web Push' }, 503);
+    const key = await syncKey(env.SYNC_TOKEN);
+    const result = await env.DB.prepare(
+        `INSERT INTO mylist_push_clients (client_id, endpoint, p256dh, auth, sync_key, enabled_at)
+         SELECT ?, ?, ?, ?, ?, ? FROM sync_docs WHERE app_id = 'mylist'
+         ON CONFLICT(client_id) DO UPDATE SET endpoint = excluded.endpoint,
+             p256dh = excluded.p256dh, auth = excluded.auth, sync_key = excluded.sync_key
+         WHERE mylist_push_clients.endpoint IS NOT NULL OR mylist_push_clients.enabled_at > 0`
+    ).bind(clientId, body.endpoint, body.keys.p256dh, body.keys.auth, key, Date.now()).run();
+    if (!result.meta.changes) {
+        return jsonResponse(request, env, { ok: false, message: '请先同步 MyList，或关闭提醒后重新开启' }, 409);
+    }
+    return corsResponse(request, env, null, { status: 204 });
+}
+
 /* ---------- Worker Entrypoint ---------- */
 
 export default {
@@ -353,6 +391,19 @@ export default {
                 return await handleHealth(request, env);
             }
 
+            if (path === '/api/push/mylist' && request.method === 'GET') {
+                const vapid = await loadVapid(env);
+                if (!vapid) return jsonResponse(request, env, { ok: false, message: 'Worker 尚未配置 Web Push' }, 503);
+                return jsonResponse(request, env, { publicKey: vapid.publicKey });
+            }
+            if (path.startsWith('/api/push/mylist/')) {
+                const clientId = path.slice('/api/push/mylist/'.length);
+                if (!PUSH_CLIENT_RE.test(clientId)) {
+                    return jsonResponse(request, env, { ok: false, message: '无效的客户端 ID' }, 400);
+                }
+                return await handlePushClient(request, env, clientId);
+            }
+
             const syncMatch = path.match(/^\/api\/sync\/([^/]+)$/);
             if (syncMatch) {
                 const appId = decodeURIComponent(syncMatch[1]);
@@ -377,5 +428,10 @@ export default {
                 500
             );
         }
+    },
+    async scheduled(_event, env) {
+        if (!env.DB || !env.SYNC_TOKEN?.trim() || !env.VAPID_PUBLIC_KEY) return;
+        await ensureSchema(env.DB);
+        await sendMyListReminders(env, Date.now());
     },
 };

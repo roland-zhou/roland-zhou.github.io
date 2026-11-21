@@ -1,4 +1,4 @@
--- Cloudflare D1 (SQLite) schema for personal tools cloud sync & future reminders.
+-- Cloudflare D1 (SQLite) schema for personal tools cloud sync and MyList reminders.
 -- Note: worker.js also auto-runs these CREATE TABLE IF NOT EXISTS statements on cold start,
 -- so Dashboard deployments work without manually running this SQL file.
 
@@ -11,17 +11,19 @@ CREATE TABLE IF NOT EXISTS sync_docs (
     updated_at INTEGER NOT NULL
 );
 
--- Reserved for iOS PWA Web Push subscriptions (next step: scheduled reminders)
-CREATE TABLE IF NOT EXISTS push_subscriptions (
-    endpoint   TEXT PRIMARY KEY,
-    p256dh     TEXT NOT NULL,
-    auth       TEXT NOT NULL,
-    label      TEXT NOT NULL DEFAULT '',
-    created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL
+-- Per-installation opt-ins. Revoked IDs remain with an empty sync_key.
+CREATE TABLE IF NOT EXISTS mylist_push_clients (
+    client_id  TEXT PRIMARY KEY,
+    endpoint   TEXT UNIQUE,
+    p256dh     TEXT NOT NULL DEFAULT '',
+    auth       TEXT NOT NULL DEFAULT '',
+    sync_key   TEXT NOT NULL DEFAULT '',
+    enabled_at INTEGER NOT NULL DEFAULT 0
 );
 
--- Reserved for scheduled reminder deduplication logs
+CREATE INDEX IF NOT EXISTS idx_mylist_push_sync_key ON mylist_push_clients(sync_key);
+
+-- Per-installation scheduled reminder deduplication
 CREATE TABLE IF NOT EXISTS reminder_logs (
     reminder_key TEXT PRIMARY KEY,
     app_id       TEXT NOT NULL,

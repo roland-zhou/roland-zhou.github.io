@@ -7,6 +7,8 @@
  *   (409 conflict auto-merge & retry) and ETag (`If-None-Match` -> 304) conditional GET.
  */
 
+import { getPushClient, preparePush, revokeMyListPush, savePushClient, withPushLock } from './mylist-push.js';
+
 export const SYNC_CONFIG_KEY = 'roland.sync.cf.v1';
 const META_KEY_PREFIX = 'roland.sync.cf.meta.v1:';
 const PAIR_V1 = 'CSYNC1';
@@ -358,6 +360,7 @@ export function createCloudSync({
     isBusy = () => false,
     onStatusChange = () => {},
     onToast = () => {},
+    pushWorkerUrl = '',
     debounceMs = 1500,
     resumeThrottleMs = 15000,
 }) {
@@ -377,6 +380,9 @@ export function createCloudSync({
     // Modal refs (created lazily on first open)
     let modal = null;
     let pendingPairConfig = null;
+    let pushSetupFor = null;
+    let pushSetup = null;
+    let pushBusy = false;
 
     function getStatus() {
         return {
@@ -567,7 +573,7 @@ export function createCloudSync({
         throw new Error('同步冲突重试次数过多，请稍后重试');
     }
 
-    async function syncNow({ manual = false } = {}) {
+    async function syncNow({ manual = false, quiet = false } = {}) {
         if (!config) {
             if (manual) openSettings();
             return { ok: false, skipped: true };
@@ -606,7 +612,7 @@ export function createCloudSync({
                 setState(meta.dirty ? 'dirty' : 'synced', '', false);
                 if (res.conflictCopies > 0) {
                     onToast(`同步完成：检测到 ${res.conflictCopies} 处并行编辑冲突，已另存为副本`, { duration: 4500 });
-                } else if (manual) {
+                } else if (manual && !quiet) {
                     if (res.pulled && res.pushed) onToast('同步完成（已合并云端更新）');
                     else if (res.pulled) onToast('已拉取最新云端数据');
                     else if (res.pushed) onToast('已同步到云端');
@@ -617,7 +623,7 @@ export function createCloudSync({
                 const msg = err?.message || '同步失败';
                 const authErr = Boolean(err?.authError);
                 setState('error', msg, authErr);
-                if (manual) {
+                if (manual && !quiet) {
                     onToast(`同步失败：${msg}`, {
                         actionLabel: authErr ? '设置' : '重试',
                         onAction: authErr ? () => openSettings() : () => syncNow({ manual: true }),
@@ -797,6 +803,14 @@ export function createCloudSync({
                             <div class="csync-msg" data-csync-msg></div>
                         </form>
 
+                        ${pushWorkerUrl ? `
+                        <div class="csync-section" data-csync-push hidden>
+                            <div class="csync-section-title">到期通知</div>
+                            <div class="csync-actions">
+                                <button type="button" class="csync-btn" data-csync-push-toggle hidden></button>
+                            </div>
+                            <div class="csync-msg" data-csync-push-msg role="status"></div>
+                        </div>` : ''}
                         <div class="csync-section" data-csync-pair-export hidden>
                             <div class="csync-section-title">多设备快速配对</div>
                             <p class="csync-note">
@@ -822,7 +836,7 @@ export function createCloudSync({
                             <summary>如何免费部署 Cloudflare Worker + D1 同步服务？</summary>
                             <ol>
                                 <li>登录 <a href="https://dash.cloudflare.com/" target="_blank" rel="noopener">Cloudflare Dashboard</a> → <b>D1 SQL Database</b> → 新建数据库（如 <code>roland-tools-sync</code>）。</li>
-                                <li>进入 <b>Workers &amp; Pages</b> → 创建 Worker → 粘贴仓库中 <code>tools/shared/cf-sync-worker/worker.js</code> 并部署（首次访问自动建表）。</li>
+                                <li>按仓库中 <code>tools/shared/cf-sync-worker/README.md</code> 部署 Worker（首次访问自动建表）。</li>
                                 <li>在 Worker 设置中绑定该 D1 数据库，变量名填 <code>DB</code>；再添加一个 Secret 环境变量 <code>SYNC_TOKEN</code>（自定义随机密钥）。</li>
                                 <li>将 Worker 的 <code>*.workers.dev</code> 地址与 <code>SYNC_TOKEN</code> 填回上方即可。</li>
                             </ol>
@@ -859,6 +873,9 @@ export function createCloudSync({
             nowBtn: q('[data-csync-now]'),
             disconnectBtn: q('[data-csync-disconnect]'),
             msg: q('[data-csync-msg]'),
+            pushSection: q('[data-csync-push]'),
+            pushToggle: q('[data-csync-push-toggle]'),
+            pushMsg: q('[data-csync-push-msg]'),
             pairExport: q('[data-csync-pair-export]'),
             copyLinkBtn: q('[data-csync-copy-link]'),
             copyCodeBtn: q('[data-csync-copy-code]'),
@@ -908,7 +925,13 @@ export function createCloudSync({
             setMsg(statusEl, '正在验证 Worker 与 D1 连通性…', 'info');
             try {
                 const verified = await verifyEndpointAccess(rawCfg);
-                applyNewConfig(verified);
+                await withPushLock(async () => {
+                    const previous = readSyncConfig();
+                    if (previous && (previous.endpoint !== verified.endpoint || previous.token !== verified.token)) {
+                        await revokeMyListPush(previous.endpoint === verified.endpoint ? verified : previous);
+                    }
+                    applyNewConfig(verified);
+                });
                 setMsg(statusEl, '连接成功，正在首次同步…', 'ok');
                 const syncRes = await syncNow({ manual: false });
                 if (syncRes.ok) {
@@ -943,14 +966,62 @@ export function createCloudSync({
             await syncNow({ manual: true });
         });
 
-        modal.disconnectBtn.addEventListener('click', () => {
-            if (!confirm('断开云同步？\n本地数据和 Cloudflare D1 中的数据都会保留，仅清除本浏览器的同步配置。')) return;
-            disconnect();
-            modal.endpointInput.value = '';
-            modal.tokenInput.value = '';
-            setMsg(modal.msg, '已断开云同步', 'info');
-            onToast('已断开云同步');
-            updateModalView();
+        modal.disconnectBtn.addEventListener('click', async () => {
+            if (!confirm('断开云同步？\n本地和云端数据会保留，此设备的到期通知将关闭。')) return;
+            modal.disconnectBtn.disabled = true;
+            try {
+                await withPushLock(async () => {
+                    await revokeMyListPush(readSyncConfig());
+                    disconnect();
+                });
+                modal.endpointInput.value = '';
+                modal.tokenInput.value = '';
+                setMsg(modal.msg, '已断开云同步', 'info');
+                onToast('已断开云同步');
+                updateModalView();
+            } catch (error) {
+                setMsg(modal.msg, `关闭此设备的到期通知失败，请联网后重试。 ${error.message}`, 'err');
+            } finally {
+                modal.disconnectBtn.disabled = false;
+            }
+        });
+
+        modal.pushToggle?.addEventListener('click', async () => {
+            const current = config;
+            const saved = getPushClient(current);
+            const setup = pushSetup;
+            if (!current || pushBusy || (!saved?.enabled && !setup)) return;
+            pushBusy = true;
+            modal.pushToggle.disabled = true;
+            modal.pushMsg.textContent = saved?.enabled ? '正在关闭…' : '正在开启…';
+            try {
+                // Safari requires subscribe() to run directly in the tap handler.
+                const subscription = saved?.enabled ? null : setup.subscription || await setup.registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: setup.applicationServerKey,
+                });
+                await withPushLock(async () => {
+                    const latest = readSyncConfig();
+                    if (latest?.endpoint !== current.endpoint || latest.token !== current.token) {
+                        throw new Error('同步配置已变更，请重新打开设置。');
+                    }
+                    if (saved?.enabled) {
+                        await revokeMyListPush(current);
+                    } else {
+                        const result = await syncNow({ manual: true, quiet: true });
+                        if (!result.ok) throw new Error(result.error || '请先完成一次 MyList 云同步。');
+                        await savePushClient(current, subscription);
+                    }
+                });
+                pushSetupFor = null;
+            } catch (error) {
+                modal.pushMsg.textContent = error.name === 'NotAllowedError'
+                    ? '请在 iOS 设置中允许 MyList 通知，再重试。' : error.message;
+            } finally {
+                pushBusy = false;
+                modal.pushToggle.disabled = false;
+                updatePushView();
+            }
         });
 
         async function copyText(str) {
@@ -1031,6 +1102,42 @@ export function createCloudSync({
         error: '同步失败',
     };
 
+    function updatePushView() {
+        if (!modal?.pushSection) return;
+        modal.pushSection.hidden = !config;
+        if (!config) {
+            pushSetupFor = null;
+            pushSetup = null;
+            return;
+        }
+        if (pushBusy) return;
+        const enabled = getPushClient(config)?.enabled;
+        modal.pushToggle.textContent = enabled ? '关闭此设备的通知' : '开启此设备的通知';
+        modal.pushToggle.hidden = !enabled && !pushSetup;
+        if (pushSetupFor === config) return;
+        pushSetupFor = config;
+        pushSetup = null;
+        modal.pushToggle.hidden = !enabled;
+        if (navigator.standalone !== true || !navigator.serviceWorker || !window.PushManager || !navigator.locks) {
+            modal.pushMsg.textContent = '在 iOS 16.4 或更新版本中，将 MyList 添加到主屏幕并从图标打开。';
+            return;
+        }
+        if (enabled) {
+            modal.pushMsg.textContent = '已开启。带具体时间的未完成任务到期时会提醒。';
+            return;
+        }
+        const current = config;
+        modal.pushMsg.textContent = '正在检查通知支持…';
+        preparePush(current, pushWorkerUrl).then((setup) => {
+            if (config !== current || pushSetupFor !== current) return;
+            pushSetup = setup;
+            modal.pushToggle.hidden = false;
+            modal.pushMsg.textContent = '带具体时间的未完成任务到期时会提醒。';
+        }).catch((error) => {
+            if (config === current && pushSetupFor === current) modal.pushMsg.textContent = error.message;
+        });
+    }
+
     function updateModalView() {
         if (!modal) return;
         const isPairMode = Boolean(pendingPairConfig);
@@ -1050,6 +1157,7 @@ export function createCloudSync({
         modal.pairExport.hidden = !connected;
         modal.pairImport.hidden = connected;
         modal.saveBtn.textContent = connected ? '更新配置' : '测试并连接';
+        if (!modal.backdrop.hidden) updatePushView();
 
         if (connected) {
             modal.dot.dataset.state = state;
@@ -1081,6 +1189,8 @@ export function createCloudSync({
         m.importMsg.textContent = '';
         updateModalView();
         m.backdrop.hidden = false;
+        pushSetupFor = null;
+        updatePushView();
         requestAnimationFrame(() => {
             if (!config) m.endpointInput.focus();
         });

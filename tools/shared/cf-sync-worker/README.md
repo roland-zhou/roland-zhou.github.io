@@ -2,11 +2,11 @@
 
 为 `MyList`、`MyMind` 等个人静态网页工具提供低延迟、强一致的云端同步后端（基于 Cloudflare Workers + D1 轻量 SQLite），免费额度即可满足个人长期使用（Worker 10 万次/天，D1 500 万读 + 10 万写/天）。
 
-同时已预留 `push_subscriptions` 与 `reminder_logs` 表，以及每份同步文档的 `timezone` 字段，后续可直接在此 Worker 上加 Cron Trigger 实现 iOS 定时提醒推送。
+MyList 支持在 iOS 主屏幕 App 中接收任务到期通知。Worker 每分钟读取 D1 中的 MyList 任务，按同步文档的时区检查带具体时间的未完成任务，例如 `交报告 11.25 14:30`。Worker 按设备和到期时间去重，并在最近十分钟内重试 Apple 明确返回的临时错误。
 
 ---
 
-## 方式一：Cloudflare 网页控制台部署（零命令行，推荐）
+## 方式一：Cloudflare 网页控制台部署
 
 1. **创建 D1 数据库**
    - 登录 [Cloudflare Dashboard](https://dash.cloudflare.com/) → 左侧 **Storage & Databases → D1 SQL Database** → **Create**。
@@ -15,7 +15,8 @@
 2. **创建 Worker**
    - 左侧 **Compute (Workers) → Workers & Pages → Create → Start with Hello World!**。
    - 命名（如 `roland-tools-sync`）→ **Deploy** → 点击 **Edit code**。
-   - 用本目录下的 [`worker.js`](./worker.js) 全文替换默认代码 → **Deploy**。
+   - 在本目录运行 `npx wrangler deploy --dry-run --outdir /tmp/mylist-worker` 生成单文件 bundle。
+   - 用生成的 `/tmp/mylist-worker/worker.js` 全文替换默认代码 → **Deploy**。
 
 3. **绑定 D1 与访问密钥**
    - 进入该 Worker 的 **Settings → Bindings → Add** → 选择 **D1 database**：
@@ -54,6 +55,20 @@ npx wrangler deploy
 
 ---
 
+## 开启 MyList 到期通知
+
+1. 生成一组 VAPID 密钥：
+
+   ```bash
+   npx --yes web-push generate-vapid-keys
+   ```
+
+2. 在现有同步 Worker 的 **Settings → Variables and Secrets** 添加普通变量 `VAPID_PUBLIC_KEY` 和 `VAPID_SUBJECT`（例如 `mailto:你的邮箱`），并以 **Secret** 添加 `VAPID_PRIVATE_KEY`。用 Wrangler 部署时，可在 `[vars]` 配置普通变量，并用 `npx wrangler secret put VAPID_PRIVATE_KEY` 设置私钥。
+3. 网页控制台部署时，通过 **Settings → Trigger Events** 添加 Cron 表达式 `* * * * *`。Wrangler 部署会从 `wrangler.toml` 应用该表达式。
+4. 在 iOS 16.4 或更新版本中，将 MyList 添加到主屏幕并从图标打开。连接云同步后，在 MyList 的「云同步设置 → 到期通知」开启此设备的通知并允许系统权限。每台设备分别操作。
+
+只有同时开启同步和通知的设备才会进入发送名单。在 MyList 或同一安装环境的同步设置中断开连接时，需联网让 Worker 确认注销订阅。Apple 已接受的推送无法撤回，Worker 会请求 Apple 不为离线设备排队。
+
 ## API 概览
 
 所有 `/api/*` 请求需携带 `Authorization: Bearer <SYNC_TOKEN>`：
@@ -61,3 +76,6 @@ npx wrangler deploy
 - `GET /api/health`：验证密钥与 D1 连通性，返回已同步的应用摘要。
 - `GET /api/sync/:appId`：拉取应用数据（支持 `If-None-Match` 条件请求返回 `304 Not Modified`）。
 - `PUT /api/sync/:appId`：基于 `expectedVersion` 的原子乐观锁写入；若远端版本已变化则返回 `409 Conflict`，客户端自动拉取并执行字段级合并后重试。
+- `GET /api/push/mylist`：获取 VAPID 公钥。
+- `PUT /api/push/mylist/:clientId`：启用此设备的 Apple Web Push 订阅（需要已有 MyList 同步文档）。
+- `DELETE /api/push/mylist/:clientId`：注销此设备的订阅。

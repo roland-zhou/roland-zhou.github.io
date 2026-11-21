@@ -1,0 +1,15 @@
+{
+    "id": "./",
+    "name": "MyList",
+    "short_name": "MyList",
+    "lang": "zh-CN",
+    "start_url": "./",
+    "scope": "./",
+    "display": "standalone",
+    "theme_color": "#f5f5f2",
+    "background_color": "#f5f5f2",
+    "icons": [
+        { "src": "./apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+        { "src": "./favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+    ]
+}

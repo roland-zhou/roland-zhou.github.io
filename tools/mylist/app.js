@@ -10,7 +10,7 @@ import {
     dueStatus,
     isFutureDue,
 } from './model.js';
-import { createCloudSync, formatSyncTime } from '../shared/cloud-sync.js';
+import { createCloudSync, formatSyncTime } from '../shared/cloud-sync.js?v=2';
 
 const store = new MyListStore();
 
@@ -1259,7 +1259,7 @@ document.addEventListener('click', (e) => {
 });
 
 // =========================================================================
-// Cloud Sync (Optional GitHub Private Repo)
+// Optional Cloudflare Cloud Sync
 // =========================================================================
 
 const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
@@ -1297,6 +1297,7 @@ function updateSyncUI(info) {
 const sync = createCloudSync({
     appId: 'mylist',
     appName: 'MyList',
+    pushWorkerUrl: './sw.js',
     getLocalData: () => store.getSyncSnapshot(),
     mergeData: (local, remote) => mergeListStates(local, remote),
     applyMergedData: (merged) => store.applyRemoteState(merged),
