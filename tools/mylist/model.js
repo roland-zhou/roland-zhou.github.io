@@ -7,6 +7,7 @@ export const STORAGE_KEY = 'mylist:v1:state';
 
 const MAX_UNDO = 40;
 const DAY = 864e5;
+const TOMBSTONE_TTL = 90 * DAY;
 const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
 const pad2 = n => String(n).padStart(2, '0');
@@ -180,6 +181,18 @@ function cloneItems(items) {
     return items.map(item => ({ ...item }));
 }
 
+function cleanDeleted(raw, nowTs = Date.now()) {
+    const out = {};
+    if (!raw || typeof raw !== 'object') return out;
+    for (const [id, ts] of Object.entries(raw)) {
+        const n = Number(ts);
+        if (typeof id === 'string' && id && Number.isFinite(n) && nowTs - n < TOMBSTONE_TTL) {
+            out[id] = n;
+        }
+    }
+    return out;
+}
+
 function normalizeItem(raw, now = new Date()) {
     let text = typeof raw.text === 'string' ? raw.text.trim() : '';
     // Migrate legacy items that stored a separate `dueDate: "YYYY-MM-DD"` field
@@ -211,6 +224,7 @@ function normalizeItem(raw, now = new Date()) {
 export class MyListStore {
     constructor() {
         this.items = [];
+        this.deleted = {};
         this.undoStack = [];
         this.listeners = new Set();
         this.load();
@@ -231,6 +245,7 @@ export class MyListStore {
             const raw = localStorage.getItem(STORAGE_KEY);
             if (!raw) {
                 this.items = [];
+                this.deleted = {};
                 return;
             }
             const parsed = JSON.parse(raw);
@@ -241,11 +256,13 @@ export class MyListStore {
                 if (r && r.zone === 'scheduled' && n.zone === 'now') migrated = true;
                 return n;
             }).filter(t => t.text.length > 0);
+            this.deleted = cleanDeleted(parsed?.deleted, now.getTime());
             this._normalizeOrders('now');
             this._normalizeOrders('someday');
             if (migrated) this.persist();
         } catch {
             this.items = [];
+            this.deleted = {};
         }
     }
 
@@ -254,14 +271,36 @@ export class MyListStore {
             localStorage.setItem(STORAGE_KEY, JSON.stringify({
                 version: 2,
                 items: this.items,
+                deleted: this.deleted,
             }));
         } catch {
             // Ignore quota errors
         }
     }
 
+    getSyncSnapshot(now = new Date()) {
+        return {
+            version: 2,
+            items: cloneItems(this.items),
+            deleted: cleanDeleted(this.deleted, now.getTime()),
+        };
+    }
+
+    applyRemoteState(data, now = new Date()) {
+        const rawList = Array.isArray(data?.items) ? data.items : [];
+        this.items = rawList.map(r => normalizeItem(r, now)).filter(t => t.text.length > 0);
+        this.deleted = cleanDeleted(data?.deleted, now.getTime());
+        this._normalizeOrders('now');
+        this._normalizeOrders('someday');
+        this.emit({ type: 'remote-sync' });
+    }
+
     _pushUndo(label = '') {
-        this.undoStack.push({ label, items: cloneItems(this.items) });
+        this.undoStack.push({
+            label,
+            items: cloneItems(this.items),
+            deleted: { ...this.deleted },
+        });
         if (this.undoStack.length > MAX_UNDO) this.undoStack.shift();
     }
 
@@ -272,7 +311,16 @@ export class MyListStore {
     undo() {
         if (!this.undoStack.length) return null;
         const snap = this.undoStack.pop();
+        const prevDeleted = this.deleted;
+        const nowTs = Date.now();
+        // Bump updatedAt on resurrected items so cloud sync won't re-delete them with an older tombstone.
+        for (const item of snap.items) {
+            if (prevDeleted[item.id] && prevDeleted[item.id] >= (item.updatedAt || 0)) {
+                item.updatedAt = nowTs;
+            }
+        }
         this.items = snap.items;
+        this.deleted = snap.deleted ? { ...snap.deleted } : {};
         this.emit({ type: 'undo', label: snap.label });
         return snap.label;
     }
@@ -463,6 +511,7 @@ export class MyListStore {
         if (idx === -1) return false;
         this._pushUndo('删除任务');
         const [removed] = this.items.splice(idx, 1);
+        this.deleted[id] = Date.now();
         this._normalizeOrders('now');
         this._normalizeOrders('someday');
         this.emit({ type: 'delete', id, zone: removed.zone });
@@ -472,6 +521,10 @@ export class MyListStore {
     clearDone() {
         if (!this.items.some(t => t.done)) return false;
         this._pushUndo('清空已完成');
+        const nowTs = Date.now();
+        for (const t of this.items) {
+            if (t.done) this.deleted[t.id] = nowTs;
+        }
         this.items = this.items.filter(t => !t.done);
         this.emit({ type: 'clear-done' });
         return true;
@@ -610,4 +663,89 @@ export class MyListStore {
         this.emit({ type: 'import' });
         return this.items.length;
     }
+}
+
+function canonicalListPayload(items, deleted, now) {
+    const normalized = items.map(r => normalizeItem(r, now)).filter(t => t.text.length > 0);
+    for (const zone of ['now', 'someday']) {
+        const active = normalized
+            .filter(t => !t.done && t.zone === zone)
+            .sort((a, b) => a.order - b.order || a.createdAt - b.createdAt || a.id.localeCompare(b.id));
+        active.forEach((t, i) => { t.order = i; });
+    }
+    normalized.sort((a, b) => a.id.localeCompare(b.id));
+    const sortedDeleted = {};
+    for (const id of Object.keys(deleted).sort()) {
+        sortedDeleted[id] = deleted[id];
+    }
+    return { version: 2, items: normalized, deleted: sortedDeleted };
+}
+
+/**
+ * Pure two-way item-level LWW merge for MyList cloud sync.
+ * - Uses `updatedAt` per item so offline edits to different items on different devices merge seamlessly.
+ * - Propagates deletions via `deleted` tombstones (pruned after 90 days).
+ */
+export function mergeListStates(local, remote, { now = new Date() } = {}) {
+    const nowTs = now.getTime();
+    const localItems = (Array.isArray(local?.items) ? local.items : [])
+        .map(r => normalizeItem(r, now)).filter(t => t.text.length > 0);
+    const remoteItems = (Array.isArray(remote?.items) ? remote.items : [])
+        .map(r => normalizeItem(r, now)).filter(t => t.text.length > 0);
+
+    const localDel = cleanDeleted(local?.deleted, nowTs);
+    const remoteDel = cleanDeleted(remote?.deleted, nowTs);
+
+    const deleted = { ...localDel };
+    for (const [id, ts] of Object.entries(remoteDel)) {
+        deleted[id] = Math.max(deleted[id] || 0, ts);
+    }
+
+    const localById = new Map(localItems.map(t => [t.id, t]));
+    const remoteById = new Map(remoteItems.map(t => [t.id, t]));
+    const allIds = new Set([...localById.keys(), ...remoteById.keys()]);
+    const mergedItems = [];
+
+    for (const id of allIds) {
+        const li = localById.get(id);
+        const ri = remoteById.get(id);
+        const delTs = deleted[id] || 0;
+
+        if (li && !ri) {
+            if (delTs >= (li.updatedAt || 0)) continue;
+            if (delTs) delete deleted[id];
+            mergedItems.push({ ...li });
+        } else if (ri && !li) {
+            if (delTs >= (ri.updatedAt || 0)) continue;
+            if (delTs) delete deleted[id];
+            mergedItems.push({ ...ri });
+        } else if (li && ri) {
+            const lt = li.updatedAt || 0;
+            const rt = ri.updatedAt || 0;
+            if (delTs >= Math.max(lt, rt)) continue;
+            if (delTs) delete deleted[id];
+
+            if (lt > rt) {
+                mergedItems.push({ ...li });
+            } else if (rt > lt) {
+                mergedItems.push({ ...ri });
+            } else {
+                // Deterministic tie-breaker when timestamps are identical
+                const ls = JSON.stringify(li);
+                const rs = JSON.stringify(ri);
+                mergedItems.push(ls >= rs ? { ...li } : { ...ri });
+            }
+        }
+    }
+
+    const merged = canonicalListPayload(mergedItems, deleted, now);
+    const origLocal = canonicalListPayload(localItems, localDel, now);
+    const origRemote = canonicalListPayload(remoteItems, remoteDel, now);
+
+    const mergedStr = JSON.stringify(merged);
+    return {
+        merged,
+        localChanged: mergedStr !== JSON.stringify(origLocal),
+        remoteChanged: mergedStr !== JSON.stringify(origRemote),
+    };
 }

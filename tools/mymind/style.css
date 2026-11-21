@@ -277,6 +277,37 @@ svg use { pointer-events: none; }
 .tool-bar { top: 14px; right: calc(20px + env(safe-area-inset-right)); }
 .node-bar { bottom: 18px; left: 50%; transform: translateX(-50%); }
 .zoom-bar { bottom: calc(20px + env(safe-area-inset-bottom)); right: calc(20px + env(safe-area-inset-right)); }
+.sync-bar {
+    bottom: calc(20px + env(safe-area-inset-bottom));
+    left: calc(20px + env(safe-area-inset-left));
+    transition: left .16s ease;
+}
+body.sidebar-open .sync-bar { left: 296px; }
+.sync-trigger {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 32px; padding: 0 9px; border-radius: 8px;
+    font-size: 12.5px; font-weight: 550; color: var(--ink-2);
+    white-space: nowrap;
+}
+.sync-trigger:hover { background: var(--hover); color: var(--ink); }
+.sync-trigger svg {
+    width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor;
+    stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round;
+}
+.sync-bar[data-state="unconfigured"] .sync-trigger { opacity: .78; }
+.sync-bar[data-state="unconfigured"] .sync-trigger:hover { opacity: 1; }
+.sync-bar[data-state="synced"] .sync-trigger svg { color: #2ea664; }
+.sync-bar[data-state="dirty"] .sync-trigger { color: #b87414; }
+.sync-bar[data-state="dirty"] .sync-trigger svg { color: #e09624; }
+.sync-bar[data-state="syncing"] .sync-trigger svg { color: var(--accent); }
+.sync-bar[data-state="error"] .sync-trigger { color: var(--danger); }
+.sync-bar[data-state="error"] .sync-trigger svg { color: var(--danger); }
+@media (prefers-color-scheme: dark) {
+    .sync-bar[data-state="dirty"] .sync-trigger { color: #f0b454; }
+    .sync-bar[data-state="synced"] .sync-trigger svg { color: #5fd18e; }
+}
+.sync-gear { width: 30px; height: 32px; }
+.sync-gear svg { width: 15px; height: 15px; }
 .node-bar:not(.multi) [data-multi], .node-bar.multi [data-single] { display: none; }
 .multi-count { font-size: 13px; color: var(--ink-2); padding: 0 6px 0 8px; white-space: nowrap; }
 .zoom-label { min-width: 50px; height: 32px; border-radius: 8px; font-size: 12.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
@@ -365,4 +396,6 @@ kbd { font: 12px/1 inherit; padding: 3px 5px; border-radius: 5px; background: va
     .node-bar { bottom: 62px; }
     .doc-bar { max-width: calc(100vw - 190px); }
     .help { left: 12px; right: 12px; width: auto; }
+    .sync-bar { left: 12px; bottom: calc(16px + env(safe-area-inset-bottom)); }
+    body.sidebar-open .sync-bar { display: none; }
 }

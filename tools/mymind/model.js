@@ -98,6 +98,7 @@ export function computeLayout(root, sizes) {
 
 export function sampleMap() {
     const map = createMap('MyMind');
+    map.isSample = true;
     const n = (text, extra = {}, children = []) => createNode(text, { ...extra, children });
     map.root.children = [
         n('快速开始', { side: 'right', color: 0 }, [n('Tab 新建子节点'), n('Enter 新建同级节点'), n('双击或按空格编辑')]),
@@ -354,4 +355,130 @@ export function waitDuration(ms) {
     if (days < 7) return both(days, '天', hours % 24, '小时');
     if (days < 60) return `${days} 天`;
     return `${Math.floor(days / 30)} 个月`;
+}
+
+const TOMBSTONE_TTL = 90 * 864e5;
+
+function cleanDeletedMaps(raw, now) {
+    const out = {};
+    if (!raw || typeof raw !== 'object') return out;
+    for (const [id, ts] of Object.entries(raw)) {
+        const n = Number(ts);
+        if (typeof id === 'string' && id && Number.isFinite(n) && now - n < TOMBSTONE_TTL) {
+            out[id] = n;
+        }
+    }
+    return out;
+}
+
+function canonicalMindPayload(maps, deletedMaps) {
+    const sortedMaps = [...maps]
+        .sort((a, b) => ((b.updated || b.created || 0) - (a.updated || a.created || 0)) || a.id.localeCompare(b.id));
+    const sortedDeleted = {};
+    for (const id of Object.keys(deletedMaps).sort()) {
+        sortedDeleted[id] = deletedMaps[id];
+    }
+    return { version: 1, maps: sortedMaps, deletedMaps: sortedDeleted };
+}
+
+/**
+ * Pure two-way merge for MyMind cloud sync.
+ * - Supports tombstones (`deletedMaps`) so deletions propagate cleanly.
+ * - Drops untouched default sample maps when the other side has real maps.
+ * - Preserves offline dual-edit conflicts as a separate conflict copy instead of losing edits.
+ */
+export function mergeMindStates(local, remote, { baseUpdated = {}, now = Date.now() } = {}) {
+    let localMaps = Array.isArray(local?.maps) ? local.maps.filter(isValidMap) : [];
+    let remoteMaps = Array.isArray(remote?.maps) ? remote.maps.filter(isValidMap) : [];
+    const localDel = cleanDeletedMaps(local?.deletedMaps, now);
+    const remoteDel = cleanDeletedMaps(remote?.deletedMaps, now);
+
+    const localOnlySample = localMaps.length === 1 && localMaps[0].isSample;
+    const remoteOnlySample = remoteMaps.length === 1 && remoteMaps[0].isSample;
+    const remoteHasReal = remoteMaps.some(m => !m.isSample);
+    const localHasReal = localMaps.some(m => !m.isSample);
+
+    if (localOnlySample && remoteHasReal) localMaps = [];
+    if (remoteOnlySample && localHasReal) remoteMaps = [];
+
+    const deletedMaps = { ...localDel };
+    for (const [id, ts] of Object.entries(remoteDel)) {
+        deletedMaps[id] = Math.max(deletedMaps[id] || 0, ts);
+    }
+
+    const localById = new Map(localMaps.map(m => [m.id, m]));
+    const remoteById = new Map(remoteMaps.map(m => [m.id, m]));
+    const allIds = new Set([...localById.keys(), ...remoteById.keys()]);
+    const mergedMaps = [];
+    let conflictCount = 0;
+
+    const stamp = m => Number(m.updated || m.created || 0);
+    const cloneMap = m => JSON.parse(JSON.stringify(m));
+
+    for (const id of allIds) {
+        const lm = localById.get(id);
+        const rm = remoteById.get(id);
+        const delTs = deletedMaps[id] || 0;
+
+        if (lm && !rm) {
+            if (delTs >= stamp(lm)) continue;
+            if (delTs) delete deletedMaps[id];
+            mergedMaps.push(cloneMap(lm));
+        } else if (rm && !lm) {
+            if (delTs >= stamp(rm)) continue;
+            if (delTs) delete deletedMaps[id];
+            mergedMaps.push(cloneMap(rm));
+        } else if (lm && rm) {
+            const lt = stamp(lm);
+            const rt = stamp(rm);
+            const maxT = Math.max(lt, rt);
+            if (delTs >= maxT) continue;
+            if (delTs) delete deletedMaps[id];
+
+            const sameTree = JSON.stringify(lm.root) === JSON.stringify(rm.root);
+            if (sameTree) {
+                mergedMaps.push(cloneMap(lt >= rt ? lm : rm));
+            } else {
+                const baseT = Number(baseUpdated?.[id]) || 0;
+                const dualEdited = baseT > 0 && lt > baseT && rt > baseT;
+                const winner = lt >= rt ? lm : rm;
+                const loser = lt >= rt ? rm : lm;
+                mergedMaps.push(cloneMap(winner));
+                if (dualEdited) {
+                    const copy = cloneMap(loser);
+                    copy.id = uid();
+                    delete copy.isSample;
+                    copy.root.text = `${copy.root.text || '未命名导图'} (同步冲突副本)`;
+                    copy.updated = now;
+                    mergedMaps.push(copy);
+                    conflictCount++;
+                }
+            }
+        }
+    }
+
+    const merged = canonicalMindPayload(mergedMaps, deletedMaps);
+    const origLocal = canonicalMindPayload(
+        Array.isArray(local?.maps) ? local.maps.filter(isValidMap) : [],
+        localDel
+    );
+    const origRemote = canonicalMindPayload(
+        Array.isArray(remote?.maps) ? remote.maps.filter(isValidMap) : [],
+        remoteDel
+    );
+
+    const mergedStr = JSON.stringify(merged);
+    const localChanged = mergedStr !== JSON.stringify(origLocal);
+    const remoteChanged = mergedStr !== JSON.stringify(origRemote);
+
+    const nextBaseUpdated = {};
+    for (const m of merged.maps) nextBaseUpdated[m.id] = stamp(m);
+
+    return {
+        merged,
+        localChanged,
+        remoteChanged,
+        conflictCount,
+        metaExtra: { baseUpdated: nextBaseUpdated },
+    };
 }

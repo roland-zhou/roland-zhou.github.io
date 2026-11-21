@@ -1,0 +1,378 @@
+/* Shared GitHub Private Repo Cloud Sync Modal & Status Indicators */
+
+.gsync-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(12, 14, 18, .44);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    animation: gsync-fade-in .14s ease-out;
+}
+
+.gsync-backdrop[hidden] {
+    display: none !important;
+}
+
+@keyframes gsync-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.gsync-dialog {
+    width: min(440px, 100%);
+    max-height: min(88vh, 680px);
+    display: flex;
+    flex-direction: column;
+    background: var(--panel-solid, #fff);
+    color: var(--ink, #222428);
+    border: 1px solid var(--line, rgba(20, 24, 32, .12));
+    border-radius: 16px;
+    box-shadow: 0 20px 54px rgba(0, 0, 0, .24), 0 2px 8px rgba(0, 0, 0, .08);
+    overflow: hidden;
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Segoe UI", "Microsoft YaHei", sans-serif;
+}
+
+.gsync-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 14px 14px 12px 18px;
+    border-bottom: 1px solid var(--line, rgba(20, 24, 32, .1));
+}
+
+.gsync-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 650;
+}
+
+.gsync-title svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: var(--accent, #3b7cf0);
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex: none;
+}
+
+.gsync-close {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    border: 0;
+    background: none;
+    color: var(--ink-2, #5d6169);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+}
+
+.gsync-close:hover {
+    background: var(--hover, rgba(20, 24, 32, .06));
+    color: var(--ink, #222428);
+}
+
+.gsync-close svg {
+    width: 17px;
+    height: 17px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.gsync-body {
+    padding: 16px 18px 18px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.gsync-note {
+    margin: 0;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--ink-2, #5d6169);
+}
+
+.gsync-summary {
+    padding: 11px 13px;
+    border-radius: 11px;
+    background: var(--hover, rgba(20, 24, 32, .05));
+    border: 1px solid var(--line, rgba(20, 24, 32, .09));
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.gsync-summary-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13px;
+}
+
+.gsync-summary-label {
+    color: var(--muted, #8f949e);
+    flex: none;
+}
+
+.gsync-summary-val {
+    color: var(--ink, #222428);
+    font-weight: 550;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.gsync-summary-val code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.gsync-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+.gsync-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex: none;
+    background: var(--muted, #8f949e);
+}
+
+.gsync-dot[data-state="synced"] { background: #2ea664; }
+.gsync-dot[data-state="dirty"] { background: #e09624; }
+.gsync-dot[data-state="syncing"] { background: var(--accent, #3b7cf0); }
+.gsync-dot[data-state="error"] { background: var(--danger, #d64545); }
+
+.gsync-error-box {
+    padding: 9px 11px;
+    border-radius: 9px;
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: var(--danger, #d64545);
+    background: rgba(214, 69, 69, .09);
+    border: 1px solid rgba(214, 69, 69, .22);
+    word-break: break-word;
+}
+
+.gsync-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.gsync-field label {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ink-2, #5d6169);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.gsync-field-hint {
+    font-weight: 400;
+    font-size: 11.5px;
+    color: var(--muted, #8f949e);
+}
+
+.gsync-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.gsync-input,
+.gsync-textarea {
+    width: 100%;
+    padding: 8px 11px;
+    border-radius: 9px;
+    border: 1px solid var(--line, rgba(20, 24, 32, .14));
+    background: var(--bg, #f6f6f4);
+    color: var(--ink, #222428);
+    font-size: 13.5px;
+    outline: none;
+    transition: border-color .14s;
+}
+
+.gsync-input:focus,
+.gsync-textarea:focus {
+    border-color: var(--accent, #3b7cf0);
+}
+
+.gsync-textarea {
+    min-height: 68px;
+    resize: vertical;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.45;
+    word-break: break-all;
+}
+
+.gsync-toggle-vis {
+    flex: none;
+    height: 35px;
+    padding: 0 10px;
+    border-radius: 9px;
+    border: 1px solid var(--line, rgba(20, 24, 32, .14));
+    background: var(--hover, rgba(20, 24, 32, .05));
+    color: var(--ink-2, #5d6169);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.gsync-toggle-vis:hover {
+    color: var(--ink, #222428);
+}
+
+.gsync-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.gsync-btn {
+    height: 34px;
+    padding: 0 13px;
+    border-radius: 9px;
+    border: 1px solid var(--line, rgba(20, 24, 32, .14));
+    background: var(--hover, rgba(20, 24, 32, .05));
+    color: var(--ink, #222428);
+    font-size: 13px;
+    font-weight: 550;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: background .14s, opacity .14s;
+}
+
+.gsync-btn:hover:not(:disabled) {
+    background: var(--line, rgba(20, 24, 32, .11));
+}
+
+.gsync-btn:disabled {
+    opacity: .45;
+    cursor: default;
+}
+
+.gsync-btn-primary {
+    background: var(--accent, #3b7cf0);
+    border-color: transparent;
+    color: #fff;
+}
+
+.gsync-btn-primary:hover:not(:disabled) {
+    background: var(--accent, #3b7cf0);
+    filter: brightness(1.06);
+}
+
+.gsync-btn-danger {
+    color: var(--danger, #d64545);
+    border-color: rgba(214, 69, 69, .26);
+    background: transparent;
+    margin-left: auto;
+}
+
+.gsync-btn-danger:hover:not(:disabled) {
+    background: rgba(214, 69, 69, .1);
+}
+
+.gsync-msg {
+    font-size: 12.5px;
+    line-height: 1.45;
+    min-height: 0;
+}
+
+.gsync-msg.ok { color: #248a52; }
+.gsync-msg.err { color: var(--danger, #d64545); }
+.gsync-msg.info { color: var(--ink-2, #5d6169); }
+
+@media (prefers-color-scheme: dark) {
+    .gsync-msg.ok { color: #5fd18e; }
+}
+
+.gsync-section {
+    border-top: 1px solid var(--line, rgba(20, 24, 32, .1));
+    padding-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+}
+
+.gsync-section-title {
+    font-size: 12.5px;
+    font-weight: 650;
+    color: var(--ink-2, #5d6169);
+}
+
+.gsync-details {
+    font-size: 12.5px;
+    color: var(--ink-2, #5d6169);
+    border: 1px solid var(--line, rgba(20, 24, 32, .09));
+    border-radius: 10px;
+    padding: 8px 11px;
+    background: var(--bg, #f6f6f4);
+}
+
+.gsync-details summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--ink, #222428);
+    user-select: none;
+}
+
+.gsync-details ol {
+    margin: 8px 0 2px;
+    padding-left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    line-height: 1.5;
+}
+
+.gsync-details a {
+    color: var(--accent, #3b7cf0);
+    text-decoration: none;
+}
+
+.gsync-details a:hover {
+    text-decoration: underline;
+}
+
+/* Reusable spin animation for app sync buttons */
+@keyframes gsync-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.gsync-spinning {
+    animation: gsync-spin .9s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .gsync-spinning { animation: none; }
+}

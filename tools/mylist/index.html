@@ -12,6 +12,7 @@
     <link rel="icon" type="image/svg+xml" href="./favicon.svg">
     <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
     <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="../shared/github-sync.css">
     <script type="module" src="./app.js"></script>
 </head>
 <body>
@@ -58,6 +59,22 @@
         <symbol id="i-cloud" viewBox="0 0 24 24">
             <path d="M7.5 18h9.8a3.7 3.7 0 0 0 .5-7.35A5.3 5.3 0 0 0 7.4 9.2 4.2 4.2 0 0 0 7.5 18Z"/>
         </symbol>
+        <symbol id="i-cloud-check" viewBox="0 0 24 24">
+            <path d="M7.5 18h9.8a3.7 3.7 0 0 0 .5-7.35A5.3 5.3 0 0 0 7.4 9.2 4.2 4.2 0 0 0 7.5 18Z"/>
+            <path d="m9.5 13.5 1.7 1.7 3.5-3.7"/>
+        </symbol>
+        <symbol id="i-cloud-up" viewBox="0 0 24 24">
+            <path d="M7.5 18h9.8a3.7 3.7 0 0 0 .5-7.35A5.3 5.3 0 0 0 7.4 9.2 4.2 4.2 0 0 0 7.5 18Z"/>
+            <path d="M12 15.5v-4.5M9.8 13 12 10.8 14.2 13"/>
+        </symbol>
+        <symbol id="i-cloud-alert" viewBox="0 0 24 24">
+            <path d="M7.5 18h9.8a3.7 3.7 0 0 0 .5-7.35A5.3 5.3 0 0 0 7.4 9.2 4.2 4.2 0 0 0 7.5 18Z"/>
+            <path d="M12 10.5v3M12 15.8h.01"/>
+        </symbol>
+        <symbol id="i-sync" viewBox="0 0 24 24">
+            <path d="M20 12a8 8 0 0 0-13.7-5.6L4.5 8.2M4.5 4.5v3.7h3.7"/>
+            <path d="M4 12a8 8 0 0 0 13.7 5.6l1.8-1.8M19.5 19.5v-3.7h-3.7"/>
+        </symbol>
         <symbol id="i-spark" viewBox="0 0 24 24">
             <path d="M12 3.5 13.9 9.5 20 11.4l-6.1 1.9L12 19.5l-1.9-6.2L4 11.4l6.1-1.9Z"/>
         </symbol>
@@ -85,6 +102,10 @@
                 <span class="brand-name">MyList</span>
             </div>
             <div class="topbar-actions">
+                <button class="icon-btn sync-btn" id="btn-sync" data-state="unconfigured" title="配置 GitHub 云同步（可选）" aria-label="云同步">
+                    <svg id="sync-icon"><use href="#i-cloud"/></svg>
+                    <span class="sync-label" id="sync-label" hidden></span>
+                </button>
                 <button class="icon-btn" id="btn-undo" title="撤销 (⌘Z)" aria-label="撤销" disabled>
                     <svg><use href="#i-undo"/></svg>
                 </button>
@@ -200,6 +221,10 @@
 
     <!-- More Menu Popover -->
     <div class="menu-popover" id="more-menu" role="menu" hidden>
+        <button class="menu-item" role="menuitem" data-cmd="sync-settings">
+            <svg><use href="#i-cloud"/></svg><span>云同步设置</span>
+        </button>
+        <div class="menu-sep"></div>
         <button class="menu-item" role="menuitem" data-cmd="help">
             <svg><use href="#i-help"/></svg><span>使用与日期格式</span>
         </button>
@@ -287,7 +312,7 @@
                             <code>23:32</code><code>11.25</code><code>11-25 14:30</code><code>today</code><code>tmr</code><code>fri</code><code>next mon 9:30</code><code>明天</code>
                         </div>
                     </li>
-                    <li><b>快捷键</b>：<kbd>/</kbd> 聚焦输入框，<kbd>Enter</kbd> 添加，<kbd>⌘Z</kbd> / <kbd>Ctrl+Z</kbd> 撤销。</li>
+                    <li><b>快捷键</b>：<kbd>/</kbd> 聚焦输入框，<kbd>Enter</kbd> 添加，<kbd>⌘Z</kbd> / <kbd>Ctrl+Z</kbd> 撤销，<kbd>⌘S</kbd> / <kbd>Ctrl+S</kbd> 强制云同步。</li>
                 </ul>
             </div>
         </div>

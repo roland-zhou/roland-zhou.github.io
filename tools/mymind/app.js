@@ -1,8 +1,9 @@
 import {
     PALETTE_SIZE, buildIndex, computeLayout, countNodes, createMap, createNode,
-    dueDate, dueDayLabel, dueStatus, expandQuickDue, exportOPML, importOPML, isValidMap, nextColor, nextWaitSince, parseDue, sampleMap, subtreeIds,
+    dueDate, dueDayLabel, dueStatus, expandQuickDue, exportOPML, importOPML, isValidMap, mergeMindStates, nextColor, nextWaitSince, parseDue, sampleMap, subtreeIds,
     runPrefix, visibleChildren, waitDuration, waitPrefix, waitShort,
 } from './model.js';
+import { createGitHubSync, formatSyncTime } from '../shared/github-sync.js';
 
 const STORE = 'mymind.v1';
 const FOCUS_STORE = 'mymind.focus';
@@ -42,7 +43,7 @@ const noteText = $('note-text');
 const helpPanel = $('help');
 const fileInput = $('file-input');
 
-let state = { maps: [], activeId: null };
+let state = { maps: [], activeId: null, deletedMaps: {} };
 let index = new Map();
 let running = new Set();        // ids of ">>>" nodes and everything under them
 let positions = new Map();
@@ -78,6 +79,7 @@ function load() {
         if (data && Array.isArray(data.maps)) {
             state.maps = data.maps.filter(isValidMap);
             state.activeId = data.activeId;
+            state.deletedMaps = (data.deletedMaps && typeof data.deletedMaps === 'object') ? data.deletedMaps : {};
         }
     } catch {
         toast('读取本地数据失败');
@@ -115,6 +117,7 @@ window.addEventListener('storage', event => {
         if (editing) finishEdit(false);
         const keep = state.activeId;
         state.maps = data.maps.filter(isValidMap);
+        state.deletedMaps = (data.deletedMaps && typeof data.deletedMaps === 'object') ? data.deletedMaps : {};
         if (!state.maps.length) state.maps = [createMap()];
         state.activeId = state.maps.some(m => m.id === keep) ? keep : state.maps[0].id;
         render();
@@ -140,8 +143,11 @@ function pushUndo(snap) {
 }
 
 function touched() {
-    activeMap().updated = Date.now();
+    const map = activeMap();
+    map.updated = Date.now();
+    delete map.isSample;
     scheduleSave();
+    sync.markDirty();
 }
 
 // Run a structural change; records undo only if the tree actually changed.
@@ -1330,6 +1336,7 @@ function newMap() {
     const map = createMap('');
     state.maps.unshift(map);
     openMap(map.id);
+    sync.markDirty();
     startEdit(map.root.id);
 }
 
@@ -1434,13 +1441,18 @@ function exportMaps(maps) {
 function deleteChecked() {
     const n = checked.size;
     if (!n || !confirm(`删除所选的 ${n} 份导图？此操作无法撤销。`)) return;
+    const now = Date.now();
     state.maps = state.maps.filter(m => !checked.has(m.id));
-    for (const id of checked) histories.delete(id);
+    for (const id of checked) {
+        histories.delete(id);
+        state.deletedMaps[id] = now;
+    }
     checked.clear();
     selectMode = false;
     if (!state.maps.length) state.maps.push(createMap());
     if (!activeMap()) openMap(state.maps[0].id);
     saveNow();
+    sync.markDirty();
     renderSidebar();
     toast(`已删除 ${n} 份导图`);
 }
@@ -1462,6 +1474,7 @@ fileInput.addEventListener('change', async () => {
         state.maps.unshift(...imported);
         openMap(imported[0].id);
         saveNow();
+        sync.markDirty();
     }
     const parts = [];
     if (imported.length) parts.push(`已导入 ${imported.length} 份导图`);
@@ -1623,12 +1636,96 @@ window.addEventListener('wheel', closeMenu, { passive: true });
 window.addEventListener('resize', closeMenu);
 window.addEventListener('blur', closeMenu);
 
-// ⌘S / Ctrl+S is muscle memory. Everything already saves on its own, so just flush any
-// pending save and keep the browser from opening its "Save page" dialog.
+/* ---------- Cloud Sync (Optional GitHub Private Repo) ---------- */
+
+const syncBar = $('sync-bar');
+const syncBtn = $('sync-btn');
+const syncIcon = $('sync-icon');
+const syncLabel = $('sync-label');
+const syncSep = $('sync-sep');
+const syncSettingsBtn = $('sync-settings-btn');
+
+const SYNC_UI = {
+    unconfigured: { icon: '#i-cloud', label: '云同步', spin: false },
+    synced: { icon: '#i-cloud-check', label: '已同步', spin: false },
+    dirty: { icon: '#i-cloud-up', label: '待同步', spin: false },
+    syncing: { icon: '#i-sync', label: '同步中', spin: true },
+    error: { icon: '#i-cloud-alert', label: '同步失败', spin: false },
+};
+
+function updateSyncUI(info) {
+    const cfg = SYNC_UI[info.state] || SYNC_UI.unconfigured;
+    syncBar.dataset.state = info.state;
+    syncIcon.querySelector('use').setAttribute('href', cfg.icon);
+    syncIcon.classList.toggle('gsync-spinning', cfg.spin);
+    syncLabel.textContent = cfg.label;
+    syncSep.hidden = !info.configured;
+    syncSettingsBtn.hidden = !info.configured;
+
+    const saveKey = isMac ? '⌘S' : 'Ctrl+S';
+    if (!info.configured) {
+        syncBtn.title = '配置 GitHub 云同步（可选）';
+    } else if (info.state === 'syncing') {
+        syncBtn.title = `正在与 ${info.repo} 同步…`;
+    } else if (info.state === 'error') {
+        syncBtn.title = `同步失败：${info.lastError || '网络错误'} · 点击重试`;
+    } else if (info.state === 'dirty') {
+        syncBtn.title = `本地有未同步改动 · 点击立即同步 (${saveKey})`;
+    } else {
+        syncBtn.title = `已同步 (${formatSyncTime(info.lastSyncAt)}) · 点击立即同步 (${saveKey})`;
+    }
+}
+
+const sync = createGitHubSync({
+    appId: 'mymind',
+    appName: 'MyMind',
+    filePath: 'mymind.json',
+    getLocalData: () => ({
+        version: 1,
+        maps: state.maps,
+        deletedMaps: state.deletedMaps || {},
+    }),
+    mergeData: (local, remote, { metaExtra }) => mergeMindStates(local, remote, {
+        baseUpdated: metaExtra?.baseUpdated,
+    }),
+    applyMergedData: (merged) => {
+        const prevActiveId = state.activeId;
+        const prevActiveRoot = activeMap() ? JSON.stringify(activeMap().root) : '';
+        state.maps = merged.maps.length ? merged.maps : [sampleMap()];
+        state.deletedMaps = merged.deletedMaps || {};
+        const stillExists = state.maps.some(m => m.id === prevActiveId);
+        state.activeId = stillExists ? prevActiveId : state.maps[0].id;
+        if (!stillExists || JSON.stringify(activeMap().root) !== prevActiveRoot) {
+            histories.delete(state.activeId);
+        }
+        saveNow();
+        render();
+        if (!stillExists) fit();
+    },
+    isBusy: () => Boolean(editing || drag),
+    onStatusChange: updateSyncUI,
+    onToast: (msg, opts) => toast(msg, opts?.duration || 2600),
+});
+
+function triggerManualSync() {
+    if (editing) finishEdit(true);
+    if (saveTimer) saveNow();
+    if (sync.isConfigured()) {
+        sync.syncNow({ manual: true });
+    } else {
+        sync.openSettings();
+    }
+}
+
+// ⌘S / Ctrl+S is muscle memory: flush any pending local edit/save, and trigger forced cloud sync if enabled.
 window.addEventListener('keydown', event => {
     if ((isMac ? event.metaKey : event.ctrlKey) && !event.altKey && event.code === 'KeyS') {
         event.preventDefault();
+        if (sync.isModalOpen()) return;
+        if (editing) finishEdit(true);
         if (saveTimer) saveNow();
+        if (sync.isConfigured()) sync.syncNow({ manual: true });
+        else toast('已保存到本地');
     }
 }, true);
 
@@ -1650,6 +1747,8 @@ const commands = {
         if (!helpPanel.hidden) closeNote();
         document.querySelector('.tool-bar [data-cmd="help"]').setAttribute('aria-pressed', String(!helpPanel.hidden));
     },
+    'sync-now': triggerManualSync,
+    'sync-settings': () => sync.openSettings(),
     child: () => addChild(),
     sibling: () => addSibling('after'),
     task: toggleTask,
@@ -1684,7 +1783,7 @@ document.addEventListener('click', event => {
 });
 
 document.addEventListener('keydown', event => {
-    if (editing || event.isComposing) return;
+    if (editing || event.isComposing || sync.isModalOpen()) return;
     if (drag && event.key === 'Escape') {
         cancelDrag();
         return;
@@ -1776,6 +1875,7 @@ function renderHelp() {
         ['等待中（标题开头）', '=== QA testing'],
         ['执行中（标题开头，整棵子树高亮）', '>>> 写周报'],
         ['撤销 / 重做', `${MOD}Z / ⇧${MOD}Z`],
+        ['保存 / 强制云同步', `${MOD}S`],
         ['上下 / 左右移动画布', '滚轮 / ⇧ 滚轮'],
         ['以鼠标为中心缩放', `${MOD} 滚轮`],
         ['拖动画布', '中键拖动'],
@@ -1808,4 +1908,5 @@ renderHelp();
 syncViewButtons();
 render();
 fit();
+sync.start();
 addEventListener('resize', () => applyView());

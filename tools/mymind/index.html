@@ -12,6 +12,7 @@
     <link rel="icon" type="image/svg+xml" href="./favicon.svg">
     <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
     <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="../shared/github-sync.css">
     <script type="module" src="./app.js"></script>
 </head>
 <body>
@@ -41,6 +42,12 @@
         <symbol id="i-run" viewBox="0 0 24 24"><path d="m5 7 5 5-5 5M12 7l5 5-5 5"/></symbol>
         <symbol id="i-hourglass" viewBox="0 0 24 24"><path d="M5.5 3.5h13M5.5 20.5h13M7 3.5c0 5 4.5 6 4.5 8.5S7 15.5 7 20.5h10c0-5-4.5-6-4.5-8.5S17 8.5 17 3.5"/></symbol>
         <symbol id="i-map" viewBox="0 0 24 24"><rect x="3.5" y="9.5" width="6" height="5" rx="1.5"/><path d="M9.5 12c3 0 2-6 5-6h6M9.5 12c3 0 2 6 5 6h6"/></symbol>
+        <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7.5 18h9.8a3.7 3.7 0 0 0 .5-7.35A5.3 5.3 0 0 0 7.4 9.2 4.2 4.2 0 0 0 7.5 18Z"/></symbol>
+        <symbol id="i-cloud-check" viewBox="0 0 24 24"><path d="M7.5 18h9.8a3.7 3.7 0 0 0 .5-7.35A5.3 5.3 0 0 0 7.4 9.2 4.2 4.2 0 0 0 7.5 18Z"/><path d="m9.5 13.5 1.7 1.7 3.5-3.7"/></symbol>
+        <symbol id="i-cloud-up" viewBox="0 0 24 24"><path d="M7.5 18h9.8a3.7 3.7 0 0 0 .5-7.35A5.3 5.3 0 0 0 7.4 9.2 4.2 4.2 0 0 0 7.5 18Z"/><path d="M12 15.5v-4.5M9.8 13 12 10.8 14.2 13"/></symbol>
+        <symbol id="i-cloud-alert" viewBox="0 0 24 24"><path d="M7.5 18h9.8a3.7 3.7 0 0 0 .5-7.35A5.3 5.3 0 0 0 7.4 9.2 4.2 4.2 0 0 0 7.5 18Z"/><path d="M12 10.5v3M12 15.8h.01"/></symbol>
+        <symbol id="i-sync" viewBox="0 0 24 24"><path d="M20 12a8 8 0 0 0-13.7-5.6L4.5 8.2M4.5 4.5v3.7h3.7"/><path d="M4 12a8 8 0 0 0 13.7 5.6l1.8-1.8M19.5 19.5v-3.7h-3.7"/></symbol>
+        <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.08a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.08a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.08a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></symbol>
     </svg>
 
     <div id="canvas" class="canvas" aria-label="思维导图画布">
@@ -78,6 +85,17 @@
         <button class="icon-btn" data-single data-cmd="note" title="备注 (⌥N)" aria-label="备注" aria-pressed="false"><svg><use href="#i-note"/></svg></button>
         <span class="sep"></span>
         <button class="icon-btn" data-cmd="delete" title="删除节点 (Delete)" aria-label="删除节点"><svg><use href="#i-trash"/></svg></button>
+    </div>
+
+    <div id="sync-bar" class="pill sync-bar" data-state="unconfigured">
+        <button id="sync-btn" class="sync-trigger" data-cmd="sync-now" title="配置云同步（可选）" aria-label="云同步">
+            <svg id="sync-icon"><use href="#i-cloud"/></svg>
+            <span id="sync-label" class="sync-label">云同步</span>
+        </button>
+        <span id="sync-sep" class="sep" hidden></span>
+        <button id="sync-settings-btn" class="icon-btn sync-gear" data-cmd="sync-settings" title="云同步设置" aria-label="云同步设置" hidden>
+            <svg><use href="#i-settings"/></svg>
+        </button>
     </div>
 
     <div class="pill zoom-bar">

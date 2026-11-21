@@ -1,5 +1,6 @@
 import {
     MyListStore,
+    mergeListStates,
     toDateStr,
     parseDue,
     expandQuickDue,
@@ -9,6 +10,7 @@ import {
     dueStatus,
     isFutureDue,
 } from './model.js';
+import { createGitHubSync, formatSyncTime } from '../shared/github-sync.js';
 
 const store = new MyListStore();
 
@@ -33,6 +35,9 @@ const scheduledCount = $('#scheduled-count');
 const nowCount = $('#now-count');
 const doneCount = $('#done-count');
 
+const btnSync = $('#btn-sync');
+const syncIcon = $('#sync-icon');
+const syncLabel = $('#sync-label');
 const btnUndo = $('#btn-undo');
 const btnDone = $('#btn-done');
 const btnMore = $('#btn-more');
@@ -422,7 +427,12 @@ function render(meta = {}) {
     }
 }
 
-store.subscribe(render);
+store.subscribe((meta) => {
+    render(meta);
+    if (meta?.type && meta.type !== 'remote-sync' && meta.type !== 'due-arrived') {
+        sync.markDirty();
+    }
+});
 
 // =========================================================================
 // Completion with smooth exit
@@ -1060,6 +1070,9 @@ moreMenu.addEventListener('click', (e) => {
     closeMoreMenu();
 
     switch (cmd) {
+        case 'sync-settings':
+            sync.openSettings();
+            break;
         case 'help':
             helpSheet.hidden = false;
             break;
@@ -1120,8 +1133,77 @@ document.addEventListener('click', (e) => {
     }
 });
 
+// =========================================================================
+// Cloud Sync (Optional GitHub Private Repo)
+// =========================================================================
+
+const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+
+const SYNC_UI = {
+    unconfigured: { icon: '#i-cloud', label: '', spin: false },
+    synced: { icon: '#i-cloud-check', label: '已同步', spin: false },
+    dirty: { icon: '#i-cloud-up', label: '待同步', spin: false },
+    syncing: { icon: '#i-sync', label: '同步中', spin: true },
+    error: { icon: '#i-cloud-alert', label: '失败', spin: false },
+};
+
+function updateSyncUI(info) {
+    const cfg = SYNC_UI[info.state] || SYNC_UI.unconfigured;
+    btnSync.dataset.state = info.state;
+    syncIcon.querySelector('use').setAttribute('href', cfg.icon);
+    syncIcon.classList.toggle('gsync-spinning', cfg.spin);
+    syncLabel.textContent = cfg.label;
+    syncLabel.hidden = !cfg.label;
+
+    const saveKey = isMac ? '⌘S' : 'Ctrl+S';
+    if (!info.configured) {
+        btnSync.title = '配置 GitHub 云同步（可选）';
+    } else if (info.state === 'syncing') {
+        btnSync.title = `正在与 ${info.repo} 同步…`;
+    } else if (info.state === 'error') {
+        btnSync.title = `同步失败：${info.lastError || '网络错误'} · 点击重试`;
+    } else if (info.state === 'dirty') {
+        btnSync.title = `本地有未同步改动 · 点击立即同步 (${saveKey})`;
+    } else {
+        btnSync.title = `已同步 (${formatSyncTime(info.lastSyncAt)}) · 点击立即同步 (${saveKey})`;
+    }
+}
+
+const sync = createGitHubSync({
+    appId: 'mylist',
+    appName: 'MyList',
+    filePath: 'mylist.json',
+    getLocalData: () => store.getSyncSnapshot(),
+    mergeData: (local, remote) => mergeListStates(local, remote),
+    applyMergedData: (merged) => store.applyRemoteState(merged),
+    isBusy: () => Boolean(!editSheet.hidden || drag),
+    onStatusChange: updateSyncUI,
+    onToast: (msg, opts) => showToast(msg, opts?.actionLabel || null, opts?.onAction || null, opts?.duration || 2800),
+});
+
+btnSync.addEventListener('click', () => {
+    closeMoreMenu();
+    if (sync.isConfigured()) {
+        sync.syncNow({ manual: true });
+    } else {
+        sync.openSettings();
+    }
+});
+
+// ⌘S / Ctrl+S: save active edit (if any) and trigger forced cloud sync when enabled.
+window.addEventListener('keydown', (e) => {
+    if ((isMac ? e.metaKey : e.ctrlKey) && !e.altKey && e.code === 'KeyS') {
+        e.preventDefault();
+        if (sync.isModalOpen()) return;
+        if (!editSheet.hidden && editingId) commitEdit();
+        if (sync.isConfigured()) sync.syncNow({ manual: true });
+        else showToast('已保存到本地');
+    }
+}, true);
+
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
+    if (sync.isModalOpen()) return;
     const inField = e.target.matches('input, textarea, [contenteditable="true"]');
 
     if (e.key === 'Escape') {
@@ -1177,3 +1259,4 @@ document.addEventListener('visibilitychange', () => {
 // Initial render
 syncComposerUI();
 render();
+sync.start();
