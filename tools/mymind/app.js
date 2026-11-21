@@ -1214,10 +1214,61 @@ window.addEventListener('pointerup', liftTouch);
 window.addEventListener('pointercancel', liftTouch);
 canvas.addEventListener('auxclick', event => event.preventDefault());
 
+function nodeTitleTarget(target) {
+    const el = target.closest('.node');
+    if (el && editing?.id !== el.dataset.id && !target.closest('[data-act]')) return el;
+    return null;
+}
+
 canvas.addEventListener('dblclick', event => {
-    const el = event.target.closest('.node');
-    if (el && !event.target.closest('[data-act]') && editing?.id !== el.dataset.id) startEdit(el.dataset.id);
+    const el = nodeTitleTarget(event.target);
+    if (el) startEdit(el.dataset.id);
 });
+
+// Safari can send two single clicks without dblclick when page zoom is disabled.
+const NODE_TAP_INTERVAL = 350;
+const NODE_TAP_SLOP = 5;
+const NODE_DOUBLE_TAP_RADIUS = 24;
+let nodeTouch = null;
+let lastNodeTap = null;
+
+function clearNodeTaps() {
+    nodeTouch = lastNodeTap = null;
+}
+
+document.addEventListener('touchstart', event => {
+    const el = nodeTitleTarget(event.target);
+    if (event.touches.length !== 1 || !el) return clearNodeTaps();
+    const { clientX, clientY } = event.changedTouches[0];
+    nodeTouch = { id: el.dataset.id, x: clientX, y: clientY, time: event.timeStamp };
+}, { passive: true });
+
+function movedPastNodeTap(touch) {
+    return Math.hypot(touch.clientX - nodeTouch.x, touch.clientY - nodeTouch.y) >= NODE_TAP_SLOP;
+}
+
+canvas.addEventListener('touchmove', event => {
+    if (nodeTouch && movedPastNodeTap(event.touches[0])) clearNodeTaps();
+}, { passive: true });
+document.addEventListener('touchcancel', clearNodeTaps);
+
+canvas.addEventListener('touchend', event => {
+    if (!nodeTouch) return;
+    if (movedPastNodeTap(event.changedTouches[0]) || event.timeStamp - nodeTouch.time > NODE_TAP_INTERVAL) {
+        clearNodeTaps();
+        return;
+    }
+    const { id, x, y, time } = nodeTouch;
+    const previous = lastNodeTap;
+    nodeTouch = null;
+    lastNodeTap = { id, x, y, time: event.timeStamp };
+    if (previous?.id !== id || time - previous.time > NODE_TAP_INTERVAL
+        || Math.hypot(x - previous.x, y - previous.y) > NODE_DOUBLE_TAP_RADIUS) return;
+    clearNodeTaps();
+    // Focus from a real touch event so iOS can open its keyboard.
+    event.preventDefault();
+    startEdit(id);
+}, { passive: false });
 
 nodesEl.addEventListener('click', event => {
     const act = event.target.closest('[data-act]');
