@@ -14,7 +14,7 @@
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="stylesheet" href="./style.css">
     <link rel="stylesheet" href="../shared/cloud-sync.css">
-    <script type="module" src="./app.js?v=3"></script>
+    <script type="module" src="./app.js?v=4"></script>
 </head>
 <body>
     <svg class="sprite" aria-hidden="true">
@@ -308,9 +308,14 @@
                     <li><b>现在（下半 1/2）</b>：存放无日期任务，以及日期为<b>今天或过去</b>的任务；新任务顶在输入框正上方往上挤，长按拖动可自由排序。</li>
                     <li><b>往上拖飞到顶</b>：在「现在」中拖动任务向上越过中线松手，自动飞到最上面的「以后再做」。</li>
                     <li><b>日程规划（上中 1/4）</b>：只存放<b>未来日期</b>（明天及以后），按时间倒序排列（越近越靠下、越远越靠上），严格按时间序不可手动排序；当日期推进到当天时，会自动落入下面的「现在」。</li>
-                    <li><b>结尾写日期（同 MyMind）</b>：在文本末尾空格后加上日期即可自动转换并归入日程，删掉末尾日期即移回普通任务：
+                    <li><b>结尾写日期（同 MyMind）</b>：在文本末尾空格后加上日期即可自动转换并归入日程。普通任务可删掉末尾日期来清除日程。
                         <div class="help-examples">
                             <code>23:32</code><code>11.25</code><code>11-25 14:30</code><code>today</code><code>tmr</code><code>fri</code><code>next mon 9:30</code><code>明天</code>
+                        </div>
+                    </li>
+                    <li><b>循环任务</b>：在日期或时间前加 <code>rd</code>（每天）、<code>rw</code>（每周）或 <code>rm</code>（每月）。省略日期时从今天开始。勾选完成后，按原定日期推进一期。删除缩写即可取消循环。
+                        <div class="help-examples">
+                            <code>喝水 rd 09:00</code><code>给家里打电话 rw sat 20:00</code><code>交房租 rm 12.01</code>
                         </div>
                     </li>
                     <li><b>快捷键</b>：<kbd>/</kbd> 聚焦输入框，<kbd>Enter</kbd> 添加，<kbd>⌘Z</kbd> / <kbd>Ctrl+Z</kbd> 撤销，<kbd>⌘S</kbd> / <kbd>Ctrl+S</kbd> 强制云同步。</li>

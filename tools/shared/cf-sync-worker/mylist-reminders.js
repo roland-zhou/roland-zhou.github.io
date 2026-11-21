@@ -1,4 +1,4 @@
-import { parseDue } from '../../mylist/model.js';
+import { parseTaskDue } from '../../mylist/model.js';
 import { loadVapid, preparePushRequest, syncKey, validPushEndpoint } from './web-push.js';
 
 const MINUTE = 60_000;
@@ -22,17 +22,18 @@ function dueReminders(doc, now) {
     for (let at = latest; at > latest - LOOKBACK; at -= MINUTE) {
         const local = Object.fromEntries(formatter.formatToParts(at).map(({ type, value }) => [type, value]));
         const { year, month, day, hour, minute } = local;
-        slots.set(`${+month}/${+day}/${+hour}/${+minute}`, { at, date: `${year}-${month}-${day}T${hour}:${minute}` });
+        slots.set(`${+month}/${+day}/${+hour}/${+minute}`, { at, year: +year, date: `${year}-${month}-${day}T${hour}:${minute}` });
     }
     const data = JSON.parse(doc.payload);
     if (!Array.isArray(data?.items)) return [];
     return data.items.flatMap((item) => {
         if (!item || item.done || typeof item.id !== 'string' || !item.id ||
             Number(data.deleted?.[item.id]) >= Number(item.updatedAt || item.createdAt)) return [];
-        const due = parseDue(item.text);
+        const due = parseTaskDue(item);
         if (!due?.timed) return [];
         const slot = slots.get(`${due.month}/${due.day}/${due.hour}/${due.minute}`);
-        if (!slot || Math.floor(Number(item.createdAt) / MINUTE) * MINUTE > slot.at) return [];
+        if (!slot || (due.year !== undefined && due.year !== slot.year) ||
+            Math.floor(Number(item.createdAt) / MINUTE) * MINUTE > slot.at) return [];
         const body = item.text.slice(0, due.index).trimEnd().slice(0, 140);
         return [{ ...slot, itemId: item.id, body }];
     }).sort((a, b) => a.at - b.at);

@@ -31,6 +31,7 @@ export function formatMD(date) {
 
 // Trailing deadline: "MM-DD", "MM.DD", "M.D", "M-D", optionally followed by "HH:MM" / "H:MM".
 const DUE_RE = /(^|\s)(\d{1,2})[-.](\d{1,2})(?:\s+(\d{1,2})[:：](\d{2}))?$/;
+const REPEAT_RE = /\s+(rd|rw|rm)$/i;
 
 // Quick dates typed at the end of a title, expanded to canonical "MM.DD" (or "MM.DD HH:MM") on save:
 // - English (MyMind): today, tmr, tomorrow, mon..sun, next mon..sun
@@ -42,7 +43,7 @@ const TIME_ONLY_RE = /(^|\s)(\d{1,2})[:：](\d{2})$/;
 
 /**
  * Parse a trailing deadline from text.
- * Returns { index, month, day, hour, minute, timed } or null.
+ * Returns { index, month, day, hour, minute, timed, repeat? } or null.
  */
 export function parseDue(text) {
     if (typeof text !== 'string') return null;
@@ -57,7 +58,25 @@ export function parseDue(text) {
     // Allow 02-29 since some year has it; exact year is picked by dueDate().
     if (month < 1 || month > 12 || day < 1 || day > new Date(2024, month, 0).getDate()) return null;
     if (hour > 23 || minute > 59) return null;
-    return { index: m.index + m[1].length, month, day, hour, minute, timed };
+    const index = m.index + m[1].length;
+    const prefix = trimmed.slice(0, index).trimEnd();
+    const repeat = REPEAT_RE.exec(prefix);
+    return {
+        index: repeat ? repeat.index : index,
+        month, day, hour, minute, timed,
+        ...(repeat && { repeat: repeat[1].toLowerCase() }),
+    };
+}
+
+/** Recurring tasks keep the year of their current occurrence across reloads. */
+export function parseTaskDue(item) {
+    const due = parseDue(item.text);
+    const year = item.repeatYear;
+    if (due?.repeat && Number.isInteger(year) && year >= 100 && year <= 9999 &&
+        due.day <= new Date(year, due.month, 0).getDate()) {
+        due.year = year;
+    }
+    return due;
 }
 
 /**
@@ -99,9 +118,10 @@ export function expandQuickDue(text, now = new Date()) {
     if (dm) {
         const parsed = parseDue(trimmed);
         if (parsed) {
-            const sep = trimmed.slice(dm.index + dm[1].length + dm[2].length, dm.index + dm[1].length + dm[2].length + 1);
+            const dateIndex = dm.index + dm[1].length;
+            const sep = trimmed[dateIndex + dm[2].length];
             const time = parsed.timed ? ` ${pad2(parsed.hour)}:${pad2(parsed.minute)}` : '';
-            const prefix = trimmed.slice(0, parsed.index);
+            const prefix = trimmed.slice(0, dateIndex);
             return `${prefix}${pad2(parsed.month)}${sep}${pad2(parsed.day)}${time}`;
         }
     }
@@ -117,7 +137,7 @@ export function expandQuickDue(text, now = new Date()) {
         }
     }
 
-    return trimmed;
+    return REPEAT_RE.test(trimmed) ? `${trimmed} ${formatMD(now)}` : trimmed;
 }
 
 /** Return the clean display title without its trailing deadline token. */
@@ -128,11 +148,17 @@ export function stripDue(text) {
 }
 
 /**
- * Dates carry no year, so the closest occurrence to `now` wins (within ~half a year either way).
+ * A date without a stored year is resolved to the occurrence closest to `now`.
  */
 export function dueDate(due, now = new Date()) {
+    if (due.year !== undefined) {
+        return new Date(due.year, due.month - 1, due.day, due.hour, due.minute);
+    }
     let best = null;
-    for (const y of [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1]) {
+    const year = now.getFullYear();
+    // A date without a year can be February 29 even in a non-leap year.
+    const span = due.month === 2 && due.day === 29 ? 4 : 1;
+    for (let y = year - span; y <= year + span; y++) {
         const d = new Date(y, due.month - 1, due.day, due.hour, due.minute);
         if (d.getMonth() !== due.month - 1) continue; // 02-29 in non-leap year
         if (!best || Math.abs(d - now) < Math.abs(best - now)) best = d;
@@ -177,6 +203,39 @@ export function isFutureDue(due, now = new Date()) {
     return Boolean(due) && dueStatus(due, now).state === 'upcoming';
 }
 
+function setRepeatDate(item, due, now, previous = null) {
+    if (!due?.repeat) {
+        delete item.repeatYear;
+        delete item.repeatDay;
+        return;
+    }
+    const sameDate = previous && due.month === previous.month && due.day === previous.day;
+    item.repeatYear = sameDate && previous.year !== undefined ? previous.year : dueDate(due, now).getFullYear();
+    if (due.repeat === 'rm') {
+        item.repeatDay = sameDate && previous.repeat === 'rm' ? (item.repeatDay ?? due.day) : due.day;
+    } else {
+        delete item.repeatDay;
+    }
+}
+
+function advanceRepeat(item, due, now) {
+    const date = dueDate(due, now);
+    if (due.repeat === 'rm') {
+        const day = item.repeatDay ?? due.day;
+        date.setDate(1);
+        date.setMonth(date.getMonth() + 1);
+        date.setDate(Math.min(day, new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()));
+        item.repeatDay = day;
+    } else {
+        date.setDate(date.getDate() + (due.repeat === 'rw' ? 7 : 1));
+    }
+    item.repeatYear = date.getFullYear();
+    const time = due.timed ? ` ${pad2(due.hour)}:${pad2(due.minute)}` : '';
+    const title = item.text.slice(0, due.index).trimEnd();
+    item.text = `${title} ${due.repeat} ${formatMD(date)}${time}`;
+    item.zone = isFutureDue(parseTaskDue(item), now) ? 'scheduled' : 'now';
+}
+
 function cloneItems(items) {
     return items.map(item => ({ ...item }));
 }
@@ -200,7 +259,7 @@ function normalizeItem(raw, now = new Date()) {
         const [, mm, dd] = raw.dueDate.split('-');
         text = `${text} ${mm}.${dd}`;
     }
-    const due = parseDue(text);
+    const due = parseTaskDue({ text, repeatYear: raw.repeatYear });
     let zone;
     if (due) {
         zone = isFutureDue(due, now) ? 'scheduled' : 'now';
@@ -218,6 +277,9 @@ function normalizeItem(raw, now = new Date()) {
         createdAt: Number(raw.createdAt) || ts,
         updatedAt: Number(raw.updatedAt) || ts,
         order: Number.isFinite(raw.order) ? raw.order : 0,
+        ...(due?.year !== undefined && { repeatYear: due.year }),
+        ...(due?.repeat === 'rm' && Number.isInteger(raw.repeatDay) &&
+            raw.repeatDay >= due.day && raw.repeatDay <= 31 && { repeatDay: raw.repeatDay }),
     };
 }
 
@@ -295,9 +357,10 @@ export class MyListStore {
         this.emit({ type: 'remote-sync' });
     }
 
-    _pushUndo(label = '') {
+    _pushUndo(label = '', repeatId = null) {
         this.undoStack.push({
             label,
+            repeatId,
             items: cloneItems(this.items),
             deleted: { ...this.deleted },
         });
@@ -317,6 +380,10 @@ export class MyListStore {
         for (const item of snap.items) {
             if (prevDeleted[item.id] && prevDeleted[item.id] >= (item.updatedAt || 0)) {
                 item.updatedAt = nowTs;
+            }
+            if (item.id === snap.repeatId) {
+                const current = this.getById(item.id);
+                item.updatedAt = Math.max(nowTs, (current?.updatedAt ?? item.updatedAt) + 1);
             }
         }
         this.items = snap.items;
@@ -345,10 +412,10 @@ export class MyListStore {
      */
     getScheduledItems(now = new Date()) {
         return this.items
-            .filter(t => !t.done && t.zone === 'scheduled' && isFutureDue(parseDue(t.text), now))
+            .filter(t => !t.done && t.zone === 'scheduled' && isFutureDue(parseTaskDue(t), now))
             .sort((a, b) => {
-                const ta = dueDate(parseDue(a.text), now).getTime();
-                const tb = dueDate(parseDue(b.text), now).getTime();
+                const ta = dueDate(parseTaskDue(a), now).getTime();
+                const tb = dueDate(parseTaskDue(b), now).getTime();
                 if (ta !== tb) return tb - ta;
                 return b.createdAt - a.createdAt;
             });
@@ -360,13 +427,13 @@ export class MyListStore {
      */
     syncDueZones(now = new Date()) {
         const arrived = this.items
-            .filter(t => !t.done && t.zone === 'scheduled' && !isFutureDue(parseDue(t.text), now));
+            .filter(t => !t.done && t.zone === 'scheduled' && !isFutureDue(parseTaskDue(t), now));
         if (!arrived.length) return [];
 
         // Order arrived items so the earliest/most-urgent lands at the very bottom of 'now'
         arrived.sort((a, b) => {
-            const da = parseDue(a.text);
-            const db = parseDue(b.text);
+            const da = parseTaskDue(a);
+            const db = parseTaskDue(b);
             const ta = da ? dueDate(da, now).getTime() : 0;
             const tb = db ? dueDate(db, now).getTime() : 0;
             if (ta !== tb) return tb - ta;
@@ -439,6 +506,7 @@ export class MyListStore {
             updatedAt: ts,
             order,
         };
+        setRepeatDate(item, due, now);
         this.items.push(item);
         if (targetZone !== 'scheduled') this._normalizeOrders(targetZone);
         this.emit({ type: 'add', id: item.id, zone: targetZone });
@@ -453,13 +521,17 @@ export class MyListStore {
         const prevZone = item.zone;
         if (typeof patch.text === 'string') {
             const expanded = expandQuickDue(patch.text, now);
-            if (expanded) item.text = expanded;
+            if (expanded) {
+                const previous = parseDue(patch.text) ? parseTaskDue(item) : null;
+                item.text = expanded;
+                setRepeatDate(item, parseDue(expanded), now, previous);
+            }
         }
         if (typeof patch.note === 'string') {
             item.note = patch.note.trim() ? patch.note.replace(/\s+$/, '') : '';
         }
 
-        const due = parseDue(item.text);
+        const due = parseTaskDue(item);
         if (isFutureDue(due, now)) {
             item.zone = 'scheduled';
         } else if (due) {
@@ -488,13 +560,22 @@ export class MyListStore {
         return item;
     }
 
-    toggleDone(id) {
+    toggleDone(id, now = new Date()) {
         const item = this.getById(id);
         if (!item) return null;
+        const due = parseTaskDue(item);
+        if (!item.done && due?.repeat) {
+            this._pushUndo('推进循环任务', id);
+            advanceRepeat(item, due, now);
+            item.updatedAt = Math.max(now.getTime(), item.updatedAt + 1);
+            this._normalizeOrders('now');
+            this.emit({ type: 'repeat', id, zone: item.zone });
+            return item;
+        }
         this._pushUndo(item.done ? '恢复任务' : '完成任务');
         item.done = !item.done;
-        item.doneAt = item.done ? Date.now() : null;
-        item.updatedAt = Date.now();
+        item.doneAt = item.done ? now.getTime() : null;
+        item.updatedAt = now.getTime();
 
         if (!item.done && item.zone === 'now') {
             const list = this.getNowItems().filter(t => t.id !== id);
@@ -538,6 +619,8 @@ export class MyListStore {
         const item = this.getById(id);
         if (!item || item.done) return false;
         if (item.zone === 'scheduled' || targetZone === 'scheduled') return false;
+        const due = targetZone === 'someday' ? parseTaskDue(item) : null;
+        if (due?.repeat) return false;
 
         const prevZone = item.zone;
         const targetList = (targetZone === 'now' ? this.getNowItems() : this.getSomedayItems())
@@ -557,7 +640,7 @@ export class MyListStore {
 
         this._pushUndo(prevZone === targetZone ? '调整顺序' : (targetZone === 'someday' ? '移到以后再做' : '移到现在'));
         // If a today/overdue task from 'now' is deliberately moved up to 'someday', strip its past/today date
-        if (targetZone === 'someday' && parseDue(item.text)) {
+        if (due) {
             const cleaned = stripDue(item.text);
             if (cleaned) item.text = cleaned;
         }
@@ -657,7 +740,8 @@ export class MyListStore {
         const rawList = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.items) ? parsed.items : null);
         if (!rawList) throw new Error('无效的 MyList 数据格式');
         this._pushUndo('导入数据');
-        this.items = rawList.map(normalizeItem).filter(t => t.text.length > 0);
+        const now = new Date();
+        this.items = rawList.map(raw => normalizeItem(raw, now)).filter(t => t.text.length > 0);
         this._normalizeOrders('now');
         this._normalizeOrders('someday');
         this.emit({ type: 'import' });

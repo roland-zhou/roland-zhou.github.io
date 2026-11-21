@@ -3,13 +3,14 @@ import {
     mergeListStates,
     toDateStr,
     parseDue,
+    parseTaskDue,
     expandQuickDue,
     stripDue,
     dueDate,
     dueDayLabel,
     dueStatus,
     isFutureDue,
-} from './model.js';
+} from './model.js?v=2';
 import { createCloudSync, formatSyncTime } from '../shared/cloud-sync.js?v=2';
 
 const store = new MyListStore();
@@ -263,15 +264,17 @@ stageRO.observe(stage);
 
 const clamp01 = x => Math.min(1, Math.max(0, x));
 const pad2 = n => String(n).padStart(2, '0');
+const repeatLabels = { rd: '每天', rw: '每周', rm: '每月' };
+const dueTime = due => due.timed ? ` ${pad2(due.hour)}:${pad2(due.minute)}` : '';
 
 function paintDue(badge, due, { done = false, now = new Date() } = {}) {
     const { state, days, hours } = dueStatus(due, now);
     const date = dueDate(due, now);
     const label = dueDayLabel(date, now);
-    const time = due.timed ? ` ${pad2(due.hour)}:${pad2(due.minute)}` : '';
+    const time = dueTime(due);
     const md = `${pad2(due.month)}.${pad2(due.day)}`;
 
-    badge.textContent = (label ?? md) + time;
+    badge.textContent = `${due.repeat ? '↻ ' : ''}${label ?? md}${time}`;
     const exact = `${md} 周${'日一二三四五六'[date.getDay()]}${time}`;
 
     let strength = 1;
@@ -289,7 +292,7 @@ function paintDue(badge, due, { done = false, now = new Date() } = {}) {
             : state === 'overdue'
                 ? (days ? `已过期 ${days} 天` : hours ? `已过期 ${hours} 小时` : '刚刚过期')
                 : `还有 ${days} 天`;
-    badge.title = `${exact} · ${status}`;
+    badge.title = due.repeat ? `${exact} · ${status} · ${repeatLabels[due.repeat]}循环` : `${exact} · ${status}`;
     return badge.textContent;
 }
 
@@ -350,7 +353,8 @@ function createTaskElement(item, now) {
     const body = document.createElement('div');
     body.className = 'task-body';
 
-    const due = parseDue(item.text);
+    const due = parseTaskDue(item);
+    if (due?.repeat) li.dataset.repeat = due.repeat;
     const displayText = due ? stripDue(item.text) : item.text;
 
     const textEl = document.createElement('span');
@@ -365,7 +369,7 @@ function createTaskElement(item, now) {
     const quick = document.createElement('div');
     quick.className = 'task-quick-actions';
 
-    if (item.zone === 'now') {
+    if (item.zone === 'now' && !due?.repeat) {
         const upBtn = document.createElement('button');
         upBtn.type = 'button';
         upBtn.className = 'task-mini-btn';
@@ -437,7 +441,7 @@ function createTaskElement(item, now) {
     if (!isScheduled) {
         const grip = document.createElement('span');
         grip.className = 'task-grip';
-        grip.title = item.zone === 'now'
+        grip.title = due?.repeat ? '拖动排序' : item.zone === 'now'
             ? '拖动排序 · 往上拖过中线飞到「以后再做」'
             : '拖动排序 · 往下拖过中线移到「现在」';
         grip.innerHTML = '<svg><use href="#i-grip"/></svg>';
@@ -518,7 +522,7 @@ function render(meta = {}) {
                 el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
             });
         }
-    } else if (meta.type === 'update' && meta.zone === 'scheduled') {
+    } else if ((meta.type === 'update' || meta.type === 'repeat') && meta.zone === 'scheduled') {
         const el = document.querySelector(`.task-item[data-id="${CSS.escape(meta.id)}"]`);
         if (wasAtBottom) stage.scrollTop = stage.scrollHeight;
         if (el) {
@@ -563,12 +567,26 @@ store.subscribe((meta) => {
 // Completion with smooth exit
 // =========================================================================
 
+const completingItems = new Set();
+
 function completeWithAnimation(id, li) {
-    if (li.classList.contains('is-completing')) return;
+    if (completingItems.has(id)) return;
+    const originalText = store.getById(id)?.text;
+    completingItems.add(id);
     li.classList.add('is-completing');
     setTimeout(() => {
-        store.toggleDone(id);
-        showToast('已完成', '撤销', () => store.undo());
+        completingItems.delete(id);
+        const current = store.getById(id);
+        if (!current || current.done || current.text !== originalText) {
+            li.classList.remove('is-completing');
+            return;
+        }
+        const item = store.toggleDone(id);
+        const due = parseTaskDue(item);
+        const message = due?.repeat
+            ? `本次已完成 · 下次 ${pad2(due.month)}.${pad2(due.day)}${dueTime(due)}`
+            : '已完成';
+        showToast(message, '撤销', () => store.undo());
     }, 200);
 }
 
@@ -753,7 +771,7 @@ function updateDragPosition(state) {
     state.ghost.classList.remove('is-flying-ready');
 
     if (state.originZone === 'now') {
-        if (state.curY < midY) {
+        if (state.curY < midY && !state.sourceEl.dataset.repeat) {
             state.mode = 'fly-someday';
             state.targetZone = 'someday';
             state.targetIndex = null;
@@ -964,7 +982,7 @@ composerForm.addEventListener('submit', (e) => {
     composerInput.focus();
 
     if (item && item.zone === 'scheduled') {
-        const due = parseDue(item.text);
+        const due = parseTaskDue(item);
         if (due) {
             const tmp = document.createElement('span');
             const label = paintDue(tmp, due);
@@ -985,7 +1003,14 @@ function autoResizeTextarea(el) {
 
 function syncEditSheetUI() {
     const expanded = expandQuickDue(editText.value);
-    const due = parseDue(expanded);
+    const item = store.getById(editingId);
+    let due = parseDue(expanded);
+    if (due?.repeat && parseDue(editText.value) && item?.repeatYear) {
+        const previous = parseTaskDue(item);
+        if (due.month === previous?.month && due.day === previous.day) {
+            due = parseTaskDue({ text: expanded, repeatYear: item.repeatYear });
+        }
+    }
 
     if (due) {
         paintDue(editDuePreview, due);
