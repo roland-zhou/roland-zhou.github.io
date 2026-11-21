@@ -102,7 +102,8 @@ export async function preparePushRequest(client, notification, topic, vapid) {
             Topic: topic,
         },
         body: await encryptPayload(client, notification),
-        redirect: 'error',
+        // Workers only supports follow or manual. Never forward a push to a redirect target.
+        redirect: 'manual',
         signal: AbortSignal.timeout(10000),
     });
 }

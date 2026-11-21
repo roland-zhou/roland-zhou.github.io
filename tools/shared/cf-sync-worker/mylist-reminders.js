@@ -88,7 +88,10 @@ export async function sendMyListReminders(env, now) {
                 claimed = true;
                 sent.add(reminderKey);
                 const response = await fetch(request);
-                if (response.ok) continue;
+                if (response.ok) {
+                    console.info('MyList push accepted', response.status);
+                    continue;
+                }
 
                 if (response.status === 404 || response.status === 410) {
                     await db.prepare(
