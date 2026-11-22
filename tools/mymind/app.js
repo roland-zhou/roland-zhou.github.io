@@ -370,6 +370,7 @@ setInterval(() => {
 }, 60e3);
 
 function render() {
+    if (drag?.kind === 'node') cancelDrag();
     const map = activeMap();
     index = buildIndex(map.root);
     running = new Set();
@@ -946,7 +947,7 @@ function toWorld(clientX, clientY) {
 }
 
 // Generous snapping: the nearest node within reach decides the drop; beyond that the
-// node snaps to a first-level slot on whichever side of the centre the pointer is.
+// moved branches snap to a first-level slot on whichever side of the centre the pointer is.
 function findDrop(clientX, clientY) {
     const { x, y } = toWorld(clientX, clientY);
     const root = activeMap().root;
@@ -997,28 +998,29 @@ function showDrop(drop) {
     });
 }
 
-function moveNode(id, drop) {
-    const info = index.get(id);
+function moveNodes(sources, drop) {
     const target = index.get(drop.target);
     const root = activeMap().root;
     commit(() => {
-        const node = info.node;
         const newParent = drop.mode === 'inside' ? target.node : target.parent;
-        info.parent.children.splice(info.parent.children.indexOf(node), 1);
-        const at = drop.mode === 'inside'
+        for (const { node, parent } of sources) {
+            parent.children.splice(parent.children.indexOf(node), 1);
+        }
+        let at = drop.mode === 'inside'
             ? newParent.children.length
             : newParent.children.indexOf(target.node) + (drop.mode === 'after' ? 1 : 0);
-        newParent.children.splice(at, 0, node);
-        delete newParent.folded;
-        if (newParent === root) {
-            node.side = drop.mode === 'inside' ? drop.side : target.side;
-            if (info.parent !== root) node.color = nextColor(root);
-        } else {
-            delete node.side;
-            delete node.color;
+        for (const { node, parent } of sources) {
+            newParent.children.splice(at++, 0, node);
+            if (newParent === root) {
+                node.side = drop.mode === 'inside' ? drop.side : target.side;
+                if (parent !== root) node.color = nextColor(root);
+            } else {
+                delete node.side;
+                delete node.color;
+            }
+            if (newParent.task) walk(node, n => { n.task ??= 'open'; });
         }
-        if (newParent.task) walk(node, n => { n.task ??= 'open'; });
-        select(id);
+        delete newParent.folded;
     });
 }
 
@@ -1073,8 +1075,8 @@ canvas.addEventListener('pointerdown', event => {
             }
             return;
         }
-        select(id);
-        drag = { ...base, kind: 'node', id, movable: Boolean(index.get(id).parent), started: false };
+        if (!selection.has(id)) select(id);
+        drag = { ...base, kind: 'node', id, ids: selection, movable: Boolean(index.get(id).parent), started: false };
     } else {
         const additive = event.shiftKey || event.metaKey || event.ctrlKey;
         drag = { ...base, kind: 'marquee', base: additive ? new Set(selection) : new Set(), moved: false };
@@ -1107,11 +1109,22 @@ window.addEventListener('pointermove', event => {
         if (Math.hypot(dx, dy) < 5) return;
         drag.started = true;
         canvas.classList.add('busy');
-        drag.subtree = subtreeIds(index.get(drag.id).node);
-        for (const id of drag.subtree) nodeEl(id)?.classList.add('drag-source');
+        drag.sources = [];
+        drag.subtree = new Set();
+        // The index visits parents before children, in tree order. Covered descendants move with their parent.
+        for (const [id, info] of index) {
+            if (!info.parent || !drag.ids.has(id) || drag.subtree.has(id)) continue;
+            drag.sources.push(info);
+            subtreeIds(info.node, drag.subtree);
+        }
+        for (const el of nodesEl.children) {
+            if (drag.subtree.has(el.dataset.id)) el.classList.add('drag-source');
+        }
         drag.ghost = document.createElement('div');
         drag.ghost.className = 'drag-ghost';
-        drag.ghost.textContent = index.get(drag.id).node.text || ' ';
+        drag.ghost.textContent = drag.sources.length > 1
+            ? `移动 ${drag.sources.length} 个分支`
+            : drag.sources[0].node.text || ' ';
         document.body.append(drag.ghost);
         notePanel.hidden = true;
         updateNodeBar();
@@ -1148,11 +1161,14 @@ function endDrag(event, cancelled) {
         updateNodeBar();
         return;
     }
-    if (!current.started) return;
+    if (!current.started) {
+        if (!cancelled && selection.size > 1) select(current.id);
+        return;
+    }
     current.ghost.remove();
     showDrop(null);
-    for (const id of current.subtree) nodeEl(id)?.classList.remove('drag-source');
-    if (!cancelled && current.drop) moveNode(current.id, current.drop);
+    for (const el of nodesEl.querySelectorAll('.drag-source')) el.classList.remove('drag-source');
+    if (!cancelled && current.drop) moveNodes(current.sources, current.drop);
     else updateNodeBar();
 }
 window.addEventListener('pointerup', event => endDrag(event, false));
@@ -1914,6 +1930,7 @@ function renderHelp() {
         ['结束 / 取消编辑', 'Enter / Esc'],
         ['选择节点', '↑ ↓ ← →'],
         ['框选 / 加选', '拖动空白处 / ⇧ 点击'],
+        ['批量移动节点', '多选后拖动其中一个节点'],
         ['全选', `${MOD}A`],
         ['调整顺序', `${MOD}↑ / ${MOD}↓`],
         ['删除所选节点', 'Delete'],
