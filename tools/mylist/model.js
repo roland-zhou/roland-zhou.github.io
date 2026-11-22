@@ -147,6 +147,20 @@ export function stripDue(text) {
     return text.slice(0, due.index).trimEnd();
 }
 
+/** Parse composer input. A trailing "..." files the task in Someday without a due date. */
+export function parseNewTask(rawText, now = new Date()) {
+    const trimmed = typeof rawText === 'string' ? rawText.trim() : '';
+    const someday = trimmed.endsWith('...');
+    let text = expandQuickDue(someday ? trimmed.slice(0, -3) : trimmed, now);
+    let due = parseDue(text);
+    // Removing a date can expose another date-like suffix. Someday titles must stay undated on reload.
+    while (someday && due) {
+        text = text.slice(0, due.index).trimEnd();
+        due = parseDue(text);
+    }
+    return { text, due, someday };
+}
+
 /**
  * A date without a stored year is resolved to the occurrence closest to `now`.
  */
@@ -473,17 +487,17 @@ export class MyListStore {
      * Add a new task.
      * Trailing quick dates ("tmr", "next mon", "11.25 14:00") are automatically expanded.
      * - Future date (tomorrow or later) -> 'scheduled' (strict date order).
-     * - Today, past date, or undated -> 'now' at the very bottom (pushing earlier items up).
+     * - Trailing "..." -> 'someday'.
+     * - Otherwise, tasks default to 'now' at the very bottom (pushing earlier items up).
      */
     addTask(rawText, { zone = 'now', now = new Date() } = {}) {
-        const expanded = expandQuickDue(rawText, now);
-        if (!expanded) return null;
+        const { text, due, someday } = parseNewTask(rawText, now);
+        if (!text) return null;
         this._pushUndo('添加任务');
 
-        const due = parseDue(expanded);
         const targetZone = isFutureDue(due, now)
             ? 'scheduled'
-            : (due ? 'now' : (zone === 'someday' ? 'someday' : 'now'));
+            : (due ? 'now' : (someday || zone === 'someday' ? 'someday' : 'now'));
         const ts = now.getTime();
 
         let order = 0;
@@ -497,7 +511,7 @@ export class MyListStore {
 
         const item = {
             id: uid(),
-            text: expanded,
+            text,
             note: '',
             zone: targetZone,
             done: false,

@@ -14,7 +14,7 @@
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="stylesheet" href="./style.css?v=2">
     <link rel="stylesheet" href="../shared/cloud-sync.css">
-    <script type="module" src="./app.js?v=5"></script>
+    <script type="module" src="./app.js?v=6"></script>
 </head>
 <body>
     <svg class="sprite" aria-hidden="true">
@@ -135,7 +135,7 @@
                         </div>
                         <ul class="task-list" id="someday-list" aria-label="以后再做列表"></ul>
                         <p class="zone-empty someday-empty" id="someday-empty">
-                            把下面的事往上拖过中线，会自动飞到这里
+                            新任务末尾加 ...，或把下面的任务往上拖过中线
                         </p>
                     </section>
 
@@ -207,7 +207,7 @@
                     class="composer-input"
                     id="composer-input"
                     type="text"
-                    placeholder="记下要做的事… 末尾加 tmr / 11.25 设日程"
+                    placeholder="末尾加 ... 以后再做 · tmr 设日程"
                     maxlength="300"
                     enterkeyhint="send"
                     aria-label="新增待办"
@@ -306,7 +306,7 @@
                 </div>
                 <ul class="help-list">
                     <li><b>现在（下半 1/2）</b>：存放无日期任务，以及日期为<b>今天或过去</b>的任务；新任务顶在输入框正上方往上挤，长按拖动可自由排序。</li>
-                    <li><b>往上拖飞到顶</b>：在「现在」中拖动任务向上越过中线松手，自动飞到最上面的「以后再做」。</li>
+                    <li><b>以后再做（顶部 1/4）</b>：新建时在标题末尾加 <code>...</code>，例如 <code>整理旅行照片...</code>。这样添加的任务不带日期。也可以把「现在」里的任务向上拖过中线。</li>
                     <li><b>日程规划（上中 1/4）</b>：只存放<b>未来日期</b>（明天及以后），按时间倒序排列（越近越靠下、越远越靠上），严格按时间序不可手动排序；当日期推进到当天时，会自动落入下面的「现在」。</li>
                     <li><b>执行中高亮</b>：在任务开头写 <code>&gt;&gt;&gt; 写报告</code>，任务卡片会变绿。编辑任务时删掉前缀即可取消高亮。</li>
                     <li><b>结尾写日期（同 MyMind）</b>：在文本末尾空格后加上日期即可自动转换并归入日程。普通任务可删掉末尾日期来清除日程。

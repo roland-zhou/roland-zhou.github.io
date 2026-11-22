@@ -4,13 +4,14 @@ import {
     toDateStr,
     parseDue,
     parseTaskDue,
+    parseNewTask,
     expandQuickDue,
     stripDue,
     dueDate,
     dueDayLabel,
     dueStatus,
     isFutureDue,
-} from './model.js?v=2';
+} from './model.js?v=3';
 import { createCloudSync, formatSyncTime } from '../shared/cloud-sync.js?v=2';
 
 const store = new MyListStore();
@@ -530,9 +531,9 @@ function render(meta = {}) {
             requestAnimationFrame(() => {
                 stage.scrollTo({ top: stage.scrollHeight, behavior: 'smooth' });
             });
-        } else if (meta.zone === 'scheduled' && el) {
+        } else if (el) {
             if (wasAtBottom) stage.scrollTop = stage.scrollHeight;
-            el.classList.add('scheduled-pulse');
+            el.classList.add(meta.zone === 'someday' ? 'just-landed' : 'scheduled-pulse');
             requestAnimationFrame(() => {
                 el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
             });
@@ -970,13 +971,10 @@ window.addEventListener('pointercancel', (e) => {
 // =========================================================================
 
 function syncComposerUI() {
-    const raw = composerInput.value;
-    const hasText = raw.trim().length > 0;
-    btnComposerAdd.disabled = !hasText;
+    const { text, due } = parseNewTask(composerInput.value);
+    btnComposerAdd.disabled = !text;
 
-    const expanded = expandQuickDue(raw);
-    const due = parseDue(expanded);
-    if (due && stripDue(expanded).length > 0) {
+    if (due && stripDue(text).length > 0) {
         paintDue(composerDuePreview, due);
         composerDuePreview.hidden = false;
     } else {
@@ -988,15 +986,15 @@ composerInput.addEventListener('input', syncComposerUI);
 
 composerForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    const raw = composerInput.value.trim();
-    if (!raw) return;
-
-    const item = store.addTask(raw);
+    const item = store.addTask(composerInput.value);
+    if (!item) return;
     composerInput.value = '';
     syncComposerUI();
     composerInput.focus();
 
-    if (item && item.zone === 'scheduled') {
+    if (item.zone === 'someday') {
+        showToast('已添加到「以后再做」');
+    } else if (item.zone === 'scheduled') {
         const due = parseTaskDue(item);
         if (due) {
             const tmp = document.createElement('span');
