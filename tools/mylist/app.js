@@ -330,6 +330,21 @@ toastAction.addEventListener('click', () => {
 // Rendering
 // =========================================================================
 
+function fillTaskText(el, text, { done = false } = {}) {
+    const prefix = /^>{3,}\s*/.exec(text)?.[0];
+    if (!prefix) {
+        el.textContent = text;
+        return false;
+    }
+
+    const badge = document.createElement('span');
+    badge.className = 'run-badge';
+    badge.textContent = '>>>';
+    badge.title = done ? '已完成' : '执行中';
+    el.append(badge, text.slice(prefix.length));
+    return true;
+}
+
 function createTaskElement(item, now) {
     const li = document.createElement('li');
     const isScheduled = item.zone === 'scheduled';
@@ -359,7 +374,7 @@ function createTaskElement(item, now) {
 
     const textEl = document.createElement('span');
     textEl.className = 'task-text';
-    textEl.textContent = displayText || item.text;
+    li.classList.toggle('is-running', fillTaskText(textEl, displayText || item.text));
     body.appendChild(textEl);
 
     const meta = document.createElement('div');
@@ -1137,7 +1152,7 @@ function renderDoneList(items) {
         info.className = 'done-info';
         const txt = document.createElement('span');
         txt.className = 'done-text';
-        txt.textContent = item.text;
+        fillTaskText(txt, item.text, { done: true });
         const meta = document.createElement('span');
         meta.className = 'done-meta';
         const zoneLabel = item.zone === 'scheduled' ? '日程规划' : (item.zone === 'someday' ? '以后再做' : '现在');

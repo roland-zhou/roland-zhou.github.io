@@ -45,6 +45,10 @@
     --due-upcoming-bg: #fdf1c4;
     --due-upcoming-ink: #8f6a08;
 
+    --run-bg: #d3f5df;
+    --run-ink: #18794a;
+    --run-wash: rgba(46, 180, 105, .1);
+
     --card-shadow: 0 1px 2px rgba(18, 22, 30, .04), 0 0 0 1px rgba(18, 22, 30, .055);
     --drag-shadow: 0 14px 32px rgba(18, 22, 30, .18), 0 2px 6px rgba(18, 22, 30, .08);
     --popover-shadow: 0 10px 30px rgba(18, 22, 30, .13), 0 2px 8px rgba(18, 22, 30, .06);
@@ -96,6 +100,10 @@
         --due-today-ink: #ffd166;
         --due-upcoming-bg: rgba(250, 210, 90, .17);
         --due-upcoming-ink: #e8c66a;
+
+        --run-bg: rgba(70, 205, 130, .22);
+        --run-ink: #7fe0a8;
+        --run-wash: rgba(70, 205, 130, .1);
 
         --card-shadow: 0 1px 2px rgba(0, 0, 0, .28), 0 0 0 1px rgba(255, 255, 255, .055);
         --drag-shadow: 0 18px 40px rgba(0, 0, 0, .55), 0 2px 8px rgba(0, 0, 0, .35);
@@ -690,6 +698,10 @@ svg use { pointer-events: none; }
     background: var(--card-hover);
 }
 
+.task-item.is-running {
+    background-image: linear-gradient(var(--run-wash), var(--run-wash));
+}
+
 .task-item.is-draggable {
     cursor: grab;
 }
@@ -794,6 +806,30 @@ svg use { pointer-events: none; }
 .someday-zone .task-text {
     color: var(--ink-2);
     font-size: 14px;
+}
+
+.someday-zone .is-running .task-text {
+    color: var(--ink);
+}
+
+.run-badge {
+    display: inline-block;
+    margin-right: .45em;
+    padding: 0 .55em;
+    border-radius: 999px;
+    font-size: .78em;
+    font-weight: 650;
+    line-height: 1.55;
+    vertical-align: .08em;
+    white-space: nowrap;
+    letter-spacing: -.04em;
+    background: var(--run-bg);
+    color: var(--run-ink);
+}
+
+.done-text .run-badge {
+    background: var(--due-neutral-bg);
+    color: var(--due-neutral-ink);
 }
 
 .task-meta {
@@ -944,7 +980,7 @@ svg use { pointer-events: none; }
     transform-origin: center center;
     will-change: transform, left, top;
     border-radius: 12px;
-    background: var(--panel-solid) !important;
+    background-color: var(--panel-solid) !important;
 }
 
 .drag-ghost.is-flying-ready {
