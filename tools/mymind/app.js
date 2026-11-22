@@ -1750,6 +1750,7 @@ function updateSyncUI(info) {
 const sync = createCloudSync({
     appId: 'mymind',
     appName: 'MyMind',
+    autoSyncIntervalMs: 5 * 60 * 1000,
     getLocalData: () => ({
         version: 1,
         maps: state.maps,

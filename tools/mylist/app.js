@@ -12,7 +12,7 @@ import {
     dueStatus,
     isFutureDue,
 } from './model.js?v=3';
-import { createCloudSync, formatSyncTime } from '../shared/cloud-sync.js?v=2';
+import { createCloudSync, formatSyncTime } from '../shared/cloud-sync.js?v=3';
 
 const store = new MyListStore();
 
@@ -1336,6 +1336,7 @@ const sync = createCloudSync({
     appId: 'mylist',
     appName: 'MyList',
     pushWorkerUrl: './sw.js',
+    autoSyncIntervalMs: 5 * 60 * 1000,
     getLocalData: () => store.getSyncSnapshot(),
     mergeData: (local, remote) => mergeListStates(local, remote),
     applyMergedData: (merged) => store.applyRemoteState(merged),

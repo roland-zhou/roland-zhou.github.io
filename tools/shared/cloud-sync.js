@@ -14,6 +14,9 @@ const META_KEY_PREFIX = 'roland.sync.cf.meta.v1:';
 const PAIR_V1 = 'CSYNC1';
 const PAIR_V0 = 'CSYNC0';
 const PAIR_SECRET = 'roland-cf-sync:pair:v1:rolandzhou.xyz';
+const DEFAULT_AUTO_SYNC_INTERVAL_MS = 5 * 60 * 1000;
+const AUTO_SYNC_CHECK_MAX_MS = 30 * 1000;
+const ERROR_RETRY_BASE_MS = 30 * 1000;
 
 class ConflictError extends Error {
     constructor(message = '远端数据已被其他设备更新') {
@@ -363,7 +366,9 @@ export function createCloudSync({
     pushWorkerUrl = '',
     debounceMs = 1500,
     resumeThrottleMs = 15000,
+    autoSyncIntervalMs = DEFAULT_AUTO_SYNC_INTERVAL_MS,
 }) {
+    const autoSyncMs = Number.isFinite(autoSyncIntervalMs) && autoSyncIntervalMs > 0 ? autoSyncIntervalMs : 0;
     let config = readSyncConfig();
     let meta = readMeta(appId);
     let state = config ? (meta.dirty ? 'dirty' : 'synced') : 'unconfigured';
@@ -371,11 +376,14 @@ export function createCloudSync({
     let lastErrorAuth = false;
     let pushTimer = null;
     let busyRetryTimer = null;
+    let autoSyncTimer = null;
     let syncingPromise = null;
     let pendingResync = false;
     let pendingManual = false;
     let applyingRemote = false;
     let lastAttemptAt = 0;
+    let consecutiveErrors = 0;
+    let started = false;
 
     // Modal refs (created lazily on first open)
     let modal = null;
@@ -421,11 +429,78 @@ export function createCloudSync({
         return Boolean(config);
     }
 
+    function isDocumentHidden() {
+        return typeof document !== 'undefined' && document.visibilityState === 'hidden';
+    }
+
+    function isNavigatorOffline() {
+        return typeof navigator !== 'undefined' && navigator.onLine === false;
+    }
+
+    function clearAutoSyncTimer() {
+        clearTimeout(autoSyncTimer);
+        autoSyncTimer = null;
+    }
+
     function clearTimers() {
         clearTimeout(pushTimer);
         pushTimer = null;
         clearTimeout(busyRetryTimer);
         busyRetryTimer = null;
+        clearAutoSyncTimer();
+    }
+
+    function getNextAutoSyncDueAt() {
+        if (state === 'error') {
+            const backoff = Math.min(
+                autoSyncMs,
+                ERROR_RETRY_BASE_MS * (2 ** Math.min(Math.max(consecutiveErrors - 1, 0), 4))
+            );
+            return lastAttemptAt + backoff;
+        }
+        const lastAnchor = meta.lastSyncAt || lastAttemptAt;
+        if (!lastAnchor) return 0;
+        return lastAnchor + autoSyncMs;
+    }
+
+    function scheduleAutoSync() {
+        clearAutoSyncTimer();
+        if (!started || !config || !autoSyncMs) return;
+        if (lastErrorAuth || isDocumentHidden()) return;
+        if (syncingPromise || busyRetryTimer || pushTimer) return;
+
+        const now = Date.now();
+        const dueAt = getNextAutoSyncDueAt();
+        const remaining = dueAt - now;
+        const minImmediateDelay = Math.min(1000, autoSyncMs);
+        const delay = remaining <= 0
+            ? minImmediateDelay
+            : Math.min(remaining, AUTO_SYNC_CHECK_MAX_MS);
+
+        autoSyncTimer = setTimeout(() => {
+            autoSyncTimer = null;
+            runAutoSyncCheck();
+        }, delay);
+    }
+
+    function runAutoSyncCheck() {
+        if (!started || !config || !autoSyncMs) return;
+        if (lastErrorAuth || isDocumentHidden()) return;
+        if (syncingPromise || busyRetryTimer || pushTimer) return;
+        if (isNavigatorOffline()) {
+            // Keep a lightweight heartbeat while visible & offline in case the browser
+            // does not fire an `online` event reliably after waking from sleep.
+            autoSyncTimer = setTimeout(() => {
+                autoSyncTimer = null;
+                runAutoSyncCheck();
+            }, Math.min(autoSyncMs, AUTO_SYNC_CHECK_MAX_MS));
+            return;
+        }
+        if (Date.now() >= getNextAutoSyncDueAt()) {
+            syncNow({ manual: false });
+        } else {
+            scheduleAutoSync();
+        }
     }
 
     function markDirty() {
@@ -583,6 +658,7 @@ export function createCloudSync({
         pushTimer = null;
         clearTimeout(busyRetryTimer);
         busyRetryTimer = null;
+        clearAutoSyncTimer();
 
         if (!manual && isBusy()) {
             busyRetryTimer = setTimeout(() => {
@@ -609,6 +685,7 @@ export function createCloudSync({
                     setState(meta.dirty ? 'dirty' : 'synced', '', false);
                     return res;
                 }
+                consecutiveErrors = 0;
                 setState(meta.dirty ? 'dirty' : 'synced', '', false);
                 if (res.conflictCopies > 0) {
                     onToast(`同步完成：检测到 ${res.conflictCopies} 处并行编辑冲突，已另存为副本`, { duration: 4500 });
@@ -622,6 +699,8 @@ export function createCloudSync({
             } catch (err) {
                 const msg = err?.message || '同步失败';
                 const authErr = Boolean(err?.authError);
+                if (authErr) consecutiveErrors = 0;
+                else consecutiveErrors += 1;
                 setState('error', msg, authErr);
                 if (manual && !quiet) {
                     onToast(`同步失败：${msg}`, {
@@ -638,6 +717,8 @@ export function createCloudSync({
                     pendingResync = false;
                     pendingManual = false;
                     setTimeout(() => syncNow({ manual: nextManual }), 80);
+                } else {
+                    scheduleAutoSync();
                 }
             }
         })();
@@ -649,16 +730,19 @@ export function createCloudSync({
         const changedEndpoint = !config || config.endpoint !== nextConfig.endpoint;
         config = { endpoint: nextConfig.endpoint, token: nextConfig.token };
         writeSyncConfig(config);
+        consecutiveErrors = 0;
         if (changedEndpoint) {
             saveMeta({ version: null, etag: null, lastSyncAt: 0, dirty: false, extra: null });
         }
         setState(meta.dirty ? 'dirty' : 'synced', '', false);
+        scheduleAutoSync();
     }
 
     function disconnect() {
         clearTimers();
         pendingResync = false;
         pendingManual = false;
+        consecutiveErrors = 0;
         config = null;
         writeSyncConfig(null);
         meta = { version: null, etag: null, lastSyncAt: 0, dirty: false, extra: null };
@@ -668,43 +752,75 @@ export function createCloudSync({
 
     /* ---------- Lifecycle & Cross-Tab ---------- */
 
-    function maybeResumeSync() {
-        if (!config) return; // Strictly zero requests when unconfigured.
-        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
-        if (meta.dirty || Date.now() - lastAttemptAt >= resumeThrottleMs) {
+    function maybeResumeSync({ fromOnline = false } = {}) {
+        if (!started || !config) return; // Strictly zero requests when unconfigured.
+        if (isDocumentHidden()) return;
+        if (fromOnline) consecutiveErrors = 0;
+        if (syncingPromise) return;
+        if (lastErrorAuth) return;
+        if (!fromOnline && isNavigatorOffline()) {
+            scheduleAutoSync();
+            return;
+        }
+        const now = Date.now();
+        const stale = autoSyncMs > 0 && (!meta.lastSyncAt || now - meta.lastSyncAt >= autoSyncMs);
+        const cooledDown = now - lastAttemptAt >= resumeThrottleMs;
+        const shouldSync = fromOnline
+            ? (meta.dirty || state === 'error' || stale || cooledDown)
+            : (meta.dirty || cooledDown);
+        if (shouldSync) {
             syncNow({ manual: false });
+        } else {
+            scheduleAutoSync();
         }
     }
 
+    const onVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+            maybeResumeSync();
+        } else {
+            clearAutoSyncTimer();
+        }
+    };
+    const onFocus = () => maybeResumeSync();
+    const onPageShow = (event) => {
+        if (event.persisted) maybeResumeSync();
+    };
+    const onOnline = () => maybeResumeSync({ fromOnline: true });
+    const onStorage = (event) => {
+        if (event.key === SYNC_CONFIG_KEY) {
+            const prevEndpoint = config?.endpoint || '';
+            config = readSyncConfig();
+            consecutiveErrors = 0;
+            if (!config) {
+                clearTimers();
+                meta = readMeta(appId);
+                setState('unconfigured', '', false);
+            } else {
+                if (prevEndpoint !== config.endpoint) {
+                    meta = readMeta(appId);
+                }
+                setState(meta.dirty ? 'dirty' : 'synced', '', false);
+                if (!prevEndpoint) syncNow({ manual: false });
+                else scheduleAutoSync();
+            }
+        } else if (event.key === META_KEY_PREFIX + appId) {
+            meta = readMeta(appId);
+            if (config && state !== 'syncing') {
+                setState(meta.dirty ? 'dirty' : 'synced', '', false);
+            }
+            scheduleAutoSync();
+        }
+    };
+
     if (typeof document !== 'undefined') {
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') maybeResumeSync();
-        });
+        document.addEventListener('visibilitychange', onVisibilityChange);
     }
     if (typeof window !== 'undefined') {
-        window.addEventListener('online', () => maybeResumeSync());
-        window.addEventListener('storage', (event) => {
-            if (event.key === SYNC_CONFIG_KEY) {
-                const prevEndpoint = config?.endpoint || '';
-                config = readSyncConfig();
-                if (!config) {
-                    clearTimers();
-                    meta = readMeta(appId);
-                    setState('unconfigured', '', false);
-                } else {
-                    if (prevEndpoint !== config.endpoint) {
-                        meta = readMeta(appId);
-                    }
-                    setState(meta.dirty ? 'dirty' : 'synced', '', false);
-                    if (!prevEndpoint) syncNow({ manual: false });
-                }
-            } else if (event.key === META_KEY_PREFIX + appId) {
-                meta = readMeta(appId);
-                if (config && state !== 'syncing') {
-                    setState(meta.dirty ? 'dirty' : 'synced', '', false);
-                }
-            }
-        });
+        window.addEventListener('focus', onFocus);
+        window.addEventListener('pageshow', onPageShow);
+        window.addEventListener('online', onOnline);
+        window.addEventListener('storage', onStorage);
     }
 
     /* ---------- Shared Settings & Pairing Modal ---------- */
@@ -1224,17 +1340,35 @@ export function createCloudSync({
     }
 
     function start() {
+        started = true;
         emitStatus();
         checkHashPairing().then((hadPairing) => {
             if (!hadPairing && config) {
                 // Only fetch on startup if already configured.
                 syncNow({ manual: false });
+            } else {
+                scheduleAutoSync();
             }
         });
     }
 
+    function destroy() {
+        started = false;
+        clearTimers();
+        if (typeof document !== 'undefined') {
+            document.removeEventListener('visibilitychange', onVisibilityChange);
+        }
+        if (typeof window !== 'undefined') {
+            window.removeEventListener('focus', onFocus);
+            window.removeEventListener('pageshow', onPageShow);
+            window.removeEventListener('online', onOnline);
+            window.removeEventListener('storage', onStorage);
+        }
+    }
+
     return {
         start,
+        destroy,
         isConfigured,
         getStatus,
         markDirty,
