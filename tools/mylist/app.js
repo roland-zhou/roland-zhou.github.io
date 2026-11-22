@@ -1424,3 +1424,21 @@ document.addEventListener('visibilitychange', () => {
 syncComposerUI();
 render();
 sync.start();
+
+// Register the offline/push service worker once the app is loaded. This is
+// independent of cloud-sync setup so the cached shell works even without push.
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register(new URL('./sw.js', import.meta.url))
+        .then(() => navigator.serviceWorker.ready)
+        .then(() => {
+            // ready resolves only after install (which precaches the shell) succeeded.
+            const key = 'mylist.offline.ready.v1';
+            if (!localStorage.getItem(key)) {
+                localStorage.setItem(key, '1');
+                showToast('离线已就绪，断网也能打开');
+            }
+        })
+        .catch(error => {
+            console.warn('MyList service worker registration failed', error);
+        });
+}

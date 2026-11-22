@@ -1,8 +1,11 @@
 const CACHE_PREFIX = 'mymind-shell-';
-const CACHE_NAME = `${CACHE_PREFIX}1`;
+const CACHE_NAME = `${CACHE_PREFIX}2`;
 const HOME = self.registration.scope;
 const INDEX = new URL('./index.html', HOME).href;
-const ASSETS = new Set([
+
+// Asset list: paths are stored without query strings so versioned URLs
+// (script.js?v=7) still match the cached copy.
+const ASSET_PATHS = [
     './style.css',
     './app.js',
     './model.js',
@@ -14,12 +17,28 @@ const ASSETS = new Set([
     '../shared/cloud-sync.css',
     '../shared/cloud-sync.js',
     '../shared/mylist-push.js',
-].map(path => new URL(path, HOME).href));
+];
+
+// Normalize a URL to its cache key: drop query, keep origin+path.
+function assetKey(url) {
+    const copy = new URL(url);
+    copy.search = '';
+    copy.hash = '';
+    return copy.href;
+}
+
+const ASSET_KEYS = new Set(
+    ['index.html', ...ASSET_PATHS].map(path => new URL(path, HOME).href)
+);
 
 self.addEventListener('install', event => {
     event.waitUntil((async () => {
         const cache = await caches.open(CACHE_NAME);
-        await cache.addAll([HOME, ...ASSETS].map(url => new Request(url, { cache: 'reload' })));
+        await cache.addAll(
+            [HOME, ...ASSET_PATHS.map(path => new URL(path, HOME).href)]
+                .map(url => new Request(url, { cache: 'reload' }))
+        );
+        await self.skipWaiting();
     })());
 });
 
@@ -55,9 +74,13 @@ self.addEventListener('fetch', event => {
 
     const url = new URL(request.url);
     if (request.mode === 'navigate') {
-        url.search = '';
-        if (url.href === HOME || url.href === INDEX) event.respondWith(networkFirst(request, HOME));
-    } else if (ASSETS.has(url.href)) {
-        event.respondWith(networkFirst(request, url.href));
+        const key = assetKey(url);
+        if (key === HOME || key === INDEX) event.respondWith(networkFirst(request, HOME));
+        return;
+    }
+
+    const key = assetKey(url.href);
+    if (ASSET_KEYS.has(key)) {
+        event.respondWith(networkFirst(request, key));
     }
 });

@@ -1984,7 +1984,17 @@ sync.start();
 addEventListener('resize', () => applyView());
 
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register(new URL('./sw.js', import.meta.url)).catch(error => {
-        console.warn('MyMind service worker registration failed', error);
-    });
+    navigator.serviceWorker.register(new URL('./sw.js', import.meta.url))
+        .then(() => navigator.serviceWorker.ready)
+        .then(() => {
+            // ready resolves only after install (which precaches the shell) succeeded.
+            const key = 'mymind.offline.ready.v1';
+            if (!localStorage.getItem(key)) {
+                localStorage.setItem(key, '1');
+                toast('离线已就绪，断网也能打开', 2600);
+            }
+        })
+        .catch(error => {
+            console.warn('MyMind service worker registration failed', error);
+        });
 }
