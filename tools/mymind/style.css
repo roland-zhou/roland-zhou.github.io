@@ -321,6 +321,7 @@ body.sidebar-open .doc-bar { display: none; }
 .sidebar-head { display: flex; align-items: center; justify-content: space-between; padding: 0 0 4px 8px; }
 .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; }
 .brand svg { color: var(--accent); }
+.app-version { font-size: 11.5px; font-weight: 500; color: var(--muted); }
 .sidebar-actions { display: flex; gap: 2px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
 .text-btn {
     display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 9px;

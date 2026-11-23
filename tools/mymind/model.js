@@ -8,6 +8,17 @@ export function uid() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
+export function compareVersions(a, b) {
+    const pa = String(a || '').replace(/^v/i, '').split('.').map(n => Number.parseInt(n, 10) || 0);
+    const pb = String(b || '').replace(/^v/i, '').split('.').map(n => Number.parseInt(n, 10) || 0);
+    const len = Math.max(pa.length, pb.length);
+    for (let i = 0; i < len; i++) {
+        const diff = (pa[i] || 0) - (pb[i] || 0);
+        if (diff !== 0) return diff;
+    }
+    return 0;
+}
+
 export function createNode(text = '', extra = {}) {
     return { id: uid(), text, note: '', task: null, children: [], ...extra };
 }
@@ -17,9 +28,37 @@ export function createMap(title = '中心主题') {
     return { id: uid(), root: createNode(title), created: now, updated: now };
 }
 
+export function isValidNode(node) {
+    return Boolean(
+        node && typeof node.id === 'string' && typeof node.text === 'string'
+        && Array.isArray(node.children) && node.children.every(isValidNode)
+    );
+}
+
 export function isValidMap(map) {
-    const validNode = n => n && typeof n.id === 'string' && typeof n.text === 'string' && Array.isArray(n.children) && n.children.every(validNode);
-    return map && typeof map.id === 'string' && validNode(map.root);
+    return Boolean(map && typeof map.id === 'string' && isValidNode(map.root));
+}
+
+export function cloneNode(node) {
+    const copy = createNode(node.text, {
+        note: typeof node.note === 'string' ? node.note : '',
+        task: node.task === 'open' || node.task === 'done' ? node.task : null,
+        children: node.children.map(cloneNode),
+    });
+    if (node.folded && copy.children.length) copy.folded = true;
+    if (waitPrefix(copy.text) && Number.isFinite(node.waitSince)) copy.waitSince = node.waitSince;
+    return copy;
+}
+
+export function nodesToPlainText(nodes) {
+    const lines = [];
+    const format = (node, depth) => {
+        const indent = '  '.repeat(depth);
+        lines.push(`${indent}${node.text.replace(/\n/g, `\n${indent}`)}`);
+        node.children.forEach(c => format(c, depth + 1));
+    };
+    nodes.forEach(n => format(n, 0));
+    return lines.join('\n');
 }
 
 // id -> { node, parent, depth, side, color }. Side and color come from the first-level branch.

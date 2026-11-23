@@ -1,12 +1,22 @@
 import {
-    PALETTE_SIZE, buildIndex, computeLayout, countNodes, createMap, createNode,
-    dueDate, dueDayLabel, dueStatus, expandQuickDue, exportOPML, importOPML, isValidMap, mergeMindStates, nextColor, nextWaitSince, parseDue, sampleMap, subtreeIds,
+    PALETTE_SIZE, buildIndex, cloneNode, compareVersions, computeLayout, countNodes, createMap, createNode,
+    dueDate, dueDayLabel, dueStatus, expandQuickDue, exportOPML, importOPML, isValidMap, isValidNode, mergeMindStates, nextColor, nextWaitSince, nodesToPlainText, parseDue, sampleMap, subtreeIds,
     runPrefix, visibleChildren, waitDuration, waitPrefix, waitShort,
 } from './model.js';
 import { createCloudSync, formatSyncTime } from '../shared/cloud-sync.js';
 
+// Release changelog (newest first). Prepend a new entry on each user-facing update;
+// clients with an older stored version will see a one-line update toast on startup.
+const RELEASES = [
+    { version: '1.1.0', note: '支持单选与多选节点的复制、剪切与粘贴为子节点' },
+    { version: '1.0.0', note: '支持定期自动云同步与唤醒恢复' },
+];
+const APP_VERSION = RELEASES[0].version;
+
 const STORE = 'mymind.v1';
 const FOCUS_STORE = 'mymind.focus';
+const CLIPBOARD_STORE = 'mymind.clipboard';
+const VERSION_STORE = 'mymind.version';
 
 // One-time migration from the old MyMindC keys so existing maps survive the rename.
 try {
@@ -55,6 +65,8 @@ let view = { x: 0, y: 0, z: 1 };
 let selectMode = false;
 const checked = new Set();
 const histories = new Map();
+let clipboard = null;           // copied node subtrees (snapshot), synced across tabs
+let lastClipboardKeyAt = 0;
 let noteSession = null;
 let noteFor = null;
 // 'off', 'focus' (dim everything off the selection's path) or 'fade' (older selection
@@ -91,6 +103,14 @@ function load() {
         saveNow();
     }
     if (!activeMap()) state.activeId = state.maps[0].id;
+    loadClipboard();
+}
+
+function loadClipboard() {
+    try {
+        const data = JSON.parse(localStorage.getItem(CLIPBOARD_STORE) || 'null');
+        if (Array.isArray(data) && data.length && data.every(isValidNode)) clipboard = data;
+    } catch { /* clipboard storage unavailable or malformed */ }
 }
 
 function scheduleSave() {
@@ -110,6 +130,14 @@ function saveNow() {
 
 window.addEventListener('pagehide', () => { if (saveTimer) saveNow(); });
 window.addEventListener('storage', event => {
+    if (event.key === CLIPBOARD_STORE) {
+        try {
+            const data = JSON.parse(event.newValue || 'null');
+            clipboard = Array.isArray(data) && data.length && data.every(isValidNode) ? data : null;
+            updateNodeBar();
+        } catch { /* ignore malformed clipboard writes */ }
+        return;
+    }
     if (event.key !== STORE || !event.newValue) return;
     try {
         const data = JSON.parse(event.newValue);
@@ -532,6 +560,7 @@ function updateNodeBar() {
     nodeBar.classList.toggle('multi', multi);
     $('multi-count').textContent = `已选 ${selection.size} 个节点`;
     nodeBar.querySelector('[data-cmd="sibling"]').disabled = !info.parent;
+    nodeBar.querySelector('[data-cmd="paste"]').disabled = !hasClipboard();
     nodeBar.querySelector('[data-cmd="delete"]').disabled = ![...selection].some(id => index.get(id)?.parent);
     nodeBar.querySelector('[data-cmd="task"]').setAttribute('aria-pressed', String(Boolean(info.node.task)));
     nodeBar.querySelector('[data-cmd="note"]').setAttribute('aria-pressed', String(!notePanel.hidden));
@@ -822,6 +851,107 @@ function deleteSelected() {
     });
 }
 
+function hasClipboard() {
+    return Boolean(clipboard?.length);
+}
+
+// Top-level selected nodes in tree order; descendants covered by a selected ancestor are omitted.
+function selectedRoots() {
+    const roots = [];
+    const covered = new Set();
+    for (const [id, info] of index) {
+        if (!selection.has(id) || covered.has(id)) continue;
+        roots.push(info);
+        subtreeIds(info.node, covered);
+    }
+    return roots;
+}
+
+function writeClipboard(nodes, clipboardData = null) {
+    clipboard = nodes;
+    try { localStorage.setItem(CLIPBOARD_STORE, JSON.stringify(nodes)); } catch { /* in-memory fallback */ }
+    const plain = nodesToPlainText(nodes);
+    if (clipboardData) {
+        clipboardData.setData('text/plain', plain);
+    } else {
+        navigator.clipboard?.writeText?.(plain).catch(() => {});
+    }
+    updateNodeBar();
+}
+
+function snapshotSelected(roots) {
+    return roots.map(({ node, depth, side }) => {
+        const copy = cloneNode(node);
+        if (depth === 1 && side === 'left') copy.side = 'left';
+        return copy;
+    });
+}
+
+function clipboardToast(verb, nodes) {
+    const total = nodes.reduce((sum, n) => sum + countNodes(n), 0);
+    if (nodes.length === 1) {
+        toast(total > 1 ? `已${verb}节点（含 ${total - 1} 个子节点）` : `已${verb}节点`, 1600);
+    } else {
+        toast(total > nodes.length ? `已${verb} ${nodes.length} 个分支（共 ${total} 个节点）` : `已${verb} ${nodes.length} 个节点`, 1600);
+    }
+}
+
+function copySelected(clipboardData = null) {
+    if (editing || drag) return false;
+    const roots = selectedRoots();
+    if (!roots.length) return false;
+    const copied = snapshotSelected(roots);
+    writeClipboard(copied, clipboardData);
+    clipboardToast('复制', copied);
+    return true;
+}
+
+function cutSelected(clipboardData = null) {
+    if (editing || drag || !selection.size) return false;
+    if (selection.has(activeMap().root.id)) {
+        toast('中心主题不能剪切');
+        return false;
+    }
+    const roots = selectedRoots().filter(info => info.parent);
+    if (!roots.length) return false;
+    const copied = snapshotSelected(roots);
+    writeClipboard(copied, clipboardData);
+    deleteSelected();
+    clipboardToast('剪切', copied);
+    return true;
+}
+
+function pasteNodes(targetId = selectedId) {
+    if (editing) finishEdit(true);
+    if (drag || !hasClipboard()) return false;
+    const info = targetId && index.get(targetId);
+    if (!info) {
+        toast('请先选择要粘贴到的目标节点', 1800);
+        return false;
+    }
+    const root = activeMap().root;
+    const target = info.node;
+    const pasted = [];
+    const ok = commit(() => {
+        delete target.folded;
+        for (const src of clipboard) {
+            const copy = cloneNode(src);
+            if (target === root) {
+                copy.side = src.side === 'left' ? 'left' : 'right';
+                copy.color = nextColor(root);
+            }
+            if (target.task) walk(copy, n => { n.task ??= 'open'; });
+            target.children.push(copy);
+            pasted.push(copy);
+        }
+    });
+    if (!ok || !pasted.length) return false;
+    setSelection(pasted.map(n => n.id), pasted[0].id);
+    ensureVisible(pasted[0].id);
+    clipboardToast('粘贴', pasted);
+    return true;
+}
+
 // Turning a to-do on or off applies to the whole branch below it.
 function toggleTask() {
     const infos = [...selection].map(id => index.get(id)).filter(Boolean);
@@ -1064,6 +1194,7 @@ canvas.addEventListener('pointerdown', event => {
     // On a Mac, Control-click is a right click: leave it to the context menu.
     if (isMac && event.ctrlKey) return;
     if (el) {
+        getSelection()?.removeAllRanges();
         const id = el.dataset.id;
         if (event.shiftKey || event.metaKey || event.ctrlKey) {
             const ids = new Set(selection);
@@ -1590,7 +1721,13 @@ function openMenu(id, x, y) {
     const multi = selection.size > 1;
     const isRoot = !info.parent;
     const deletable = [...selection].some(s => index.get(s)?.parent);
+    const cuttable = !selection.has(activeMap().root.id);
+    const keyMod = isMac ? '⌘' : 'Ctrl+';
     const groups = multi ? [
+        [
+            { icon: 'copy', label: '复制', keys: `${keyMod}C`, run: () => copySelected() },
+            cuttable && { icon: 'cut', label: '剪切', keys: `${keyMod}X`, run: () => cutSelected() },
+        ],
         [
             { icon: 'task', label: node.task ? '移除待办' : '设为待办', keys: '⌥T', run: toggleTask },
         ],
@@ -1606,6 +1743,11 @@ function openMenu(id, x, y) {
             { icon: 'edit', label: '编辑标题', keys: '空格', run: () => startEdit(id) },
             { icon: 'child', label: '新建子节点', keys: 'Tab', run: () => addChild() },
             !isRoot && { icon: 'sibling', label: '新建同级节点', keys: '↵', run: () => addSibling('after') },
+        ],
+        [
+            { icon: 'copy', label: '复制', keys: `${keyMod}C`, run: () => copySelected() },
+            !isRoot && { icon: 'cut', label: '剪切', keys: `${keyMod}X`, run: () => cutSelected() },
+            hasClipboard() && { icon: 'paste', label: '粘贴为子节点', keys: `${keyMod}V`, run: () => pasteNodes(id) },
         ],
         [
             { icon: 'task', label: node.task ? '移除待办' : '设为待办', keys: '⌥T', run: toggleTask },
@@ -1822,6 +1964,8 @@ const commands = {
     'sync-settings': () => sync.openSettings(),
     child: () => addChild(),
     sibling: () => addSibling('after'),
+    copy: () => copySelected(),
+    paste: () => pasteNodes(),
     task: toggleTask,
     note: () => (notePanel.hidden ? openNote() : closeNote()),
     'close-note': closeNote,
@@ -1870,6 +2014,25 @@ document.addEventListener('keydown', event => {
         if (lower === 'z') { event.preventDefault(); event.shiftKey ? redo() : undo(); }
         else if (lower === 'y' && !isMac) { event.preventDefault(); redo(); }
         else if (lower === 'a' && !event.shiftKey) { event.preventDefault(); setSelection([...index.keys()], selectedId ?? activeMap().root.id); }
+        else if (!event.shiftKey && (lower === 'c' || (key === 'Process' && event.code === 'KeyC'))) {
+            if (!getSelection()?.toString() && selection.size) {
+                event.preventDefault();
+                lastClipboardKeyAt = performance.now();
+                copySelected();
+            }
+        } else if (!event.shiftKey && (lower === 'x' || (key === 'Process' && event.code === 'KeyX'))) {
+            if (!getSelection()?.toString() && selection.size) {
+                event.preventDefault();
+                lastClipboardKeyAt = performance.now();
+                cutSelected();
+            }
+        } else if (!event.shiftKey && (lower === 'v' || (key === 'Process' && event.code === 'KeyV'))) {
+            if (hasClipboard()) {
+                event.preventDefault();
+                lastClipboardKeyAt = performance.now();
+                pasteNodes();
+            }
+        }
         else if (key === '=' || key === '+') { event.preventDefault(); commands['zoom-in'](); }
         else if (key === '-') { event.preventDefault(); commands['zoom-out'](); }
         else if (key === '0') { event.preventDefault(); zoomAt(1); }
@@ -1921,6 +2084,32 @@ document.addEventListener('keydown', event => {
     if (key.length === 1 || key === 'Process' || event.keyCode === 229) startEdit(selectedId, { replace: '' });
 });
 
+// Support browser Edit menu copy/cut/paste without double-firing after keyboard shortcuts.
+function canHandleClipboardEvent(event) {
+    return !editing && !drag && !sync.isModalOpen() && !event.target.closest?.('textarea, input, [contenteditable]');
+}
+document.addEventListener('copy', event => {
+    if (!canHandleClipboardEvent(event)) return;
+    if (performance.now() - lastClipboardKeyAt < 100) { event.preventDefault(); return; }
+    if (getSelection()?.toString() || !selection.size) return;
+    event.preventDefault();
+    copySelected(event.clipboardData);
+});
+document.addEventListener('cut', event => {
+    if (!canHandleClipboardEvent(event)) return;
+    if (performance.now() - lastClipboardKeyAt < 100) { event.preventDefault(); return; }
+    if (getSelection()?.toString() || !selection.size) return;
+    event.preventDefault();
+    cutSelected(event.clipboardData);
+});
+document.addEventListener('paste', event => {
+    if (!canHandleClipboardEvent(event)) return;
+    if (performance.now() - lastClipboardKeyAt < 100) { event.preventDefault(); return; }
+    if (!hasClipboard()) return;
+    event.preventDefault();
+    pasteNodes();
+});
+
 function renderHelp() {
     const rows = [
         ['新建子节点', 'Tab'],
@@ -1934,6 +2123,8 @@ function renderHelp() {
         ['批量移动节点', '多选后拖动其中一个节点'],
         ['全选', `${MOD}A`],
         ['调整顺序', `${MOD}↑ / ${MOD}↓`],
+        ['复制 / 剪切节点', `${MOD}C / ${MOD}X`],
+        ['粘贴为子节点', `${MOD}V`],
         ['删除所选节点', 'Delete'],
         ['节点快捷菜单', '右键'],
         ['折叠 / 展开', '⌥ .'],
@@ -1970,16 +2161,35 @@ function renderHelp() {
     if (!isMac) {
         document.querySelector('[data-cmd="undo"]').title = '撤销 (Ctrl+Z)';
         document.querySelector('[data-cmd="redo"]').title = '重做 (Ctrl+Shift+Z)';
+        document.querySelector('[data-cmd="copy"]').title = '复制 (Ctrl+C)';
+        document.querySelector('[data-cmd="paste"]').title = '粘贴为子节点 (Ctrl+V)';
     }
 }
 
 /* ---------- Start ---------- */
 
+function checkVersionUpdate(hadExistingData) {
+    let seen = null;
+    try { seen = localStorage.getItem(VERSION_STORE); } catch { return; }
+    const upgraded = seen ? compareVersions(APP_VERSION, seen) > 0 : hadExistingData;
+    if (!seen || upgraded) {
+        try { localStorage.setItem(VERSION_STORE, APP_VERSION); } catch { /* not critical */ }
+    }
+    if (upgraded) {
+        const note = RELEASES[0]?.note;
+        toast(note ? `已更新至 v${APP_VERSION}：${note}` : `已更新至 v${APP_VERSION}`, 4500);
+    }
+}
+
+let hadExistingData = false;
+try { hadExistingData = localStorage.getItem(STORE) !== null; } catch { /* storage unavailable */ }
 load();
+$('app-version').textContent = `v${APP_VERSION}`;
 renderHelp();
 syncViewButtons();
 render();
 fit();
+checkVersionUpdate(hadExistingData);
 sync.start();
 addEventListener('resize', () => applyView());
 
