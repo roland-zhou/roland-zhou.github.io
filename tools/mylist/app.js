@@ -11,8 +11,17 @@ import {
     dueDayLabel,
     dueStatus,
     isFutureDue,
-} from './model.js?v=3';
-import { createCloudSync, formatSyncTime } from '../shared/cloud-sync.js?v=3';
+} from './model.js?v=4';
+import { createCloudSync, formatSyncTime } from '../shared/cloud-sync.js?v=4';
+import {
+    AI_SETTINGS_KEY,
+    getOpenAIApiKey,
+    hasOpenAIApiKey,
+    setOpenAIApiKey,
+    exportAISettings,
+    importAISettings,
+    recognizeTasksFromImage,
+} from './ai.js?v=1';
 
 const store = new MyListStore();
 
@@ -46,6 +55,8 @@ const btnMore = $('#btn-more');
 const moreMenu = $('#more-menu');
 
 const composerForm = $('#composer-form');
+const btnComposerAI = $('#btn-composer-ai');
+const composerAIIcon = $('#composer-ai-icon');
 const composerInput = $('#composer-input');
 const composerDuePreview = $('#composer-due-preview');
 const btnComposerAdd = $('#btn-composer-add');
@@ -71,11 +82,25 @@ const btnClearDone = $('#btn-clear-done');
 // Help sheet
 const helpSheet = $('#help-sheet');
 
-// Toast & file input
+// AI settings & multi-task review sheets
+const aiSettingsSheet = $('#ai-settings-sheet');
+const aiSettingsForm = $('#ai-settings-form');
+const aiApiKeyInput = $('#ai-api-key-input');
+const btnAIToggleVis = $('#btn-ai-toggle-vis');
+const btnAIClearKey = $('#btn-ai-clear-key');
+const aiSettingsMsg = $('#ai-settings-msg');
+
+const aiResultsSheet = $('#ai-results-sheet');
+const aiResultsTitle = $('#ai-results-title');
+const aiResultsList = $('#ai-results-list');
+const btnAIAddAll = $('#btn-ai-add-all');
+
+// Toast & file inputs
 const toastEl = $('#toast');
 const toastMsg = $('#toast-msg');
 const toastAction = $('#toast-action');
 const fileInput = $('#file-input');
+const aiImageInput = $('#ai-image-input');
 
 // Local UI state
 let editingId = null;
@@ -84,6 +109,8 @@ let toastTimer = null;
 let toastCallback = null;
 let isInitialRender = true;
 let suppressedClickUntil = 0;
+let isAIRecognizing = false;
+const DEFAULT_COMPOSER_PLACEHOLDER = composerInput.placeholder;
 
 // =========================================================================
 // Mobile VisualViewport Pinning, Pinch-Zoom Prevention & 1/4+1/4+1/2 Sizing
@@ -536,6 +563,30 @@ function render(meta = {}) {
             el.classList.add(meta.zone === 'someday' ? 'just-landed' : 'scheduled-pulse');
             requestAnimationFrame(() => {
                 el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            });
+        }
+    } else if (meta.type === 'add-batch') {
+        let hasNow = false;
+        let lastEl = null;
+        for (const id of meta.ids || []) {
+            const el = document.querySelector(`.task-item[data-id="${CSS.escape(id)}"]`);
+            if (!el) continue;
+            lastEl = el;
+            if (el.dataset.zone === 'now') {
+                hasNow = true;
+                el.classList.add('just-added');
+            } else {
+                el.classList.add(el.dataset.zone === 'someday' ? 'just-landed' : 'scheduled-pulse');
+            }
+        }
+        if (hasNow) {
+            requestAnimationFrame(() => {
+                stage.scrollTo({ top: stage.scrollHeight, behavior: 'smooth' });
+            });
+        } else if (lastEl) {
+            if (wasAtBottom) stage.scrollTop = stage.scrollHeight;
+            requestAnimationFrame(() => {
+                lastEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
             });
         }
     } else if ((meta.type === 'update' || meta.type === 'repeat') && meta.zone === 'scheduled') {
@@ -1005,6 +1056,295 @@ composerForm.addEventListener('submit', (e) => {
 });
 
 // =========================================================================
+// AI Image Recognition & API Key Settings
+// =========================================================================
+
+function syncAIButtonUI() {
+    const configured = hasOpenAIApiKey();
+    btnComposerAI.dataset.configured = configured ? 'true' : 'false';
+    btnComposerAI.classList.toggle('is-loading', isAIRecognizing);
+    btnComposerAI.disabled = isAIRecognizing;
+
+    const useEl = composerAIIcon.querySelector('use');
+    if (useEl) useEl.setAttribute('href', isAIRecognizing ? '#i-sync' : '#i-image');
+    composerAIIcon.classList.toggle('csync-spinning', isAIRecognizing);
+
+    if (isAIRecognizing) {
+        btnComposerAI.title = 'AI 正在识别图片…';
+        composerInput.placeholder = 'AI 正在识别图片…';
+    } else {
+        btnComposerAI.title = configured
+            ? '上传图片 AI 识别待办（也支持直接粘贴/拖入截图）'
+            : '上传图片 AI 识别待办（需先设置 ChatGPT API Key）';
+        composerInput.placeholder = DEFAULT_COMPOSER_PLACEHOLDER;
+    }
+}
+
+function setAISettingsMsg(text, cls = '') {
+    aiSettingsMsg.textContent = text || '';
+    aiSettingsMsg.className = 'ai-settings-msg' + (cls ? ` ${cls}` : '');
+}
+
+function openAISettingsSheet(hint = '') {
+    closeMoreMenu();
+    const existing = getOpenAIApiKey();
+    aiApiKeyInput.value = existing;
+    aiApiKeyInput.type = 'password';
+    btnAIToggleVis.textContent = '显示';
+    btnAIClearKey.hidden = !existing;
+    setAISettingsMsg(hint, hint ? 'info' : '');
+    aiSettingsSheet.hidden = false;
+    requestAnimationFrame(() => {
+        aiApiKeyInput.focus();
+        aiApiKeyInput.setSelectionRange(aiApiKeyInput.value.length, aiApiKeyInput.value.length);
+    });
+}
+
+btnAIToggleVis.addEventListener('click', () => {
+    const showing = aiApiKeyInput.type === 'text';
+    aiApiKeyInput.type = showing ? 'password' : 'text';
+    btnAIToggleVis.textContent = showing ? '显示' : '隐藏';
+});
+
+aiSettingsForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const raw = aiApiKeyInput.value.trim();
+    if (!raw) {
+        setOpenAIApiKey('');
+        syncAIButtonUI();
+        aiSettingsSheet.hidden = true;
+        showToast('已清除 ChatGPT API Key');
+        return;
+    }
+    setOpenAIApiKey(raw);
+    syncAIButtonUI();
+    aiSettingsSheet.hidden = true;
+    showToast('已保存 ChatGPT API Key');
+});
+
+btnAIClearKey.addEventListener('click', () => {
+    setOpenAIApiKey('');
+    aiApiKeyInput.value = '';
+    btnAIClearKey.hidden = true;
+    syncAIButtonUI();
+    setAISettingsMsg('已清除 API Key', 'info');
+    showToast('已清除 ChatGPT API Key');
+});
+
+function fillComposerWithTask(taskText, toastText = '已识别并填入输入框，确认后添加') {
+    composerInput.value = taskText;
+    syncComposerUI();
+    composerInput.focus();
+    const len = composerInput.value.length;
+    composerInput.setSelectionRange(len, len);
+    if (toastText) showToast(toastText);
+}
+
+function updateAIResultsState() {
+    const rows = [...aiResultsList.querySelectorAll('.ai-result-row')];
+    const validCount = rows.filter(r => parseNewTask(r.querySelector('.ai-result-input').value).text.length > 0).length;
+    aiResultsTitle.textContent = `识别到 ${rows.length} 条待办`;
+    btnAIAddAll.textContent = validCount > 0 ? `全部添加 (${validCount})` : '全部添加';
+    btnAIAddAll.disabled = validCount === 0;
+}
+
+function createAIResultRow(initialText) {
+    const li = document.createElement('li');
+    li.className = 'ai-result-row';
+
+    const main = document.createElement('div');
+    main.className = 'ai-result-main';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'ai-result-input';
+    input.maxLength = 300;
+    input.value = initialText;
+    input.setAttribute('aria-label', '识别出的待办内容');
+
+    const meta = document.createElement('div');
+    meta.className = 'ai-result-meta';
+
+    const syncRowPreview = () => {
+        meta.replaceChildren();
+        const { text, due, someday } = parseNewTask(input.value);
+        if (due && stripDue(text).length > 0) {
+            const badge = document.createElement('span');
+            badge.className = 'due';
+            paintDue(badge, due);
+            meta.appendChild(badge);
+        } else if (someday && text.length > 0) {
+            const pill = document.createElement('span');
+            pill.className = 'ai-result-someday';
+            pill.textContent = '以后再做';
+            meta.appendChild(pill);
+        }
+        updateAIResultsState();
+    };
+
+    input.addEventListener('input', syncRowPreview);
+    main.append(input, meta);
+
+    const actions = document.createElement('div');
+    actions.className = 'ai-result-actions';
+
+    const fillBtn = document.createElement('button');
+    fillBtn.type = 'button';
+    fillBtn.className = 'task-mini-btn';
+    fillBtn.title = '填入底部输入框';
+    fillBtn.setAttribute('aria-label', '填入底部输入框');
+    fillBtn.innerHTML = '<svg><use href="#i-fill-input"/></svg>';
+    fillBtn.addEventListener('click', () => {
+        const val = input.value.trim();
+        aiResultsSheet.hidden = true;
+        if (val) fillComposerWithTask(val, '已填入输入框');
+    });
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'task-mini-btn danger';
+    removeBtn.title = '移除此条';
+    removeBtn.setAttribute('aria-label', '移除此条');
+    removeBtn.innerHTML = '<svg><use href="#i-close"/></svg>';
+    removeBtn.addEventListener('click', () => {
+        li.remove();
+        if (aiResultsList.children.length === 0) {
+            aiResultsSheet.hidden = true;
+        } else {
+            updateAIResultsState();
+        }
+    });
+
+    actions.append(fillBtn, removeBtn);
+    li.append(main, actions);
+    syncRowPreview();
+    return li;
+}
+
+function openAIResultsSheet(tasks) {
+    const frag = document.createDocumentFragment();
+    for (const t of tasks) frag.appendChild(createAIResultRow(t));
+    aiResultsList.replaceChildren(frag);
+    updateAIResultsState();
+    aiResultsSheet.hidden = false;
+}
+
+btnAIAddAll.addEventListener('click', () => {
+    const values = [...aiResultsList.querySelectorAll('.ai-result-input')]
+        .map(el => el.value.trim())
+        .filter(Boolean);
+    if (!values.length) return;
+    const created = store.addTasks(values);
+    aiResultsSheet.hidden = true;
+    if (created.length) {
+        showToast(`已添加 ${created.length} 条任务`, '撤销', () => store.undo());
+    }
+});
+
+async function handleImageFile(file) {
+    if (!file) return;
+    if (isAIRecognizing) {
+        showToast('正在识别图片，请稍候…');
+        return;
+    }
+    if (!hasOpenAIApiKey()) {
+        openAISettingsSheet('请先设置 ChatGPT API Key，保存后即可上传图片识别。');
+        return;
+    }
+
+    isAIRecognizing = true;
+    syncAIButtonUI();
+    try {
+        const { tasks } = await recognizeTasksFromImage(file);
+        if (!tasks.length) {
+            showToast('未在图片中识别出待办事项');
+            return;
+        }
+        if (tasks.length === 1) {
+            fillComposerWithTask(tasks[0]);
+        } else {
+            openAIResultsSheet(tasks);
+        }
+    } catch (err) {
+        if (err?.name === 'AbortError') return;
+        const msg = err?.message || '图片识别失败';
+        if (err?.code === 'NO_API_KEY' || err?.status === 401) {
+            showToast(msg, '去设置', () => openAISettingsSheet(), 4500);
+        } else {
+            showToast(msg, null, null, 4200);
+        }
+    } finally {
+        isAIRecognizing = false;
+        syncAIButtonUI();
+    }
+}
+
+btnComposerAI.addEventListener('click', () => {
+    closeMoreMenu();
+    if (isAIRecognizing) return;
+    if (!hasOpenAIApiKey()) {
+        openAISettingsSheet('请先设置 ChatGPT API Key，保存后即可上传图片识别。');
+        return;
+    }
+    aiImageInput.value = '';
+    aiImageInput.click();
+});
+
+aiImageInput.addEventListener('change', () => {
+    const file = aiImageInput.files?.[0];
+    aiImageInput.value = '';
+    if (file) handleImageFile(file);
+});
+
+// Support pasting an image directly into the composer (or anywhere on the main canvas)
+document.addEventListener('paste', (e) => {
+    if (sync.isModalOpen() || !editSheet.hidden || !aiSettingsSheet.hidden || !aiResultsSheet.hidden || !doneSheet.hidden || !helpSheet.hidden) {
+        return;
+    }
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+        if (item.kind === 'file' && item.type.startsWith('image/')) {
+            const file = item.getAsFile();
+            if (file) {
+                e.preventDefault();
+                handleImageFile(file);
+                return;
+            }
+        }
+    }
+});
+
+// Support dragging & dropping an image file onto the composer bar (desktop)
+composerForm.addEventListener('dragover', (e) => {
+    if (e.dataTransfer?.types && [...e.dataTransfer.types].includes('Files')) {
+        e.preventDefault();
+        composerForm.classList.add('is-drag-over');
+    }
+});
+
+composerForm.addEventListener('dragleave', (e) => {
+    if (!composerForm.contains(e.relatedTarget)) {
+        composerForm.classList.remove('is-drag-over');
+    }
+});
+
+composerForm.addEventListener('drop', (e) => {
+    composerForm.classList.remove('is-drag-over');
+    const files = e.dataTransfer?.files;
+    if (!files?.length) return;
+    const imageFile = [...files].find(f => f.type.startsWith('image/'));
+    if (imageFile) {
+        e.preventDefault();
+        handleImageFile(imageFile);
+    }
+});
+
+window.addEventListener('storage', (e) => {
+    if (e.key === AI_SETTINGS_KEY) syncAIButtonUI();
+});
+
+// =========================================================================
 // Task Edit Sheet (Raw Text Editing with Live Trailing-Date Detection)
 // =========================================================================
 
@@ -1236,6 +1576,9 @@ moreMenu.addEventListener('click', (e) => {
         case 'sync-settings':
             sync.openSettings();
             break;
+        case 'ai-settings':
+            openAISettingsSheet();
+            break;
         case 'help':
             helpSheet.hidden = false;
             break;
@@ -1248,7 +1591,7 @@ moreMenu.addEventListener('click', (e) => {
             showToast('已导出 Markdown');
             break;
         case 'export-json':
-            downloadFile(store.exportJSON(), `mylist-${toDateStr()}.json`, 'application/json;charset=utf-8');
+            downloadFile(store.exportJSON(exportAISettings()), `mylist-${toDateStr()}.json`, 'application/json;charset=utf-8');
             showToast('已导出 JSON 备份');
             break;
         case 'import-json':
@@ -1263,8 +1606,19 @@ fileInput.addEventListener('change', async () => {
     if (!file) return;
     try {
         const text = await file.text();
+        const parsed = JSON.parse(text);
+        const prevKey = getOpenAIApiKey();
         const count = store.importJSON(text);
-        showToast(`已导入 ${count} 条任务`, '撤销', () => store.undo());
+        const importedKey = importAISettings(parsed?.settings);
+        if (importedKey) syncAIButtonUI();
+        const msg = importedKey ? `已导入 ${count} 条任务及 API Key` : `已导入 ${count} 条任务`;
+        showToast(msg, '撤销', () => {
+            store.undo();
+            if (importedKey) {
+                setOpenAIApiKey(prevKey);
+                syncAIButtonUI();
+            }
+        });
     } catch (err) {
         showToast(`导入失败：${err.message || '格式不正确'}`);
     }
@@ -1340,7 +1694,11 @@ const sync = createCloudSync({
     getLocalData: () => store.getSyncSnapshot(),
     mergeData: (local, remote) => mergeListStates(local, remote),
     applyMergedData: (merged) => store.applyRemoteState(merged),
-    isBusy: () => Boolean(!editSheet.hidden || drag),
+    isBusy: () => Boolean(!editSheet.hidden || !aiSettingsSheet.hidden || !aiResultsSheet.hidden || drag),
+    getPairingExtras: () => exportAISettings(),
+    applyPairingExtras: (extras) => {
+        if (importAISettings(extras)) syncAIButtonUI();
+    },
     onStatusChange: updateSyncUI,
     onToast: (msg, opts) => showToast(msg, opts?.actionLabel || null, opts?.onAction || null, opts?.duration || 2800),
 });
@@ -1372,6 +1730,8 @@ document.addEventListener('keydown', (e) => {
 
     if (e.key === 'Escape') {
         if (!editSheet.hidden) closeEditSheet();
+        else if (!aiSettingsSheet.hidden) aiSettingsSheet.hidden = true;
+        else if (!aiResultsSheet.hidden) aiResultsSheet.hidden = true;
         else if (!doneSheet.hidden) doneSheet.hidden = true;
         else if (!helpSheet.hidden) helpSheet.hidden = true;
         else closeMoreMenu();
@@ -1422,6 +1782,7 @@ document.addEventListener('visibilitychange', () => {
 
 // Initial render
 syncComposerUI();
+syncAIButtonUI();
 render();
 sync.start();
 

@@ -2,7 +2,7 @@
 // A single worker serves both purposes so registration scope stays ./.
 
 const CACHE_PREFIX = 'mylist-shell-';
-const CACHE_NAME = `${CACHE_PREFIX}2`;
+const CACHE_NAME = `${CACHE_PREFIX}3`;
 const HOME = self.registration.scope;
 const INDEX = new URL('./index.html', HOME).href;
 
@@ -12,6 +12,7 @@ const ASSET_PATHS = [
     './style.css',
     './app.js',
     './model.js',
+    './ai.js',
     './favicon.svg',
     './apple-touch-icon.png',
     './manifest.webmanifest',

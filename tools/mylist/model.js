@@ -527,6 +527,61 @@ export class MyListStore {
         return item;
     }
 
+    /**
+     * Add multiple tasks in a single undoable transaction (e.g. AI image recognition).
+     */
+    addTasks(rawTexts, { zone = 'now', now = new Date() } = {}) {
+        if (!Array.isArray(rawTexts) || !rawTexts.length) return [];
+        const parsedList = rawTexts
+            .map(raw => parseNewTask(raw, now))
+            .filter(p => p.text.length > 0);
+        if (!parsedList.length) return [];
+
+        this._pushUndo(parsedList.length === 1 ? '添加任务' : `添加 ${parsedList.length} 条任务`);
+        const baseTs = now.getTime();
+        const nowList = this.getNowItems();
+        const somedayList = this.getSomedayItems();
+        let nextNowOrder = nowList.length ? nowList[nowList.length - 1].order + 1 : 0;
+        let nextSomedayOrder = somedayList.length ? somedayList[somedayList.length - 1].order + 1 : 0;
+
+        const created = [];
+        parsedList.forEach(({ text, due, someday }, idx) => {
+            const targetZone = isFutureDue(due, now)
+                ? 'scheduled'
+                : (due ? 'now' : (someday || zone === 'someday' ? 'someday' : 'now'));
+            const order = targetZone === 'now'
+                ? nextNowOrder++
+                : (targetZone === 'someday' ? nextSomedayOrder++ : 0);
+            const ts = baseTs + idx;
+            const item = {
+                id: uid(),
+                text,
+                note: '',
+                zone: targetZone,
+                done: false,
+                doneAt: null,
+                createdAt: ts,
+                updatedAt: ts,
+                order,
+            };
+            setRepeatDate(item, due, now);
+            this.items.push(item);
+            created.push(item);
+        });
+
+        this._normalizeOrders('now');
+        this._normalizeOrders('someday');
+        const last = created[created.length - 1];
+        this.emit({
+            type: created.length === 1 ? 'add' : 'add-batch',
+            id: last.id,
+            ids: created.map(t => t.id),
+            zone: last.zone,
+            count: created.length,
+        });
+        return created;
+    }
+
     updateTask(id, patch = {}, now = new Date()) {
         const item = this.getById(id);
         if (!item) return null;
@@ -705,13 +760,17 @@ export class MyListStore {
         this.emit({ type: 'sample' });
     }
 
-    exportJSON() {
-        return JSON.stringify({
+    exportJSON(settings = null) {
+        const payload = {
             app: 'MyList',
             version: 2,
             exportedAt: new Date().toISOString(),
             items: this.items,
-        }, null, 2);
+        };
+        if (settings && typeof settings === 'object' && Object.keys(settings).length > 0) {
+            payload.settings = settings;
+        }
+        return JSON.stringify(payload, null, 2);
     }
 
     exportMarkdown() {

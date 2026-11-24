@@ -176,11 +176,15 @@ function getPairKey() {
     return pairKeyPromise;
 }
 
-export async function encodePairingCode(config) {
-    const payload = JSON.stringify({
+export async function encodePairingCode(config, extras = null) {
+    const obj = {
         endpoint: config.endpoint,
         token: config.token,
-    });
+    };
+    if (extras && typeof extras === 'object' && !Array.isArray(extras) && Object.keys(extras).length > 0) {
+        obj.extras = extras;
+    }
+    const payload = JSON.stringify(obj);
     const data = new TextEncoder().encode(payload);
     const key = await getPairKey();
     if (key) {
@@ -228,7 +232,10 @@ export async function decodePairingCode(input) {
     const endpoint = normalizeEndpoint(obj?.endpoint);
     const token = typeof obj?.token === 'string' ? obj.token.trim() : '';
     if (!endpoint || !token) throw new Error('配对码中缺少服务地址或密钥');
-    return { endpoint, token };
+    const extras = obj?.extras && typeof obj.extras === 'object' && !Array.isArray(obj.extras)
+        ? obj.extras
+        : null;
+    return extras ? { endpoint, token, extras } : { endpoint, token };
 }
 
 /* ---------- Cloudflare Worker REST API ---------- */
@@ -364,6 +371,8 @@ export function createCloudSync({
     onStatusChange = () => {},
     onToast = () => {},
     pushWorkerUrl = '',
+    getPairingExtras = null,
+    applyPairingExtras = null,
     debounceMs = 1500,
     resumeThrottleMs = 15000,
     autoSyncIntervalMs = DEFAULT_AUTO_SYNC_INTERVAL_MS,
@@ -1048,6 +1057,9 @@ export function createCloudSync({
                     }
                     applyNewConfig(verified);
                 });
+                if (rawCfg?.extras && typeof applyPairingExtras === 'function') {
+                    applyPairingExtras(rawCfg.extras);
+                }
                 setMsg(statusEl, '连接成功，正在首次同步…', 'ok');
                 const syncRes = await syncNow({ manual: false });
                 if (syncRes.ok) {
@@ -1158,7 +1170,8 @@ export function createCloudSync({
         modal.copyLinkBtn.addEventListener('click', async () => {
             if (!config) return;
             try {
-                const code = await encodePairingCode(config);
+                const extras = typeof getPairingExtras === 'function' ? getPairingExtras() : null;
+                const code = await encodePairingCode(config, extras);
                 const url = `${location.origin}${location.pathname}#sync=${encodeURIComponent(code)}`;
                 await copyText(url);
                 setMsg(modal.exportMsg, '已复制配对链接！在新设备浏览器打开即可关联。', 'ok');
@@ -1170,7 +1183,8 @@ export function createCloudSync({
         modal.copyCodeBtn.addEventListener('click', async () => {
             if (!config) return;
             try {
-                const code = await encodePairingCode(config);
+                const extras = typeof getPairingExtras === 'function' ? getPairingExtras() : null;
+                const code = await encodePairingCode(config, extras);
                 await copyText(code);
                 setMsg(modal.exportMsg, '已复制配对码！可在另一设备的同步设置中导入。', 'ok');
             } catch (err) {
