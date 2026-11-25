@@ -860,7 +860,7 @@ export function createCloudSync({
                             </div>
                         </div>
                         <p class="csync-note" style="margin-top: 10px;">
-                            检测到来自其他设备的云同步配对链接。确认后将保存到当前浏览器，并与同域名下的 MyMind / MyList 共用。
+                            检测到来自其他设备的云同步配对链接。确认后将保存到当前浏览器，并与同域名下的 MyMind / MyList / ai问记 共用。
                         </p>
                         <div class="csync-actions" style="margin-top: 12px;">
                             <button type="button" class="csync-btn csync-btn-primary" data-csync-pair-accept>确认关联并同步</button>
@@ -895,7 +895,7 @@ export function createCloudSync({
                         <div class="csync-error-box" data-csync-err-box hidden></div>
 
                         <p class="csync-note" data-csync-intro>
-                            可选功能：连接到你的 Cloudflare Worker + D1 轻量数据库，即可在多设备间低延迟自动同步。未配置时不发起任何网络请求；配置后与同域名下的 MyMind / MyList 自动共享。
+                            可选功能：连接到你的 Cloudflare Worker + D1 轻量数据库，即可在多设备间低延迟自动同步。未配置时不发起任何网络请求；配置后与同域名下的 MyMind / MyList / ai问记 自动共享。
                         </p>
 
                         <form data-csync-form style="display:flex;flex-direction:column;gap:12px;">

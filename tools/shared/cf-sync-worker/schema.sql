@@ -2,7 +2,7 @@
 -- Note: worker.js also auto-runs these CREATE TABLE IF NOT EXISTS statements on cold start,
 -- so Dashboard deployments work without manually running this SQL file.
 
--- Synced application state documents (e.g. mylist, mymind)
+-- Synced application state documents (e.g. mylist, mymind, aiwenji)
 CREATE TABLE IF NOT EXISTS sync_docs (
     app_id     TEXT PRIMARY KEY,
     payload    TEXT NOT NULL,

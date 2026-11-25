@@ -1,6 +1,8 @@
 # Cloudflare Worker + D1 云同步服务
 
-为 `MyList`、`MyMind` 等个人静态网页工具提供低延迟、强一致的云端同步后端（基于 Cloudflare Workers + D1 轻量 SQLite），免费额度即可满足个人长期使用（Worker 10 万次/天，D1 500 万读 + 10 万写/天）。
+为 `MyList`、`MyMind`、`ai问记 (aiwenji)` 等个人静态网页工具提供低延迟、强一致的云端同步后端（基于 Cloudflare Workers + D1 轻量 SQLite），免费额度即可满足个人长期使用（Worker 10 万次/天，D1 500 万读 + 10 万写/天）。
+
+> **已有同步服务无需重复部署**：`worker.js` 通过 `/api/sync/:appId` 动态支持任意有效 `appId`（如 `mylist`、`mymind`、`aiwenji`），同域名下各工具会自动共用浏览器中已保存的 Worker 地址和 `SYNC_TOKEN`。
 
 MyList 支持在 iOS 主屏幕 App 中接收任务到期通知。Worker 每分钟读取 D1 中的 MyList 任务，按同步文档的时区检查带具体时间的未完成任务，例如 `交报告 11.25 14:30`。Worker 按设备和到期时间去重，并在最近十分钟内重试 Apple 明确返回的临时错误。
 
