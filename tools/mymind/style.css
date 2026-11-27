@@ -35,19 +35,27 @@
     --wait-calm-ink: #3d5f99;
     --wait-warm-bg: #fde3c2;
     --wait-warm-ink: #a4520a;
-    /* Running badges (">" / ">>" / ">>>") and the tiered always-bright wash over their subtrees. */
+    /* Running badges (">" .. ">>>>") and the tiered always-bright wash over their subtrees. */
     --run-bg: #d3f5df;
     --run-ink: #18794a;
     --run-wash: rgba(46, 180, 105, .1);
-    --run-ring: none;
+    --run-ring: inset 0 0 0 0 transparent;
+    --run-glow: 0 0 0 0 transparent;
     --run-2-bg: #8de6b3;
     --run-2-ink: #0c5c33;
     --run-2-wash: rgba(34, 198, 106, .24);
     --run-2-ring: inset 0 0 0 1px rgba(24, 158, 84, .26);
+    --run-2-glow: 0 0 0 0 transparent;
     --run-3-bg: #159c4e;
     --run-3-ink: #fff;
     --run-3-wash: rgba(24, 214, 108, .42);
-    --run-3-ring: inset 0 0 0 1.5px rgba(18, 156, 78, .55), 0 0 10px rgba(24, 208, 106, .26);
+    --run-3-ring: inset 0 0 0 1.5px rgba(18, 156, 78, .55);
+    --run-3-glow: 0 0 10px rgba(24, 208, 106, .26);
+    --run-4-bg: #e03e45;
+    --run-4-ink: #fff;
+    --run-4-wash: rgba(242, 72, 78, .3);
+    --run-4-ring: inset 0 0 0 1.5px rgba(220, 48, 56, .62);
+    --run-4-glow: 0 0 12px rgba(242, 72, 78, .32);
     font: 15px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Segoe UI", "Microsoft YaHei", sans-serif;
     color: var(--ink);
     -webkit-font-smoothing: antialiased;
@@ -91,15 +99,23 @@
         --run-bg: rgba(70, 205, 130, .22);
         --run-ink: #7fe0a8;
         --run-wash: rgba(70, 205, 130, .1);
-        --run-ring: none;
+        --run-ring: inset 0 0 0 0 transparent;
+        --run-glow: 0 0 0 0 transparent;
         --run-2-bg: rgba(56, 220, 128, .42);
         --run-2-ink: #c2ffdc;
         --run-2-wash: rgba(58, 218, 128, .22);
         --run-2-ring: inset 0 0 0 1px rgba(84, 232, 148, .32);
+        --run-2-glow: 0 0 0 0 transparent;
         --run-3-bg: #2ed87a;
         --run-3-ink: #052614;
         --run-3-wash: rgba(50, 228, 130, .38);
-        --run-3-ring: inset 0 0 0 1.5px rgba(102, 248, 166, .65), 0 0 12px rgba(56, 232, 136, .3);
+        --run-3-ring: inset 0 0 0 1.5px rgba(102, 248, 166, .65);
+        --run-3-glow: 0 0 12px rgba(56, 232, 136, .3);
+        --run-4-bg: #ff646b;
+        --run-4-ink: #240406;
+        --run-4-wash: rgba(255, 82, 92, .34);
+        --run-4-ring: inset 0 0 0 1.5px rgba(255, 118, 126, .7);
+        --run-4-glow: 0 0 14px rgba(255, 76, 86, .35);
     }
 }
 
@@ -145,12 +161,22 @@ svg use { pointer-events: none; }
     background: var(--root-bg); border: 1.5px solid var(--root-border); border-radius: 12px;
     box-shadow: var(--shadow); align-items: center;
 }
-/* A running (">" / ">>" / ">>>") node and its whole subtree get a tiered green highlight; selection still wins. */
-.node.running:not(.d0, .selected, .drop-inside) { background: var(--run-wash); box-shadow: var(--run-ring); border-radius: 6px 6px 2px 2px; }
-.node.running[data-run="2"]:not(.d0, .selected, .drop-inside) { background: var(--run-2-wash); box-shadow: var(--run-2-ring); }
-.node.running[data-run="3"]:not(.d0, .selected, .drop-inside) { background: var(--run-3-wash); box-shadow: var(--run-3-ring); }
+/* A running (">" .. ">>>>") node and its whole subtree get a tiered highlight. */
+.node.running:not(.d0, .drop-inside) {
+    --node-wash: var(--run-wash);
+    --node-ring: var(--run-ring);
+    --node-glow: var(--run-glow);
+    background: var(--node-wash);
+    box-shadow: var(--node-ring), var(--node-glow);
+    border-radius: 6px 6px 2px 2px;
+}
+.node.running[data-run="2"]:not(.d0, .drop-inside) { --node-wash: var(--run-2-wash); --node-ring: var(--run-2-ring); --node-glow: var(--run-2-glow); }
+.node.running[data-run="3"]:not(.d0, .drop-inside) { --node-wash: var(--run-3-wash); --node-ring: var(--run-3-ring); --node-glow: var(--run-3-glow); }
+.node.running[data-run="4"]:not(.d0, .drop-inside) { --node-wash: var(--run-4-wash); --node-ring: var(--run-4-ring); --node-glow: var(--run-4-glow); }
 /* One highlight for selection, focus and editing. Child nodes get a ring whose bottom edge is the branch line. */
 .node.selected { background: var(--accent-soft); box-shadow: inset 0 0 0 1.5px var(--accent); border-radius: 6px 6px 2px 2px; }
+/* Selected running nodes keep their highlight wash and outer glow, framed by the selection ring. */
+.node.running.selected:not(.d0, .drop-inside) { background: var(--node-wash); box-shadow: inset 0 0 0 2px var(--accent), var(--node-glow); }
 .node.d0.selected { background: var(--root-bg); border-color: var(--accent); box-shadow: var(--shadow); border-radius: 12px; }
 .node.editing { cursor: text; user-select: text; -webkit-user-select: text; }
 .node.editing .text { cursor: text; }
@@ -177,7 +203,7 @@ svg use { pointer-events: none; }
     color: color-mix(in srgb, var(--wait-warm-ink) var(--wait-mix, 0%), var(--wait-calm-ink));
 }
 .node.done .wait { background: var(--due-neutral-bg); color: var(--due-neutral-ink); }
-/* Running badge for a leading ">", ">>" or ">>>". */
+/* Running badge for a leading ">", ">>", ">>>" or ">>>>". */
 .node .run {
     --badge-bg: var(--run-bg); --badge-ink: var(--run-ink);
     display: inline-block; margin-right: .45em; padding: 0 .55em;
@@ -186,6 +212,7 @@ svg use { pointer-events: none; }
 }
 .node .run[data-level="2"] { --badge-bg: var(--run-2-bg); --badge-ink: var(--run-2-ink); }
 .node .run[data-level="3"] { --badge-bg: var(--run-3-bg); --badge-ink: var(--run-3-ink); }
+.node .run[data-level="4"] { --badge-bg: var(--run-4-bg); --badge-ink: var(--run-4-ink); }
 .node.done .run { --badge-bg: var(--due-neutral-bg); --badge-ink: var(--due-neutral-ink); }
 /* The label, not the icon, sets the baseline so the pill lines up with the title text. */
 .hourglass { display: inline-block; width: 1.2em; height: 1.2em; margin-right: .2em; vertical-align: -.24em; overflow: visible; }

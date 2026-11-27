@@ -1,5 +1,5 @@
 import {
-    PALETTE_SIZE, buildIndex, cloneNode, compareVersions, computeLayout, countNodes, createMap, createNode,
+    MAX_RUN_LEVEL, PALETTE_SIZE, buildIndex, cloneNode, compareVersions, computeLayout, countNodes, createMap, createNode,
     dueDate, dueDayLabel, dueStatus, expandQuickDue, exportOPML, importOPML, isValidMap, isValidNode, mergeMindStates, nextColor, nextWaitSince, nodesToPlainText, parseDue, sampleMap, subtreeIds,
     runLevel, runPrefix, visibleChildren, waitDuration, waitPrefix, waitShort,
 } from './model.js';
@@ -8,6 +8,7 @@ import { createCloudSync, formatSyncTime } from '../shared/cloud-sync.js';
 // Release changelog (newest first). Prepend a new entry on each user-facing update;
 // clients with an older stored version will see a one-line update toast on startup.
 const RELEASES = [
+    { version: '1.2.1', note: '新增 >>>> 四级红标高亮，选中高亮节点时保留底色' },
     { version: '1.2.0', note: '执行中标记扩展为 > / >> / >>> 三级高亮' },
     { version: '1.1.0', note: '支持单选与多选节点的复制、剪切与粘贴为子节点' },
     { version: '1.0.0', note: '支持定期自动云同步与唤醒恢复' },
@@ -56,7 +57,7 @@ const fileInput = $('file-input');
 
 let state = { maps: [], activeId: null, deletedMaps: {} };
 let index = new Map();
-let running = new Map();        // id -> max highlight level (1..3) from ">", ">>", ">>>" nodes and their subtrees
+let running = new Map();        // id -> max highlight level (1..4) from ">" .. ">>>>" nodes and their subtrees
 let positions = new Map();
 let selectedId = null;          // primary (focused) node
 let selection = new Set();      // all selected nodes, always includes selectedId
@@ -326,7 +327,7 @@ function runBadge(level, done) {
     badge.className = 'run';
     badge.dataset.level = String(level);
     badge.textContent = '>'.repeat(level);
-    const tier = ['', '高亮', '更高亮', '最高亮'][level];
+    const tier = ['', '高亮', '更高亮', '超亮', '最高亮'][level];
     badge.title = done ? '已完成' : `执行中（${tier}）：这个节点和它的子节点始终高亮`;
     return badge;
 }
@@ -978,7 +979,7 @@ function toggleTask() {
     });
 }
 
-// Set the running highlight level (0 = remove, 1 = ">", 2 = ">>", 3 = ">>>") on every selected node.
+// Set the running highlight level (0 = remove, 1..4 = ">" .. ">>>>") on every selected node.
 function setRunLevel(level) {
     const infos = [...selection].map(id => index.get(id)).filter(Boolean);
     if (!infos.length) return;
@@ -1751,7 +1752,7 @@ function openMenu(id, x, y) {
     const level = runLevel(node.text);
     const statusGroup = [
         level === 0 && { icon: 'run', label: '标记为执行中', keys: '>', run: () => setRunLevel(1) },
-        level > 0 && level < 3 && { icon: 'run', label: '提高高亮级别', keys: '>'.repeat(level + 1), run: () => setRunLevel(level + 1) },
+        level > 0 && level < MAX_RUN_LEVEL && { icon: 'run', label: '提高高亮级别', keys: '>'.repeat(level + 1), run: () => setRunLevel(level + 1) },
         level > 0 && { icon: 'run', label: '取消执行中', keys: '>'.repeat(level), run: () => setRunLevel(0) },
         { icon: 'hourglass', label: waitPrefix(node.text) ? '结束等待' : '开始等待', keys: '===', run: () => toggleMarker('wait') },
     ];
@@ -2162,7 +2163,7 @@ function renderHelp() {
         ['截止日期（标题末尾）', '11.20 / 11-20 / 11.20 23:00'],
         ['快捷日期（保存时转成日期）', 'today / tmr / sun / next mon / 23:32'],
         ['等待中（标题开头）', '=== QA testing'],
-        ['执行中（标题开头，子树分级高亮）', '> / >> / >>> 写周报'],
+        ['执行中（标题开头，子树 4 级高亮）', '> / >> / >>> / >>>> 写周报'],
         ['撤销 / 重做', `${MOD}Z / ⇧${MOD}Z`],
         ['保存 / 强制云同步', `${MOD}S`],
         ['上下 / 左右移动画布', '滚轮 / ⇧ 滚轮'],
