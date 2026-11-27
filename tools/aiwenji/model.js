@@ -54,8 +54,8 @@ export const AI_PROVIDERS = {
         id: 'deepseek',
         displayName: 'DeepSeek',
         chatCompletionsURL: 'https://api.deepseek.com/chat/completions',
-        knownModels: ['deepseek-v4-flash', 'deepseek-chat'],
-        defaultModel: 'deepseek-v4-flash',
+        knownModels: ['deepseek-flash', 'deepseek-v4-pro'],
+        defaultModel: 'deepseek-flash',
         tokenConsoleURL: 'https://platform.deepseek.com/api_keys',
         tokenConsoleTitle: '在 DeepSeek 开放平台创建 API Token',
     },
@@ -72,6 +72,9 @@ export function resolveModel(providerId, modelsByProvider) {
     const selected = typeof modelsByProvider?.[provider.id] === 'string'
         ? modelsByProvider[provider.id].trim()
         : '';
+    if (provider.id === 'deepseek' && (selected === 'deepseek-v4-flash' || selected === 'deepseek-chat')) {
+        return 'deepseek-flash';
+    }
     return selected || provider.defaultModel;
 }
 
@@ -444,14 +447,9 @@ export function normalizeSettings(raw) {
 
     const provider = AI_PROVIDERS[raw.provider] ? raw.provider : base.provider;
 
-    const modelsByProvider = { ...base.modelsByProvider };
-    if (raw.modelsByProvider && typeof raw.modelsByProvider === 'object') {
-        for (const pid of PROVIDER_ORDER) {
-            const val = raw.modelsByProvider[pid];
-            if (typeof val === 'string' && val.trim()) {
-                modelsByProvider[pid] = val.trim();
-            }
-        }
+    const modelsByProvider = {};
+    for (const pid of PROVIDER_ORDER) {
+        modelsByProvider[pid] = resolveModel(pid, raw.modelsByProvider);
     }
 
     return {
