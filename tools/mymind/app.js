@@ -1,13 +1,14 @@
 import {
     PALETTE_SIZE, buildIndex, cloneNode, compareVersions, computeLayout, countNodes, createMap, createNode,
     dueDate, dueDayLabel, dueStatus, expandQuickDue, exportOPML, importOPML, isValidMap, isValidNode, mergeMindStates, nextColor, nextWaitSince, nodesToPlainText, parseDue, sampleMap, subtreeIds,
-    runPrefix, visibleChildren, waitDuration, waitPrefix, waitShort,
+    runLevel, runPrefix, visibleChildren, waitDuration, waitPrefix, waitShort,
 } from './model.js';
 import { createCloudSync, formatSyncTime } from '../shared/cloud-sync.js';
 
 // Release changelog (newest first). Prepend a new entry on each user-facing update;
 // clients with an older stored version will see a one-line update toast on startup.
 const RELEASES = [
+    { version: '1.2.0', note: '执行中标记扩展为 > / >> / >>> 三级高亮' },
     { version: '1.1.0', note: '支持单选与多选节点的复制、剪切与粘贴为子节点' },
     { version: '1.0.0', note: '支持定期自动云同步与唤醒恢复' },
 ];
@@ -55,7 +56,7 @@ const fileInput = $('file-input');
 
 let state = { maps: [], activeId: null, deletedMaps: {} };
 let index = new Map();
-let running = new Set();        // ids of ">>>" nodes and everything under them
+let running = new Map();        // id -> max highlight level (1..3) from ">", ">>", ">>>" nodes and their subtrees
 let positions = new Map();
 let selectedId = null;          // primary (focused) node
 let selection = new Set();      // all selected nodes, always includes selectedId
@@ -248,7 +249,9 @@ function buildNode({ node, depth, side, color }, levels = shadeLevels()) {
     el.dataset.side = side;
     el.style.setProperty('--c', `var(--b${color % PALETTE_SIZE})`);
     el.classList.toggle('folded', Boolean(node.folded && node.children.length));
-    el.classList.toggle('running', running.has(node.id));
+    const runLvl = running.get(node.id) ?? 0;
+    el.classList.toggle('running', runLvl > 0);
+    if (runLvl) el.dataset.run = String(runLvl);
     if (node.task) {
         const box = controlButton('check', node.task === 'done' ? '标记为未完成' : '标记为完成', icon(node.task === 'done' ? 'circle-check' : 'circle'));
         el.append(box);
@@ -271,15 +274,15 @@ function buildNode({ node, depth, side, color }, levels = shadeLevels()) {
     return el;
 }
 
-// A leading ">>>" becomes a running badge, a leading "===" (after it, if both) a waiting badge,
-// and a trailing "MM-DD" / "MM.DD" (optionally + " HH:MM") a deadline badge.
+// A leading ">", ">>" or ">>>" becomes a tiered running badge, a leading "===" (after it, if both)
+// a waiting badge, and a trailing "MM-DD" / "MM.DD" (optionally + " HH:MM") a deadline badge.
 function fillText(el, node) {
     const done = node.task === 'done';
     const parts = [];
     let value = node.text;
     const run = runPrefix(value);
     if (run) {
-        parts.push(runBadge(done));
+        parts.push(runBadge(runLevel(value), done));
         value = value.slice(run);
     }
     const wait = waitPrefix(value);
@@ -318,11 +321,13 @@ function flipHourglass(badge) {
     glass.classList.add('flip');
 }
 
-function runBadge(done) {
+function runBadge(level, done) {
     const badge = document.createElement('span');
     badge.className = 'run';
-    badge.textContent = '>>>';
-    badge.title = done ? '已完成' : '执行中：这个节点和它的子节点始终高亮';
+    badge.dataset.level = String(level);
+    badge.textContent = '>'.repeat(level);
+    const tier = ['', '高亮', '更高亮', '最高亮'][level];
+    badge.title = done ? '已完成' : `执行中（${tier}）：这个节点和它的子节点始终高亮`;
     return badge;
 }
 
@@ -401,8 +406,14 @@ function render() {
     if (drag?.kind === 'node') cancelDrag();
     const map = activeMap();
     index = buildIndex(map.root);
-    running = new Set();
-    for (const { node } of index.values()) if (runPrefix(node.text)) subtreeIds(node, running);
+    running = new Map();
+    for (const { node } of index.values()) {
+        const level = runLevel(node.text);
+        if (!level) continue;
+        for (const id of subtreeIds(node)) {
+            if (level > (running.get(id) ?? 0)) running.set(id, level);
+        }
+    }
     const kept = [...selection].filter(id => index.has(id));
     setSelection(kept, index.has(selectedId) ? selectedId : kept.at(-1) ?? null, false);
     const fragment = document.createDocumentFragment();
@@ -450,7 +461,7 @@ function shadeLevels() {
 
 // Level 0 is full strength; levels 1..8 step from 90% colour / no dimming down to
 // 0% colour / full dimming, the same look as a dimmed node in focus mode.
-// Running (">>>") subtrees always stay at full strength.
+// Running (">" / ">>" / ">>>") subtrees always stay at full strength.
 function shade(el, levels) {
     const level = levels && !running.has(el.dataset.id) ? levels.get(el.dataset.id) ?? FADE_STEPS : 0;
     const t = (level - 1) / (FADE_STEPS - 2);
@@ -967,23 +978,37 @@ function toggleTask() {
     });
 }
 
-// Add or remove the ">>>" (running) or "===" (waiting) marker on every selected node,
+// Set the running highlight level (0 = remove, 1 = ">", 2 = ">>", 3 = ">>>") on every selected node.
+function setRunLevel(level) {
+    const infos = [...selection].map(id => index.get(id)).filter(Boolean);
+    if (!infos.length) return;
+    const prefix = level > 0 ? `${'>'.repeat(level)} ` : '';
+    commit(() => {
+        for (const { node } of infos) {
+            const text = node.text;
+            if (runLevel(text) === level) continue;
+            setTitle(node, `${prefix}${text.slice(runPrefix(text))}`);
+        }
+    });
+}
+
+// Add or remove the ">" (running) or "===" (waiting) marker on every selected node,
 // following the primary node: if it has the marker, all lose it, otherwise all gain it.
 function toggleMarker(kind) {
     const infos = [...selection].map(id => index.get(id)).filter(Boolean);
     const primary = index.get(selectedId)?.node;
     if (!infos.length || !primary) return;
-    const has = text => (kind === 'run' ? runPrefix(text) : waitPrefix(text)) > 0;
+    if (kind === 'run') return setRunLevel(runLevel(primary.text) ? 0 : 1);
+    const has = text => waitPrefix(text) > 0;
     const on = !has(primary.text);
     commit(() => {
         for (const { node } of infos) {
             const text = node.text;
             if (has(text) === on) continue;
             const run = runPrefix(text);
-            let next;
-            if (kind === 'run') next = on ? `>>> ${text}` : text.slice(run);
-            else if (on) next = run ? `${text.slice(0, run).trimEnd()} === ${text.slice(run)}` : `=== ${text}`;
-            else next = text.slice(0, run) + text.slice(waitPrefix(text));
+            const next = on
+                ? (run ? `${text.slice(0, run).trimEnd()} === ${text.slice(run)}` : `=== ${text}`)
+                : text.slice(0, run) + text.slice(waitPrefix(text));
             setTitle(node, next);
         }
     });
@@ -1723,6 +1748,13 @@ function openMenu(id, x, y) {
     const deletable = [...selection].some(s => index.get(s)?.parent);
     const cuttable = !selection.has(activeMap().root.id);
     const keyMod = isMac ? '⌘' : 'Ctrl+';
+    const level = runLevel(node.text);
+    const statusGroup = [
+        level === 0 && { icon: 'run', label: '标记为执行中', keys: '>', run: () => setRunLevel(1) },
+        level > 0 && level < 3 && { icon: 'run', label: '提高高亮级别', keys: '>'.repeat(level + 1), run: () => setRunLevel(level + 1) },
+        level > 0 && { icon: 'run', label: '取消执行中', keys: '>'.repeat(level), run: () => setRunLevel(0) },
+        { icon: 'hourglass', label: waitPrefix(node.text) ? '结束等待' : '开始等待', keys: '===', run: () => toggleMarker('wait') },
+    ];
     const groups = multi ? [
         [
             { icon: 'copy', label: '复制', keys: `${keyMod}C`, run: () => copySelected() },
@@ -1731,10 +1763,7 @@ function openMenu(id, x, y) {
         [
             { icon: 'task', label: node.task ? '移除待办' : '设为待办', keys: '⌥T', run: toggleTask },
         ],
-        [
-            { icon: 'run', label: runPrefix(node.text) ? '取消执行中' : '标记为执行中', keys: '>>>', run: () => toggleMarker('run') },
-            { icon: 'hourglass', label: waitPrefix(node.text) ? '结束等待' : '开始等待', keys: '===', run: () => toggleMarker('wait') },
-        ],
+        statusGroup,
         [
             deletable && { icon: 'trash', label: `删除 ${selection.size} 个节点`, keys: '⌫', run: deleteSelected, danger: true },
         ],
@@ -1755,10 +1784,7 @@ function openMenu(id, x, y) {
             { icon: 'note', label: node.note ? '编辑备注' : '添加备注', keys: '⌥N', run: () => openNote(id) },
             !isRoot && node.children.length > 0 && { icon: 'chevron', label: node.folded ? '展开' : '折叠', keys: '⌥.', run: () => toggleFold(id) },
         ],
-        [
-            { icon: 'run', label: runPrefix(node.text) ? '取消执行中' : '标记为执行中', keys: '>>>', run: () => toggleMarker('run') },
-            { icon: 'hourglass', label: waitPrefix(node.text) ? '结束等待' : '开始等待', keys: '===', run: () => toggleMarker('wait') },
-        ],
+        statusGroup,
         [
             !isRoot && { icon: 'trash', label: '删除', keys: '⌫', run: deleteSelected, danger: true },
         ],
@@ -2136,7 +2162,7 @@ function renderHelp() {
         ['截止日期（标题末尾）', '11.20 / 11-20 / 11.20 23:00'],
         ['快捷日期（保存时转成日期）', 'today / tmr / sun / next mon / 23:32'],
         ['等待中（标题开头）', '=== QA testing'],
-        ['执行中（标题开头，整棵子树高亮）', '>>> 写周报'],
+        ['执行中（标题开头，子树分级高亮）', '> / >> / >>> 写周报'],
         ['撤销 / 重做', `${MOD}Z / ⇧${MOD}Z`],
         ['保存 / 强制云同步', `${MOD}S`],
         ['上下 / 左右移动画布', '滚轮 / ⇧ 滚轮'],

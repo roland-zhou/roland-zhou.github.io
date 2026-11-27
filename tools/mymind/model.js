@@ -348,14 +348,24 @@ export function dueStatus(due, now = new Date()) {
     return ahead === 0 ? { state: 'today', days: 0 } : { state: 'upcoming', days: ahead };
 }
 
-// A title starting with ">>>" (or more ">") is being worked on right now, e.g. ">>> Write the report".
-// Returns the length of the marker (including the spaces after it), or 0.
+// A title starting with ">", ">>" or ">>>" (or more ">") is being worked on right now with
+// increasing highlight strength (levels 1..3), e.g. "> Write the report".
+// Avoid matching comparison operators like ">= 10" or ">>= 1", while still allowing ">=== wait".
+const RUN_RE = /^(>+)(?!>|=(?!==))\s*/;
+
+// Returns the length of the leading ">" marker (including the spaces after it), or 0.
 export function runPrefix(text) {
-    return /^>{3,}\s*/.exec(text)?.[0].length ?? 0;
+    return RUN_RE.exec(text)?.[0].length ?? 0;
+}
+
+// Highlight level for a leading ">" marker: 0 (none), 1 (">"), 2 (">>"), or 3 (">>>"+).
+export function runLevel(text) {
+    const m = RUN_RE.exec(text);
+    return m ? Math.min(3, m[1].length) : 0;
 }
 
 // A title starting with "===" (or more "=") means we are waiting on something, e.g. "=== QA testing".
-// It may follow a ">>>" marker. Returns the length of both markers (including spaces), or 0.
+// It may follow a ">" / ">>" / ">>>" marker. Returns the length of both markers (including spaces), or 0.
 export function waitPrefix(text) {
     const run = runPrefix(text);
     const wait = /^={3,}\s*/.exec(text.slice(run))?.[0].length ?? 0;
