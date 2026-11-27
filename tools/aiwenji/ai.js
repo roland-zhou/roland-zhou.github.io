@@ -6,8 +6,8 @@
 import { DEFAULT_SPLIT_PROMPT, getApiToken, getProvider, resolveModel, uid } from './model.js';
 
 export const DEFAULT_ASK_INSTRUCTION =
-    '默认简短、直接地回答用户的问题，优先用几句话讲清核心答案，不主动补充大段背景、重复总结或过度展开。' +
-    '如果用户明确要求详细解释、完整步骤、多个例子或长篇内容，再按用户要求展开。';
+    '开门见山，先给答案。默认用 1–3 句话，只写回答问题所必需的内容。' +
+    '省去寒暄、复述和总结，除非有助于理解，否则不用标题或列表。用户要求详细内容时，按要求展开。';
 
 export const SPLIT_OUTPUT_FORMAT_INSTRUCTION = [
     '只输出 JSON 数组，不要输出任何解释文字，也不要用 Markdown 代码块包裹。',
