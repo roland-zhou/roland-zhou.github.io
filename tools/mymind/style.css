@@ -35,27 +35,47 @@
     --wait-calm-ink: #3d5f99;
     --wait-warm-bg: #fde3c2;
     --wait-warm-ink: #a4520a;
-    /* Running badges (">" .. ">>>>") and the tiered always-bright wash over their subtrees. */
+    /* Running badges (">" .. ">>>>", green) and alert badges ("!" .. "!!!!", red) with 4-tier subtree highlights. */
     --run-bg: #d3f5df;
     --run-ink: #18794a;
     --run-wash: rgba(46, 180, 105, .1);
     --run-ring: inset 0 0 0 0 transparent;
     --run-glow: 0 0 0 0 transparent;
-    --run-2-bg: #8de6b3;
-    --run-2-ink: #0c5c33;
-    --run-2-wash: rgba(34, 198, 106, .24);
-    --run-2-ring: inset 0 0 0 1px rgba(24, 158, 84, .26);
+    --run-2-bg: #96eab7;
+    --run-2-ink: #0d5e34;
+    --run-2-wash: rgba(34, 196, 106, .22);
+    --run-2-ring: inset 0 0 0 1px rgba(24, 158, 84, .24);
     --run-2-glow: 0 0 0 0 transparent;
-    --run-3-bg: #159c4e;
+    --run-3-bg: #1ba856;
     --run-3-ink: #fff;
-    --run-3-wash: rgba(24, 214, 108, .42);
-    --run-3-ring: inset 0 0 0 1.5px rgba(18, 156, 78, .55);
-    --run-3-glow: 0 0 10px rgba(24, 208, 106, .26);
-    --run-4-bg: #e03e45;
+    --run-3-wash: rgba(24, 212, 108, .36);
+    --run-3-ring: inset 0 0 0 1.5px rgba(18, 156, 78, .48);
+    --run-3-glow: 0 0 8px rgba(24, 208, 106, .22);
+    --run-4-bg: #0a873e;
     --run-4-ink: #fff;
-    --run-4-wash: rgba(242, 72, 78, .3);
-    --run-4-ring: inset 0 0 0 1.5px rgba(220, 48, 56, .62);
-    --run-4-glow: 0 0 12px rgba(242, 72, 78, .32);
+    --run-4-wash: rgba(12, 226, 108, .54);
+    --run-4-ring: inset 0 0 0 2px rgba(10, 148, 70, .72);
+    --run-4-glow: 0 0 14px rgba(16, 220, 106, .42);
+    --alert-bg: #fde0e1;
+    --alert-ink: #b4232c;
+    --alert-wash: rgba(232, 72, 78, .09);
+    --alert-ring: inset 0 0 0 0 transparent;
+    --alert-glow: 0 0 0 0 transparent;
+    --alert-2-bg: #fab4b7;
+    --alert-2-ink: #8f141c;
+    --alert-2-wash: rgba(238, 68, 76, .19);
+    --alert-2-ring: inset 0 0 0 1px rgba(215, 52, 60, .28);
+    --alert-2-glow: 0 0 0 0 transparent;
+    --alert-3-bg: #e03a42;
+    --alert-3-ink: #fff;
+    --alert-3-wash: rgba(242, 62, 70, .31);
+    --alert-3-ring: inset 0 0 0 1.5px rgba(215, 42, 50, .52);
+    --alert-3-glow: 0 0 10px rgba(242, 66, 74, .25);
+    --alert-4-bg: #b81822;
+    --alert-4-ink: #fff;
+    --alert-4-wash: rgba(246, 52, 62, .45);
+    --alert-4-ring: inset 0 0 0 2px rgba(204, 28, 38, .76);
+    --alert-4-glow: 0 0 16px rgba(244, 56, 66, .44);
     font: 15px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Segoe UI", "Microsoft YaHei", sans-serif;
     color: var(--ink);
     -webkit-font-smoothing: antialiased;
@@ -101,21 +121,41 @@
         --run-wash: rgba(70, 205, 130, .1);
         --run-ring: inset 0 0 0 0 transparent;
         --run-glow: 0 0 0 0 transparent;
-        --run-2-bg: rgba(56, 220, 128, .42);
-        --run-2-ink: #c2ffdc;
-        --run-2-wash: rgba(58, 218, 128, .22);
-        --run-2-ring: inset 0 0 0 1px rgba(84, 232, 148, .32);
+        --run-2-bg: rgba(56, 218, 128, .38);
+        --run-2-ink: #b8ffd5;
+        --run-2-wash: rgba(58, 216, 128, .2);
+        --run-2-ring: inset 0 0 0 1px rgba(84, 232, 148, .28);
         --run-2-glow: 0 0 0 0 transparent;
-        --run-3-bg: #2ed87a;
-        --run-3-ink: #052614;
-        --run-3-wash: rgba(50, 228, 130, .38);
-        --run-3-ring: inset 0 0 0 1.5px rgba(102, 248, 166, .65);
-        --run-3-glow: 0 0 12px rgba(56, 232, 136, .3);
-        --run-4-bg: #ff646b;
-        --run-4-ink: #240406;
-        --run-4-wash: rgba(255, 82, 92, .34);
-        --run-4-ring: inset 0 0 0 1.5px rgba(255, 118, 126, .7);
-        --run-4-glow: 0 0 14px rgba(255, 76, 86, .35);
+        --run-3-bg: #26c46c;
+        --run-3-ink: #052413;
+        --run-3-wash: rgba(48, 226, 128, .33);
+        --run-3-ring: inset 0 0 0 1.5px rgba(98, 245, 162, .56);
+        --run-3-glow: 0 0 10px rgba(56, 232, 136, .24);
+        --run-4-bg: #52f799;
+        --run-4-ink: #032110;
+        --run-4-wash: rgba(38, 238, 130, .46);
+        --run-4-ring: inset 0 0 0 2px rgba(120, 255, 180, .82);
+        --run-4-glow: 0 0 16px rgba(48, 242, 136, .45);
+        --alert-bg: rgba(245, 95, 102, .22);
+        --alert-ink: #ff9ca1;
+        --alert-wash: rgba(245, 95, 102, .11);
+        --alert-ring: inset 0 0 0 0 transparent;
+        --alert-glow: 0 0 0 0 transparent;
+        --alert-2-bg: rgba(250, 88, 96, .4);
+        --alert-2-ink: #ffc7ca;
+        --alert-2-wash: rgba(250, 86, 95, .21);
+        --alert-2-ring: inset 0 0 0 1px rgba(255, 118, 125, .32);
+        --alert-2-glow: 0 0 0 0 transparent;
+        --alert-3-bg: #ff5e66;
+        --alert-3-ink: #280406;
+        --alert-3-wash: rgba(255, 78, 88, .33);
+        --alert-3-ring: inset 0 0 0 1.5px rgba(255, 118, 126, .6);
+        --alert-3-glow: 0 0 10px rgba(255, 76, 86, .28);
+        --alert-4-bg: #ff8086;
+        --alert-4-ink: #240305;
+        --alert-4-wash: rgba(255, 68, 78, .48);
+        --alert-4-ring: inset 0 0 0 2px rgba(255, 134, 140, .84);
+        --alert-4-glow: 0 0 16px rgba(255, 68, 78, .48);
     }
 }
 
@@ -161,7 +201,7 @@ svg use { pointer-events: none; }
     background: var(--root-bg); border: 1.5px solid var(--root-border); border-radius: 12px;
     box-shadow: var(--shadow); align-items: center;
 }
-/* A running (">" .. ">>>>") node and its whole subtree get a tiered highlight. */
+/* A highlighted (">" .. ">>>>" or "!" .. "!!!!") node and its whole subtree get a tiered highlight. */
 .node.running:not(.d0, .drop-inside) {
     --node-wash: var(--run-wash);
     --node-ring: var(--run-ring);
@@ -173,9 +213,13 @@ svg use { pointer-events: none; }
 .node.running[data-run="2"]:not(.d0, .drop-inside) { --node-wash: var(--run-2-wash); --node-ring: var(--run-2-ring); --node-glow: var(--run-2-glow); }
 .node.running[data-run="3"]:not(.d0, .drop-inside) { --node-wash: var(--run-3-wash); --node-ring: var(--run-3-ring); --node-glow: var(--run-3-glow); }
 .node.running[data-run="4"]:not(.d0, .drop-inside) { --node-wash: var(--run-4-wash); --node-ring: var(--run-4-ring); --node-glow: var(--run-4-glow); }
+.node.running[data-run-kind="alert"]:not(.d0, .drop-inside) { --node-wash: var(--alert-wash); --node-ring: var(--alert-ring); --node-glow: var(--alert-glow); }
+.node.running[data-run-kind="alert"][data-run="2"]:not(.d0, .drop-inside) { --node-wash: var(--alert-2-wash); --node-ring: var(--alert-2-ring); --node-glow: var(--alert-2-glow); }
+.node.running[data-run-kind="alert"][data-run="3"]:not(.d0, .drop-inside) { --node-wash: var(--alert-3-wash); --node-ring: var(--alert-3-ring); --node-glow: var(--alert-3-glow); }
+.node.running[data-run-kind="alert"][data-run="4"]:not(.d0, .drop-inside) { --node-wash: var(--alert-4-wash); --node-ring: var(--alert-4-ring); --node-glow: var(--alert-4-glow); }
 /* One highlight for selection, focus and editing. Child nodes get a ring whose bottom edge is the branch line. */
 .node.selected { background: var(--accent-soft); box-shadow: inset 0 0 0 1.5px var(--accent); border-radius: 6px 6px 2px 2px; }
-/* Selected running nodes keep their highlight wash and outer glow, framed by the selection ring. */
+/* Selected highlighted nodes keep their wash and outer glow, framed by the selection ring. */
 .node.running.selected:not(.d0, .drop-inside) { background: var(--node-wash); box-shadow: inset 0 0 0 2px var(--accent), var(--node-glow); }
 .node.d0.selected { background: var(--root-bg); border-color: var(--accent); box-shadow: var(--shadow); border-radius: 12px; }
 .node.editing { cursor: text; user-select: text; -webkit-user-select: text; }
@@ -203,7 +247,7 @@ svg use { pointer-events: none; }
     color: color-mix(in srgb, var(--wait-warm-ink) var(--wait-mix, 0%), var(--wait-calm-ink));
 }
 .node.done .wait { background: var(--due-neutral-bg); color: var(--due-neutral-ink); }
-/* Running badge for a leading ">", ">>", ">>>" or ">>>>". */
+/* Highlight badge for a leading ">" .. ">>>>" (green) or "!" .. "!!!!" (red). */
 .node .run {
     --badge-bg: var(--run-bg); --badge-ink: var(--run-ink);
     display: inline-block; margin-right: .45em; padding: 0 .55em;
@@ -213,7 +257,11 @@ svg use { pointer-events: none; }
 .node .run[data-level="2"] { --badge-bg: var(--run-2-bg); --badge-ink: var(--run-2-ink); }
 .node .run[data-level="3"] { --badge-bg: var(--run-3-bg); --badge-ink: var(--run-3-ink); }
 .node .run[data-level="4"] { --badge-bg: var(--run-4-bg); --badge-ink: var(--run-4-ink); }
-.node.done .run { --badge-bg: var(--due-neutral-bg); --badge-ink: var(--due-neutral-ink); }
+.node .run[data-kind="alert"] { --badge-bg: var(--alert-bg); --badge-ink: var(--alert-ink); letter-spacing: .02em; }
+.node .run[data-kind="alert"][data-level="2"] { --badge-bg: var(--alert-2-bg); --badge-ink: var(--alert-2-ink); }
+.node .run[data-kind="alert"][data-level="3"] { --badge-bg: var(--alert-3-bg); --badge-ink: var(--alert-3-ink); }
+.node .run[data-kind="alert"][data-level="4"] { --badge-bg: var(--alert-4-bg); --badge-ink: var(--alert-4-ink); }
+.node.done .run[data-kind][data-level] { --badge-bg: var(--due-neutral-bg); --badge-ink: var(--due-neutral-ink); }
 /* The label, not the icon, sets the baseline so the pill lines up with the title text. */
 .hourglass { display: inline-block; width: 1.2em; height: 1.2em; margin-right: .2em; vertical-align: -.24em; overflow: visible; }
 .hourglass .glass { fill: color-mix(in srgb, currentColor 14%, transparent); stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }

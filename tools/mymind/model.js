@@ -348,29 +348,57 @@ export function dueStatus(due, now = new Date()) {
     return ahead === 0 ? { state: 'today', days: 0 } : { state: 'upcoming', days: ahead };
 }
 
-// A title starting with ">", ">>", ">>>" or ">>>>" (or more ">") is being worked on right now
-// with increasing highlight strength (levels 1..4), e.g. "> Write the report".
-// Avoid matching comparison operators like ">= 10" or ">>= 1", while still allowing ">=== wait".
+// Leading highlight markers with 4 tiers (levels 1..4):
+//   ">" .. ">>>>"  running (green), e.g. "> Write the report"
+//   "!" .. "!!!!"  important/alert (red), e.g. "!! Production bug"
+// Avoid matching comparison operators like ">= 10", ">>= 1", "!= 0", "!== 0", while still
+// allowing combinations with "===" (e.g. ">=== wait", "!=== wait").
 export const MAX_RUN_LEVEL = 4;
 const RUN_RE = /^(>+)(?!>|=(?!==))\s*/;
+const ALERT_RE = /^(!+)(?!!|=(?!==))\s*/;
 
-// Returns the length of the leading ">" marker (including the spaces after it), or 0.
+// Returns the length of a leading ">" marker (including trailing spaces), or 0.
 export function runPrefix(text) {
     return RUN_RE.exec(text)?.[0].length ?? 0;
 }
 
-// Highlight level for a leading ">" marker: 0 (none), 1 (">"), 2 (">>"), 3 (">>>"), or 4 (">>>>"+).
+// Highlight level for a leading ">" marker: 0 (none) or 1..4.
 export function runLevel(text) {
     const m = RUN_RE.exec(text);
     return m ? Math.min(MAX_RUN_LEVEL, m[1].length) : 0;
 }
 
+// Returns the length of a leading "!" marker (including trailing spaces), or 0.
+export function alertPrefix(text) {
+    return ALERT_RE.exec(text)?.[0].length ?? 0;
+}
+
+// Highlight level for a leading "!" marker: 0 (none) or 1..4.
+export function alertLevel(text) {
+    const m = ALERT_RE.exec(text);
+    return m ? Math.min(MAX_RUN_LEVEL, m[1].length) : 0;
+}
+
+// Parse either a leading ">" (run) or "!" (alert) marker into { kind, level, length }, or null.
+export function parseHighlight(text) {
+    const rm = RUN_RE.exec(text);
+    if (rm) return { kind: 'run', level: Math.min(MAX_RUN_LEVEL, rm[1].length), length: rm[0].length };
+    const am = ALERT_RE.exec(text);
+    if (am) return { kind: 'alert', level: Math.min(MAX_RUN_LEVEL, am[1].length), length: am[0].length };
+    return null;
+}
+
+// Length of any leading highlight marker (">" or "!"), or 0.
+export function highlightPrefix(text) {
+    return parseHighlight(text)?.length ?? 0;
+}
+
 // A title starting with "===" (or more "=") means we are waiting on something, e.g. "=== QA testing".
-// It may follow a ">" .. ">>>>" marker. Returns the length of both markers (including spaces), or 0.
+// It may follow a ">" or "!" marker. Returns the length of both markers (including spaces), or 0.
 export function waitPrefix(text) {
-    const run = runPrefix(text);
-    const wait = /^={3,}\s*/.exec(text.slice(run))?.[0].length ?? 0;
-    return wait && run + wait;
+    const hl = highlightPrefix(text);
+    const wait = /^={3,}\s*/.exec(text.slice(hl))?.[0].length ?? 0;
+    return wait && hl + wait;
 }
 
 // When a title is saved: a new "===" starts the clock, an existing one keeps its start time,
