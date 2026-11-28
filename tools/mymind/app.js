@@ -8,6 +8,7 @@ import { createCloudSync, formatSyncTime } from '../shared/cloud-sync.js';
 // Release changelog (newest first). Prepend a new entry on each user-facing update;
 // clients with an older stored version will see a one-line update toast on startup.
 const RELEASES = [
+    { version: '1.3.1', note: '在触屏设备上点击空白画布可取消选中节点' },
     { version: '1.3.0', note: '>>>> 调整为绿色最高亮，新增 ! ~ !!!! 四级红色高亮' },
     { version: '1.2.1', note: '新增 >>>> 四级红标高亮，选中高亮节点时保留底色' },
     { version: '1.2.0', note: '执行中标记扩展为 > / >> / >>> 三级高亮' },
@@ -33,6 +34,7 @@ try {
 const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 3;
 const MARGIN = 14;
+const TAP_SLOP = 6;              // pointer travel still counted as a tap, in px
 const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 const MOD = isMac ? '⌘' : 'Ctrl ';
 const supportsPlaintext = (() => {
@@ -1225,7 +1227,7 @@ canvas.addEventListener('pointerdown', event => {
     // Middle button or touch pans; the left button on empty canvas draws a selection box.
     if (event.button === 1 || (!el && event.pointerType === 'touch')) {
         event.preventDefault();
-        drag = { ...base, kind: 'pan', vx: view.x, vy: view.y };
+        drag = { ...base, kind: 'pan', vx: view.x, vy: view.y, tap: event.pointerType === 'touch' };
         return;
     }
     if (event.button !== 0) return;
@@ -1257,6 +1259,8 @@ window.addEventListener('pointermove', event => {
     const dx = event.clientX - drag.x0;
     const dy = event.clientY - drag.y0;
     if (drag.kind === 'pan') {
+        // A finger that never really travels is a tap on the background, which clears the selection.
+        if (drag.tap && Math.hypot(dx, dy) > TAP_SLOP) drag.tap = false;
         canvas.classList.add('panning');
         view.x = drag.vx + dx;
         view.y = drag.vy + dy;
@@ -1318,7 +1322,14 @@ function endDrag(event, cancelled) {
     const current = drag;
     drag = null;
     canvas.classList.remove('panning', 'busy');
-    if (current.kind === 'pan') return;
+    if (current.kind === 'pan') {
+        // Touch has no marquee, so a tap on the empty background clears the selection here.
+        if (!cancelled && current.tap) {
+            select(null);
+            notePanel.hidden = true;
+        }
+        return;
+    }
     if (current.kind === 'marquee') {
         marquee.hidden = true;
         if (current.moved) recordTrail();
