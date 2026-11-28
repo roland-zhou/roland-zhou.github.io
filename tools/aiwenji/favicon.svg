@@ -1,16 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 112 112">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <defs>
-    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#fffdfa"/>
-      <stop offset="100%" stop-color="#f0e8dc"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#30333b"/>
+      <stop offset="1" stop-color="#16171b"/>
     </linearGradient>
+    <mask id="cut">
+      <rect width="64" height="64" fill="#fff"/>
+      <circle cx="44" cy="44" r="10.4" fill="#000"/>
+    </mask>
   </defs>
-  <rect width="112" height="112" rx="26" fill="#f6f3ee"/>
-  <rect x="28" y="23" width="58" height="68" rx="15" fill="#23211e" fill-opacity="0.12"/>
-  <rect x="23" y="18" width="58" height="68" rx="15" fill="url(#paper)" stroke="#d9cfbf" stroke-width="2"/>
-  <path d="M38.5 43.5 C38.5 36.9 43.9 32.5 51.6 32.5 C59.1 32.5 64.5 36.7 64.5 43.1 C64.5 48.2 61.8 51.1 57.1 53.7 C53.3 55.8 52.3 57.5 52.3 61.7"
-        fill="none" stroke="#23211e" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="52.4" cy="72.5" r="4.1" fill="#23211e"/>
-  <circle cx="79" cy="80" r="12" fill="#4aad57"/>
-  <path d="M73 80 L77 84 L85 75" fill="none" stroke="#fffdfa" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+  <rect x="1" y="1" width="62" height="62" rx="13" fill="none" stroke="#fff" stroke-opacity=".14" stroke-width="2"/>
+  <g mask="url(#cut)">
+    <rect x="20" y="14.5" width="30" height="35" rx="7.5" fill="#4f95f0" transform="rotate(8 35 32)"/>
+    <rect x="12" y="12" width="32" height="38" rx="8" fill="#fff"/>
+  </g>
+  <path d="M22.2 26.2C22.2 22.6 24.8 20.4 28 20.4C31.2 20.4 33.6 22.4 33.6 25.4C33.6 27.9 32.1 29.3 29.8 30.6C28.2 31.5 27.7 32.4 27.7 34.4" fill="none" stroke="#202228" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="27.7" cy="40.7" r="2.3" fill="#202228"/>
+  <circle cx="44" cy="44" r="8.4" fill="#3fb874"/>
+  <path d="M40.3 44.3L42.9 46.9L48.1 41.3" fill="none" stroke="#fff" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

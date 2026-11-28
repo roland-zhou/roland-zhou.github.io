@@ -1,7 +1,7 @@
 // ai问记 service worker: offline app-shell caching (follows MyMind & MyList).
 
 const CACHE_PREFIX = 'aiwenji-shell-';
-const CACHE_NAME = `${CACHE_PREFIX}1`;
+const CACHE_NAME = `${CACHE_PREFIX}2`;
 const HOME = self.registration.scope;
 const INDEX = new URL('./index.html', HOME).href;
 
