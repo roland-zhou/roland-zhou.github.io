@@ -298,11 +298,12 @@ const dueTime = due => due.timed ? ` ${pad2(due.hour)}:${pad2(due.minute)}` : ''
 function paintDue(badge, due, { done = false, now = new Date() } = {}) {
     const { state, days, hours } = dueStatus(due, now);
     const date = dueDate(due, now);
-    const label = dueDayLabel(date, now);
-    const time = dueTime(due);
     const md = `${pad2(due.month)}.${pad2(due.day)}`;
+    const relativeDay = dueDayLabel(date, now);
+    const label = relativeDay ? `${relativeDay} ${md}` : md;
+    const time = dueTime(due);
 
-    badge.textContent = `${due.repeat ? '↻ ' : ''}${label ?? md}${time}`;
+    badge.textContent = `${due.repeat ? '↻ ' : ''}${label}${time}`;
     const exact = `${md} 周${'日一二三四五六'[date.getDay()]}${time}`;
 
     let strength = 1;
