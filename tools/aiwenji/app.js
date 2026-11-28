@@ -8,9 +8,11 @@ import {
     REVIEW_CATEGORIES,
     ReviewQueue,
     SM2OSRScheduler,
+    STORAGE_KEY,
     VERSION_KEY,
     applyFrontSuffix,
     clearAskDraft,
+    compareVersions,
     exportApiTokens,
     getApiToken,
     getProvider,
@@ -28,7 +30,14 @@ import { CardSplitter, askAI, testAIConnection } from './ai.js?v=1';
 import { markdownPlainText, renderMarkdown } from './markdown.js?v=1';
 import { createCloudSync, formatSyncTime } from '../shared/cloud-sync.js?v=4';
 
-const APP_VERSION = '1.0.0';
+// Release changelog (newest first). Prepend a new entry on each user-facing update;
+// clients with an older stored version will see a one-line update toast on startup.
+const RELEASES = [
+    { version: '1.1.0', note: '翻译更精简，只给译文，每个说法配一个例句' },
+    { version: '1.0.1', note: '更新 DeepSeek 模型列表' },
+    { version: '1.0.0', note: '首个公开版本' },
+];
+const APP_VERSION = RELEASES[0].version;
 const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
 const store = new AiwenjiStore();
@@ -2172,12 +2181,29 @@ setInterval(() => {
     }
 }, 60000);
 
+/* ---------- Version Update Toast (Follows MyMind) ---------- */
+
+function checkVersionUpdate(hadExistingData) {
+    let seen = null;
+    try { seen = localStorage.getItem(VERSION_KEY); } catch { return; }
+    const upgraded = seen ? compareVersions(APP_VERSION, seen) > 0 : hadExistingData;
+    if (!seen || upgraded) {
+        try { localStorage.setItem(VERSION_KEY, APP_VERSION); } catch { /* not critical */ }
+    }
+    if (upgraded) {
+        const note = RELEASES[0]?.note;
+        showToast(note ? `已更新至 v${APP_VERSION}：${note}` : `已更新至 v${APP_VERSION}`, { duration: 4500 });
+    }
+}
+
 /* ---------- Bootstrap & Service Worker Registration (Follows MyMind & MyList) ---------- */
 
-try { localStorage.setItem(VERSION_KEY, APP_VERSION); } catch { /* ignore */ }
+let hadExistingData = false;
+try { hadExistingData = localStorage.getItem(STORAGE_KEY) !== null; } catch { /* storage unavailable */ }
 render();
 handleQueryEntry();
 sync.start();
+checkVersionUpdate(hadExistingData);
 
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register(new URL('./sw.js', import.meta.url))

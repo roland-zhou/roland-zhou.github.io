@@ -22,6 +22,17 @@ export function uid() {
     });
 }
 
+export function compareVersions(a, b) {
+    const pa = String(a || '').replace(/^v/i, '').split('.').map(n => Number.parseInt(n, 10) || 0);
+    const pb = String(b || '').replace(/^v/i, '').split('.').map(n => Number.parseInt(n, 10) || 0);
+    const len = Math.max(pa.length, pb.length);
+    for (let i = 0; i < len; i++) {
+        const diff = (pa[i] || 0) - (pb[i] || 0);
+        if (diff !== 0) return diff;
+    }
+    return 0;
+}
+
 function pad2(n) {
     return String(n).padStart(2, '0');
 }
